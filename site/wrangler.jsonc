@@ -1,8 +1,16 @@
 {
   "name": "ismynbncooked",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-03-01",
-  // Static site deployment — Astro builds to dist/
+  // Static assets served from Astro build output
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "r2_buckets": [
+    {
+      "binding": "DATA_BUCKET",
+      "bucket_name": "ismynbncooked-data"
+    }
+  ]
 }

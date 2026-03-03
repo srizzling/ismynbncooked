@@ -4,7 +4,10 @@
   "scripts": {
     "dev": "pnpm --filter ismynbncooked-site dev",
     "build": "pnpm --filter ismynbncooked-site build",
-    "preview": "pnpm --filter ismynbncooked-site preview"
+    "preview": "pnpm --filter ismynbncooked-site preview",
+    "deploy:site": "pnpm --filter ismynbncooked-site deploy",
+    "deploy:workers": "pnpm --filter 'ismynbncooked-*-sync' exec wrangler deploy",
+    "deploy:all": "pnpm deploy:workers && pnpm deploy:site"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild", "sharp", "workerd"]
