@@ -14,8 +14,29 @@ env:
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
 jobs:
+  setup-infra:
+    name: Ensure R2 Bucket
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create R2 bucket (if not exists)
+        run: npx wrangler r2 bucket create ismynbncooked-data 2>&1 || true
+
   deploy-workers:
     name: Deploy Workers
+    needs: setup-infra
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -47,7 +68,7 @@ jobs:
   deploy-site:
     name: Deploy Site
     runs-on: ubuntu-latest
-    needs: deploy-workers
+    needs: [setup-infra, deploy-workers]
     steps:
       - uses: actions/checkout@v4
 
