@@ -16,10 +16,22 @@ interface TierData {
   plans: { cisUrl: string; typicalEveningSpeed: number | null }[];
 }
 
+interface BatchResult {
+  data: {
+    extract?: Record<string, unknown>;
+    metadata?: { sourceURL?: string };
+  }[];
+}
+
 const SPEED_TIERS = [25, 50, 100, 250, 500, 750, 1000, 2000];
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_ATTEMPTS = 200; // ~10 minutes max
 
 // Schema for extracting contract terms + speed from a CIS PDF
+const CIS_EXTRACT_PROMPT =
+  'Extract the key details from this Australian NBN internet Critical Information Summary (CIS) document. Focus on: 1) The minimum contract term or lock-in period, 2) Any early termination or cancellation fees, 3) The notice period required to cancel, 4) The typical evening download speed (also called "typical busy period download speed", measured 7pm-11pm). These are Australian telecommunications CIS documents required by the ACMA.';
+
 const CIS_EXTRACT_SCHEMA = {
   type: 'object',
   properties: {
@@ -44,6 +56,9 @@ const CIS_EXTRACT_SCHEMA = {
 };
 
 // Schema for finding the actual CIS PDF link on a landing page
+const CIS_PDF_LINK_PROMPT =
+  'This is a page listing Critical Information Summary (CIS) PDF documents for an Australian internet provider. Find the URL of the NBN residential fixed-line CIS PDF. Look for links that mention "nbn", "residential", "CIS", "FTTP", "HFC", "FTTC", or "FTTN". Do NOT pick mobile SIM CIS or fixed wireless CIS.';
+
 const CIS_PDF_LINK_SCHEMA = {
   type: 'object',
   properties: {
@@ -55,39 +70,81 @@ const CIS_PDF_LINK_SCHEMA = {
   required: ['pdfUrl'],
 };
 
-async function firecrawlScrape(
+/**
+ * Submit a batch scrape job to Firecrawl
+ */
+async function submitBatch(
   apiKey: string,
-  url: string,
+  urls: string[],
   prompt: string,
   schema: Record<string, unknown>
-): Promise<any | null> {
+): Promise<string | null> {
+  if (urls.length === 0) return null;
+
   try {
-    const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const res = await fetch('https://api.firecrawl.dev/v1/batch/scrape', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url,
+        urls,
         formats: ['extract'],
         extract: { prompt, schema },
       }),
     });
     if (!res.ok) {
-      console.log(`[terms-sync] Firecrawl ${res.status} for ${url}`);
+      console.log(`[terms-sync] Batch submit failed: ${res.status}`);
       return null;
     }
     const data: any = await res.json();
-    return data?.data?.extract ?? null;
+    console.log(`[terms-sync] Batch submitted: ${data.id} (${urls.length} URLs)`);
+    return data.id ?? null;
   } catch (e) {
-    console.log(`[terms-sync] Firecrawl failed for ${url}:`, e);
+    console.error('[terms-sync] Batch submit error:', e);
     return null;
   }
 }
 
 /**
- * Check if a URL points to a PDF or an HTML page
+ * Poll a batch job until completion
+ */
+async function pollBatch(apiKey: string, batchId: string): Promise<BatchResult | null> {
+  for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+    try {
+      const res = await fetch(`https://api.firecrawl.dev/v1/batch/scrape/${batchId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (!res.ok) {
+        console.log(`[terms-sync] Batch poll ${res.status} for ${batchId}`);
+        return null;
+      }
+      const data: any = await res.json();
+
+      if (data.status === 'completed') {
+        console.log(`[terms-sync] Batch ${batchId} completed: ${data.completed}/${data.total}`);
+        return data as BatchResult;
+      }
+      if (data.status === 'failed') {
+        console.log(`[terms-sync] Batch ${batchId} failed`);
+        return null;
+      }
+
+      // Still processing
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    } catch (e) {
+      console.error(`[terms-sync] Batch poll error for ${batchId}:`, e);
+      return null;
+    }
+  }
+
+  console.log(`[terms-sync] Batch ${batchId} timed out after polling`);
+  return null;
+}
+
+/**
+ * Resolve content types for URLs in parallel
  */
 async function resolveContentType(url: string): Promise<'pdf' | 'html'> {
   if (url.toLowerCase().endsWith('.pdf')) return 'pdf';
@@ -107,82 +164,18 @@ async function resolveContentType(url: string): Promise<'pdf' | 'html'> {
   return 'html';
 }
 
-/**
- * Extract terms from a CIS URL. Handles both:
- * - Direct PDF links (extracts terms directly)
- * - HTML landing pages (finds the PDF link first, then extracts)
- */
-async function extractTermsFromCIS(
-  cisUrl: string,
-  apiKey: string
-): Promise<(Omit<TermsEntry, 'extractedAt'>) | null> {
-  try {
-    const contentType = await resolveContentType(cisUrl);
-    let targetUrl = cisUrl;
-
-    if (contentType === 'html') {
-      // Landing page — find the actual NBN residential CIS PDF
-      console.log(`[terms-sync] ${cisUrl} is HTML, searching for PDF link...`);
-      const extracted = await firecrawlScrape(
-        apiKey,
-        cisUrl,
-        'This is a page listing Critical Information Summary (CIS) PDF documents for an Australian internet provider. Find the URL of the NBN residential fixed-line CIS PDF. Look for links that mention "nbn", "residential", "CIS", "FTTP", "HFC", "FTTC", or "FTTN". Do NOT pick mobile SIM CIS or fixed wireless CIS.',
-        CIS_PDF_LINK_SCHEMA
-      );
-
-      if (!extracted?.pdfUrl) {
-        console.log(`[terms-sync] Could not find PDF link on ${cisUrl}`);
-        return null;
-      }
-
-      targetUrl = extracted.pdfUrl;
-      console.log(`[terms-sync] Found PDF: ${targetUrl}`);
-
-      // Rate limit between the two Firecrawl calls
-      await delay(2000);
-    }
-
-    // Extract terms + speed from the PDF
-    const terms = await firecrawlScrape(
-      apiKey,
-      targetUrl,
-      'Extract the key details from this Australian NBN internet Critical Information Summary (CIS) document. Focus on: 1) The minimum contract term or lock-in period, 2) Any early termination or cancellation fees, 3) The notice period required to cancel, 4) The typical evening download speed (also called "typical busy period download speed", measured 7pm-11pm). These are Australian telecommunications CIS documents required by the ACMA.',
-      CIS_EXTRACT_SCHEMA
-    );
-
-    if (!terms) return null;
-
-    // Parse evening speed — ensure it's a valid number
-    let eveningSpeed: number | null = null;
-    if (terms.typicalEveningSpeed != null) {
-      const parsed = typeof terms.typicalEveningSpeed === 'number'
-        ? terms.typicalEveningSpeed
-        : parseFloat(String(terms.typicalEveningSpeed));
-      if (!isNaN(parsed) && parsed > 0 && parsed <= 10000) {
-        eveningSpeed = Math.round(parsed * 10) / 10;
-      }
-    }
-
-    return {
-      minimumTerm: terms.minimumTerm || null,
-      cancellationFees: terms.cancellationFees || null,
-      noticePeriod: terms.noticePeriod || null,
-      typicalEveningSpeed: eveningSpeed,
-      resolvedUrl: targetUrl !== cisUrl ? targetUrl : undefined,
-    };
-  } catch (err) {
-    console.error(`[terms-sync] Failed for ${cisUrl}:`, err);
-    return null;
+function parseEveningSpeed(raw: unknown): number | null {
+  if (raw == null) return null;
+  const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw));
+  if (!isNaN(parsed) && parsed > 0 && parsed <= 10000) {
+    return Math.round(parsed * 10) / 10;
   }
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return null;
 }
 
 export default {
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext, maxUrls?: number): Promise<void> {
-    console.log('[terms-sync] Starting terms extraction...');
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    console.log('[terms-sync] Starting batch terms extraction...');
 
     // Load existing terms
     let terms: Record<string, TermsEntry> = {};
@@ -206,32 +199,129 @@ export default {
 
     console.log(`[terms-sync] Found ${cisUrls.size} unique CIS URLs`);
 
-    // Extract terms for URLs not yet processed or older than 30 days
-    // Limit per run to avoid waitUntil() timeouts on HTTP triggers
-    const limit = maxUrls ?? cisUrls.size; // No limit on cron, limited on HTTP
+    // Filter to URLs that need extraction (new or older than 30 days)
     const now = Date.now();
-    let extracted = 0;
+    const staleUrls: string[] = [];
     let skipped = 0;
 
     for (const url of cisUrls) {
-      if (extracted >= limit) break;
-
       const existing = terms[url];
       if (existing && now - new Date(existing.extractedAt).getTime() < THIRTY_DAYS_MS) {
         skipped++;
-        continue;
+      } else {
+        staleUrls.push(url);
       }
+    }
 
-      console.log(`[terms-sync] Extracting: ${url}`);
-      const result = await extractTermsFromCIS(url, env.FIRECRAWL_API_KEY);
+    console.log(`[terms-sync] ${staleUrls.length} URLs need extraction, ${skipped} still fresh`);
 
-      if (result) {
-        terms[url] = { ...result, extractedAt: new Date().toISOString() };
+    if (staleUrls.length === 0) {
+      console.log('[terms-sync] Nothing to do');
+      return;
+    }
+
+    // Step 1: Resolve content types in parallel
+    console.log('[terms-sync] Resolving content types...');
+    const typeResults = await Promise.allSettled(
+      staleUrls.map(async (url) => ({ url, type: await resolveContentType(url) }))
+    );
+
+    const pdfUrls: string[] = [];
+    const htmlUrls: string[] = [];
+
+    for (const result of typeResults) {
+      if (result.status === 'fulfilled') {
+        if (result.value.type === 'pdf') {
+          pdfUrls.push(result.value.url);
+        } else {
+          htmlUrls.push(result.value.url);
+        }
+      }
+    }
+
+    console.log(`[terms-sync] ${pdfUrls.length} PDFs, ${htmlUrls.length} HTML pages`);
+
+    // Step 2: Submit batches in parallel
+    // - PDFs: extract terms directly
+    // - HTML: find PDF links first
+    const [pdfBatchId, htmlBatchId] = await Promise.all([
+      submitBatch(env.FIRECRAWL_API_KEY, pdfUrls, CIS_EXTRACT_PROMPT, CIS_EXTRACT_SCHEMA),
+      submitBatch(env.FIRECRAWL_API_KEY, htmlUrls, CIS_PDF_LINK_PROMPT, CIS_PDF_LINK_SCHEMA),
+    ]);
+
+    // Step 3: Poll both batches in parallel
+    const [pdfResults, htmlResults] = await Promise.all([
+      pdfBatchId ? pollBatch(env.FIRECRAWL_API_KEY, pdfBatchId) : null,
+      htmlBatchId ? pollBatch(env.FIRECRAWL_API_KEY, htmlBatchId) : null,
+    ]);
+
+    // Step 4: Process direct PDF results
+    let extracted = 0;
+
+    if (pdfResults?.data) {
+      for (const item of pdfResults.data) {
+        const sourceUrl = item.metadata?.sourceURL;
+        if (!sourceUrl || !item.extract) continue;
+        const ext = item.extract as any;
+        terms[sourceUrl] = {
+          minimumTerm: ext.minimumTerm || null,
+          cancellationFees: ext.cancellationFees || null,
+          noticePeriod: ext.noticePeriod || null,
+          typicalEveningSpeed: parseEveningSpeed(ext.typicalEveningSpeed),
+          extractedAt: new Date().toISOString(),
+        };
         extracted++;
       }
+    }
 
-      // Rate limit: 2 seconds between CIS URLs
-      await delay(2000);
+    // Step 5: Resolve HTML → PDF links, then batch extract terms from those PDFs
+    const resolvedPdfUrls: { cisUrl: string; pdfUrl: string }[] = [];
+
+    if (htmlResults?.data) {
+      for (const item of htmlResults.data) {
+        const sourceUrl = item.metadata?.sourceURL;
+        const ext = item.extract as any;
+        if (!sourceUrl || !ext?.pdfUrl) continue;
+        resolvedPdfUrls.push({ cisUrl: sourceUrl, pdfUrl: ext.pdfUrl });
+      }
+    }
+
+    if (resolvedPdfUrls.length > 0) {
+      console.log(`[terms-sync] Resolved ${resolvedPdfUrls.length} HTML → PDF links, extracting terms...`);
+
+      const resolvedBatchId = await submitBatch(
+        env.FIRECRAWL_API_KEY,
+        resolvedPdfUrls.map((r) => r.pdfUrl),
+        CIS_EXTRACT_PROMPT,
+        CIS_EXTRACT_SCHEMA
+      );
+
+      if (resolvedBatchId) {
+        const resolvedResults = await pollBatch(env.FIRECRAWL_API_KEY, resolvedBatchId);
+
+        if (resolvedResults?.data) {
+          // Map resolved PDF URLs back to original CIS URLs
+          const pdfToCis = new Map(resolvedPdfUrls.map((r) => [r.pdfUrl, r.cisUrl]));
+
+          for (const item of resolvedResults.data) {
+            const pdfUrl = item.metadata?.sourceURL;
+            if (!pdfUrl || !item.extract) continue;
+            const cisUrl = pdfToCis.get(pdfUrl);
+            if (!cisUrl) continue;
+
+            const ext = item.extract as any;
+            terms[cisUrl] = {
+              minimumTerm: ext.minimumTerm || null,
+              cancellationFees: ext.cancellationFees || null,
+              noticePeriod: ext.noticePeriod || null,
+              typicalEveningSpeed: parseEveningSpeed(ext.typicalEveningSpeed),
+              extractedAt: new Date().toISOString(),
+              resolvedUrl: pdfUrl,
+            };
+            extracted++;
+          }
+        }
+      }
     }
 
     console.log(`[terms-sync] Extracted ${extracted} new, skipped ${skipped} fresh`);
@@ -310,8 +400,7 @@ export default {
       }
     }
 
-    // Limit to 5 URLs per HTTP trigger to stay within waitUntil() time limits
-    ctx.waitUntil(this.scheduled({} as ScheduledEvent, env, ctx, 5));
-    return new Response('Terms sync triggered (batch of 5)', { status: 202 });
+    ctx.waitUntil(this.scheduled({} as ScheduledEvent, env, ctx));
+    return new Response('Terms sync triggered (batch)', { status: 202 });
   },
 } satisfies ExportedHandler<Env>;
