@@ -215,6 +215,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                 Eve Speed{sortIndicator('typicalEveningSpeed')}
               </th>
               <th class="px-4 py-3 font-medium hidden lg:table-cell">Contract</th>
+              <th class="px-4 py-3 font-medium hidden lg:table-cell">Notice</th>
             </tr>
           </thead>
           <tbody>
@@ -295,12 +296,15 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                         ? 'No lock-in'
                         : `${plan.contractLength} mo`}
                     </td>
+                    <td class="px-4 py-3 text-neutral-400 hidden lg:table-cell">
+                      {plan.noticePeriod ?? '—'}
+                    </td>
                   </tr>
 
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr key={`${plan.id}-detail`} class="border-b border-surface-border/50 bg-surface-raised/30">
-                      <td colSpan={7} class="px-4 py-4">
+                      <td colSpan={8} class="px-4 py-4">
                         <div class="flex flex-col sm:flex-row gap-6">
                           {/* Plan details + comparison */}
                           <div class="flex-1 space-y-3">
@@ -362,6 +366,12 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                                 <div class="flex justify-between">
                                   <span class="text-neutral-500">Cancellation</span>
                                   <span class="text-white">{plan.cancellationFees}</span>
+                                </div>
+                              )}
+                              {plan.noticePeriod && (
+                                <div class="flex justify-between">
+                                  <span class="text-neutral-500">Notice period</span>
+                                  <span class="text-white">{plan.noticePeriod}</span>
                                 </div>
                               )}
                             </div>

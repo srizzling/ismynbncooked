@@ -212,16 +212,6 @@ export default {
       httpMetadata: { contentType: 'application/json' },
     });
 
-    // Trigger CF Pages rebuild
-    if (env.DEPLOY_HOOK_URL) {
-      try {
-        await fetch(env.DEPLOY_HOOK_URL, { method: 'POST' });
-        console.log('[price-sync] Triggered Pages rebuild');
-      } catch (err) {
-        console.error('[price-sync] Failed to trigger rebuild:', err);
-      }
-    }
-
     console.log('[price-sync] Sync complete');
   },
 

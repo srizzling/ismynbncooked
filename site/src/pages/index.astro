@@ -4,45 +4,49 @@ import Hero from '../components/Hero.astro';
 import TierCard from '../components/TierCard.astro';
 import PlanChecker from '../components/PlanChecker';
 import DataFreshness from '../components/DataFreshness';
-import { SPEED_TIERS, TIER_LABELS, type SpeedTier } from '../lib/types';
+import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type MetaData } from '../lib/types';
 import { getFixtureTierSummaries } from '../lib/data';
 
-// At build time, try to load summary data from R2
-// Falls back to fixture data when R2 is not configured
 let tierSummaries: Record<SpeedTier, { cheapest: number; average: number; planCount: number }>;
+let meta: MetaData | null = null;
 
-const dataUrl = import.meta.env.PUBLIC_DATA_URL;
-if (dataUrl) {
-  try {
-    const results = await Promise.allSettled(
-      SPEED_TIERS.map(async (speed) => {
-        const res = await fetch(`${dataUrl}/plans/nbn-${speed}.json`);
-        if (!res.ok) throw new Error(`${res.status}`);
-        const data = await res.json();
-        return [speed, { cheapest: data.cheapest, average: data.average, planCount: data.planCount }] as const;
-      })
-    );
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
 
-    const fixture = getFixtureTierSummaries();
-    tierSummaries = { ...fixture };
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        const [speed, summary] = result.value;
-        tierSummaries[speed] = summary;
-      }
+  const results = await Promise.allSettled(
+    SPEED_TIERS.map(async (speed) => {
+      const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
+      if (!obj) throw new Error(`No data for nbn-${speed}`);
+      const data = await obj.json() as { cheapest: number; average: number; planCount: number };
+      return [speed, { cheapest: data.cheapest, average: data.average, planCount: data.planCount }] as const;
+    })
+  );
+
+  const fixture = getFixtureTierSummaries();
+  tierSummaries = { ...fixture };
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      const [speed, summary] = result.value;
+      tierSummaries[speed] = summary;
     }
-  } catch {
-    tierSummaries = getFixtureTierSummaries();
   }
-} else {
+
+  // Read meta for freshness display
+  try {
+    const metaObj = await bucket.get('data/meta.json');
+    if (metaObj) meta = await metaObj.json() as MetaData;
+  } catch {}
+} catch {
   tierSummaries = getFixtureTierSummaries();
 }
 ---
 
 <Base title="Is My NBN Cooked? — Australian NBN Price Comparison">
-  <div class="flex justify-end mb-2">
-    <DataFreshness client:load />
-  </div>
+  {meta && (
+    <div class="flex justify-end mb-2">
+      <DataFreshness client:load meta={meta} />
+    </div>
+  )}
   <Hero />
 
   <section class="mb-12">

@@ -1,28 +1,4 @@
-import type { TierData, TierHistory, ComparisonsData, MetaData, SpeedTier, SPEED_TIERS } from './types';
-
-const DATA_BASE_URL = import.meta.env.PUBLIC_DATA_URL ?? '/data';
-
-async function fetchJSON<T>(path: string): Promise<T> {
-  const res = await fetch(`${DATA_BASE_URL}/${path}`);
-  if (!res.ok) throw new Error(`Failed to fetch ${path}: ${res.status}`);
-  return res.json();
-}
-
-export function fetchTierData(speed: SpeedTier): Promise<TierData> {
-  return fetchJSON(`plans/nbn-${speed}.json`);
-}
-
-export function fetchTierHistory(speed: SpeedTier): Promise<TierHistory> {
-  return fetchJSON(`history/nbn-${speed}.json`);
-}
-
-export function fetchComparisons(): Promise<ComparisonsData> {
-  return fetchJSON('comparisons.json');
-}
-
-export function fetchMeta(): Promise<MetaData> {
-  return fetchJSON('meta.json');
-}
+import type { SpeedTier } from './types';
 
 // Fixture data for development / when R2 is not available
 export function getFixtureTierSummaries(): Record<SpeedTier, { cheapest: number; average: number; planCount: number }> {

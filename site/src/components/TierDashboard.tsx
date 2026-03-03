@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
-import type { SpeedTier, TierData, TierHistory, ComparisonsData, CookedResult, AUState, UserPlan } from '../lib/types';
-import { SPEED_TIERS, TIER_LABELS } from '../lib/types';
-import { fetchTierData, fetchTierHistory, fetchComparisons } from '../lib/data';
+import type { SpeedTier, TierData, TierHistory, ComparisonsData, CookedResult, UserPlan } from '../lib/types';
+import { SPEED_TIERS } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit } from '../lib/storage';
 import CookedRating from './CookedRating';
@@ -12,6 +11,9 @@ import PriceChart from './PriceChart';
 interface Props {
   speed: SpeedTier;
   label: string;
+  tierData: TierData;
+  history: TierHistory | null;
+  comparisons: ComparisonsData | null;
 }
 
 // Find the user's most recently saved plan from another tier
@@ -28,103 +30,39 @@ function findOtherTierPlan(currentSpeed: SpeedTier): { speed: SpeedTier; plan: U
   return best;
 }
 
-export default function TierDashboard({ speed, label }: Props) {
-  const [tierData, setTierData] = useState<TierData | null>(null);
-  const [history, setHistory] = useState<TierHistory | null>(null);
-  const [comparisons, setComparisons] = useState<ComparisonsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function TierDashboard({ speed, label, tierData, history, comparisons }: Props) {
   const [cookedResult, setCookedResult] = useState<CookedResult | null>(null);
   const [otherTierPlan, setOtherTierPlan] = useState<{ speed: SpeedTier; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const [tier, hist, comp] = await Promise.allSettled([
-          fetchTierData(speed),
-          fetchTierHistory(speed),
-          fetchComparisons(),
-        ]);
-
-        if (cancelled) return;
-
-        if (tier.status === 'fulfilled') {
-          setTierData(tier.value);
-          // Check for existing user plan on this tier
-          const existing = getUserPlan(speed);
-          if (existing) {
-            setCookedResult(calculateCooked(existing.price, tier.value.cheapest));
-          }
-          // Check for plans on other tiers (for cross-tier context)
-          if (!existing) {
-            setOtherTierPlan(findOtherTierPlan(speed));
-          }
-          // Price change detection
-          const lastVisit = getTierVisit(speed);
-          if (lastVisit) {
-            const diff = lastVisit.cheapest - tier.value.cheapest;
-            if (Math.abs(diff) >= 1) {
-              setPriceChange({
-                dropped: diff > 0,
-                amount: Math.abs(diff),
-                since: new Date(lastVisit.visitedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }),
-              });
-            }
-          }
-          // Save this visit
-          saveTierVisit(speed, tier.value.cheapest);
-        }
-        if (hist.status === 'fulfilled') setHistory(hist.value);
-        if (comp.status === 'fulfilled') setComparisons(comp.value);
-
-        if (tier.status === 'rejected') {
-          setError('Failed to load plan data. Try refreshing.');
-        }
-      } catch {
-        if (!cancelled) setError('Something went wrong loading data.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    // Check for existing user plan on this tier
+    const existing = getUserPlan(speed);
+    if (existing) {
+      setCookedResult(calculateCooked(existing.price, tierData.cheapest));
+    } else {
+      // Check for plans on other tiers (for cross-tier context)
+      setOtherTierPlan(findOtherTierPlan(speed));
     }
 
-    load();
-    return () => { cancelled = true; };
-  }, [speed]);
+    // Price change detection
+    const lastVisit = getTierVisit(speed);
+    if (lastVisit) {
+      const diff = lastVisit.cheapest - tierData.cheapest;
+      if (Math.abs(diff) >= 1) {
+        setPriceChange({
+          dropped: diff > 0,
+          amount: Math.abs(diff),
+          since: new Date(lastVisit.visitedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }),
+        });
+      }
+    }
+    // Save this visit
+    saveTierVisit(speed, tierData.cheapest);
+  }, [speed, tierData.cheapest]);
 
   function handleCookedChange(result: CookedResult | null) {
     setCookedResult(result);
-  }
-
-  if (loading) {
-    return (
-      <div class="space-y-6">
-        <div class="bg-surface-raised border border-surface-border rounded-2xl p-8 text-center">
-          <div class="animate-pulse space-y-4">
-            <div class="h-6 bg-surface-border rounded w-48 mx-auto" />
-            <div class="h-12 bg-surface-border rounded w-64 mx-auto" />
-            <div class="h-4 bg-surface-border rounded w-80 mx-auto" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !tierData) {
-    return (
-      <div class="bg-surface-raised border border-cooked-red/50 rounded-2xl p-8 text-center">
-        <p class="text-cooked-red font-display font-bold text-xl mb-2">Data's cooked</p>
-        <p class="text-neutral-400">{error ?? 'Failed to load plan data.'}</p>
-        <button
-          onClick={() => window.location.reload()}
-          class="mt-4 bg-accent hover:bg-accent/90 text-white font-medium rounded-lg px-5 py-2 transition-colors"
-        >
-          Try again
-        </button>
-      </div>
-    );
   }
 
   const cheapest = tierData.cheapest;

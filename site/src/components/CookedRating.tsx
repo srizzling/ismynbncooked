@@ -17,6 +17,14 @@ function getPromoRemaining(plan: { promoMonthsLeft?: number; savedAt: string }):
   return Math.max(0, plan.promoMonthsLeft - monthsSince);
 }
 
+/** Compute the user's effective annual rate considering remaining promo months */
+function computeEffectiveRate(price: number, fullPrice: number | undefined, promoMonthsLeft: number): number {
+  if (!fullPrice || promoMonthsLeft <= 0) return fullPrice ?? price;
+  const promoMonths = Math.min(promoMonthsLeft, 12);
+  const fullMonths = 12 - promoMonths;
+  return (promoMonths * price + fullMonths * fullPrice) / 12;
+}
+
 export default function CookedRating({ speed, cheapestPrice, cheapestEffective, onCookedChange }: Props) {
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
@@ -26,6 +34,10 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
   const [userFullPrice, setUserFullPrice] = useState<number | null>(null);
   const [userPromoLeft, setUserPromoLeft] = useState<number>(0);
 
+  // The baseline to compare against: cheapest effective rate if available and lower
+  const baseline = cheapestEffective && cheapestEffective < cheapestPrice
+    ? cheapestEffective : cheapestPrice;
+
   useEffect(() => {
     const existing = getUserPlan(speed);
     if (existing) {
@@ -33,30 +45,29 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
       setProvider(existing.provider);
       setHasExisting(true);
 
-      // Track promo info
       if (existing.fullPrice && existing.promoMonthsLeft) {
         const remaining = getPromoRemaining(existing);
         setUserFullPrice(existing.fullPrice);
         setUserPromoLeft(remaining);
-        // If promo expired, cooked rating should use full price
-        const effectivePrice = remaining > 0 ? existing.price : existing.fullPrice;
-        const r = calculateCooked(effectivePrice, cheapestPrice);
+        // Compute the user's effective annual rate
+        const userEffective = computeEffectiveRate(existing.price, existing.fullPrice, remaining);
+        const r = calculateCooked(userEffective, baseline);
         setResult(r);
         onCookedChange?.(r);
       } else {
-        const r = calculateCooked(existing.price, cheapestPrice);
+        const r = calculateCooked(existing.price, baseline);
         setResult(r);
         onCookedChange?.(r);
       }
     }
-  }, [speed, cheapestPrice]);
+  }, [speed, cheapestPrice, baseline]);
 
   function handleSubmit(e: Event) {
     e.preventDefault();
     const p = parseFloat(price);
     if (isNaN(p) || p <= 0) return;
     saveUserPlan(speed, p, provider);
-    const r = calculateCooked(p, cheapestPrice);
+    const r = calculateCooked(p, baseline);
     setResult(r);
     onCookedChange?.(r);
     setHasExisting(true);
@@ -87,19 +98,12 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
         {result.monthlySavings > 0 ? (
           <div class="mt-4 space-y-1">
             <p class="text-lg text-neutral-300">
-              You're paying <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest plan
+              You're paying <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest available plan
             </p>
             <p class="text-neutral-400">
               That's <span class="font-medium text-white">${result.monthlySavings.toFixed(2)}/mo</span> or{' '}
               <span class="font-medium text-white">${result.yearlySavings.toFixed(0)}/yr</span> you could save
             </p>
-            {cheapestEffective && cheapestEffective < cheapestPrice && (
-              <p class="text-neutral-500 text-sm mt-2">
-                With promos, the cheapest first-year effective rate is{' '}
-                <span class="text-neutral-300">${cheapestEffective.toFixed(2)}/mo</span> — saving you{' '}
-                <span class="text-neutral-300">${((currentPrice - cheapestEffective) * 12).toFixed(0)}/yr</span>
-              </p>
-            )}
           </div>
         ) : (
           <p class="mt-4 text-lg text-neutral-300">
@@ -116,10 +120,10 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
             <div class="text-neutral-400 mt-1">
               You're paying <span class="text-white">${currentPrice.toFixed(2)}/mo</span> now, but it jumps to{' '}
               <span class="text-white">${userFullPrice.toFixed(2)}/mo</span> after.
-              {userFullPrice > cheapestPrice && (
+              {userFullPrice > baseline && (
                 <span class="block mt-1">
                   At full price, you'd be paying{' '}
-                  <span class="text-cooked-red font-medium">${(userFullPrice - cheapestPrice).toFixed(2)}/mo more</span> than the cheapest plan.
+                  <span class="text-cooked-red font-medium">${(userFullPrice - baseline).toFixed(2)}/mo more</span> than the cheapest available plan.
                   Time to churn?
                 </span>
               )}
@@ -135,8 +139,8 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
             </div>
             <div class="text-neutral-400 mt-1">
               You're now paying the full price of <span class="text-white">${userFullPrice.toFixed(2)}/mo</span>.
-              {userFullPrice > cheapestPrice && (
-                <span> The cheapest plan is <span class="text-accent">${cheapestPrice.toFixed(2)}/mo</span>. Definitely time to churn.</span>
+              {userFullPrice > baseline && (
+                <span> The cheapest available plan is <span class="text-accent">${baseline.toFixed(2)}/mo</span>. Definitely time to churn.</span>
               )}
             </div>
           </div>

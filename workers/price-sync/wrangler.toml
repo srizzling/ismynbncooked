@@ -11,4 +11,3 @@ bucket_name = "ismynbncooked-data"
 
 [vars]
 # NETBARGAINS_API_KEY set via `wrangler secret put NETBARGAINS_API_KEY`
-# DEPLOY_HOOK_URL set via `wrangler secret put DEPLOY_HOOK_URL`

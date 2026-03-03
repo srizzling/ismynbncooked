@@ -1,21 +1,31 @@
 ---
 import Base from '../layouts/Base.astro';
 import TierDashboard from '../components/TierDashboard';
-import { SPEED_TIERS, TIER_LABELS, type SpeedTier } from '../lib/types';
+import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type TierData, type TierHistory, type ComparisonsData } from '../lib/types';
 
-export function getStaticPaths() {
-  return SPEED_TIERS.map((speed) => ({
-    params: { tier: `nbn-${speed}` },
-    props: { speed },
-  }));
-}
+// Extract speed from the tier param (e.g. "nbn-100" → 100)
+const { tier } = Astro.params;
+const speedMatch = tier?.match(/^nbn-(\d+)$/);
+if (!speedMatch) return Astro.redirect('/');
+const speed = Number(speedMatch[1]) as SpeedTier;
+if (!SPEED_TIERS.includes(speed)) return Astro.redirect('/');
 
-interface Props {
-  speed: SpeedTier;
-}
-
-const { speed } = Astro.props;
 const label = TIER_LABELS[speed];
+
+const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+
+// Read tier data, history, and comparisons from R2 in parallel
+const [tierResult, historyResult, comparisonsResult] = await Promise.allSettled([
+  bucket.get(`data/plans/nbn-${speed}.json`).then(obj => obj ? obj.json() as Promise<TierData> : null),
+  bucket.get(`data/history/nbn-${speed}.json`).then(obj => obj ? obj.json() as Promise<TierHistory> : null),
+  bucket.get('data/comparisons.json').then(obj => obj ? obj.json() as Promise<ComparisonsData> : null),
+]);
+
+const tierData = tierResult.status === 'fulfilled' ? tierResult.value : null;
+const history = historyResult.status === 'fulfilled' ? historyResult.value : null;
+const comparisons = comparisonsResult.status === 'fulfilled' ? comparisonsResult.value : null;
+
+if (!tierData) return Astro.redirect('/');
 ---
 
 <Base title={`${label} Plans — Is My NBN Cooked?`}>
@@ -30,5 +40,12 @@ const label = TIER_LABELS[speed];
     <p class="text-neutral-400 mt-2">{label}</p>
   </section>
 
-  <TierDashboard client:load speed={speed} label={label} />
+  <TierDashboard
+    client:load
+    speed={speed}
+    label={label}
+    tierData={tierData}
+    history={history}
+    comparisons={comparisons}
+  />
 </Base>

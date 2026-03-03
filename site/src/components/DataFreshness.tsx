@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'preact/hooks';
 import type { MetaData } from '../lib/types';
-import { fetchMeta } from '../lib/data';
+
+interface Props {
+  meta: MetaData;
+}
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -12,14 +15,13 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-export default function DataFreshness() {
-  const [meta, setMeta] = useState<MetaData | null>(null);
-
+export default function DataFreshness({ meta }: Props) {
+  // Force re-render every minute to keep timeAgo fresh
+  const [, setTick] = useState(0);
   useEffect(() => {
-    fetchMeta().then(setMeta).catch(() => {});
+    const id = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(id);
   }, []);
-
-  if (!meta) return null;
 
   return (
     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">

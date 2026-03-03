@@ -1,7 +1,6 @@
 export interface Env {
   DATA_BUCKET: R2Bucket;
   NETBARGAINS_API_KEY: string;
-  DEPLOY_HOOK_URL?: string;
 }
 
 export const SPEED_TIERS = [25, 50, 100, 250, 500, 750, 1000, 2000] as const;
