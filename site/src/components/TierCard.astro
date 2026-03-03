@@ -1,0 +1,67 @@
+---
+import type { SpeedTier } from '../lib/types';
+
+interface Props {
+  speed: SpeedTier;
+  cheapest: number;
+  average: number;
+  planCount: number;
+}
+
+const { speed, cheapest, average, planCount } = Astro.props;
+
+const tierNames: Record<SpeedTier, string> = {
+  25: 'NBN 25',
+  50: 'NBN 50',
+  100: 'NBN 100',
+  250: 'NBN 250',
+  500: 'NBN 500',
+  750: 'NBN 750',
+  1000: 'NBN 1000',
+  2000: 'NBN 2000',
+};
+
+const speedDesc: Record<SpeedTier, string> = {
+  25: '25/5 Mbps',
+  50: '50/20 Mbps',
+  100: '100/20 Mbps',
+  250: '250/25 Mbps',
+  500: '500/50 Mbps',
+  750: '750/50 Mbps',
+  1000: '1000/50 Mbps',
+  2000: '2000/200 Mbps',
+};
+---
+
+<a
+  href={`/nbn-${speed}`}
+  class="block bg-surface-raised border border-surface-border rounded-2xl p-6 hover:border-accent transition-colors group"
+>
+  <h3 class="font-display font-bold text-2xl group-hover:text-accent transition-colors">
+    {tierNames[speed]}
+  </h3>
+  <p class="text-sm text-neutral-500 mt-1">{speedDesc[speed]}</p>
+
+  <div class="mt-4 space-y-2">
+    <div class="flex justify-between items-baseline">
+      <span class="text-neutral-400 text-sm">From</span>
+      <span class="text-2xl font-display font-bold tabular-nums">
+        ${cheapest.toFixed(0)}<span class="text-sm text-neutral-500">/mo</span>
+      </span>
+    </div>
+    <div class="flex justify-between items-baseline">
+      <span class="text-neutral-400 text-sm">Average</span>
+      <span class="text-lg tabular-nums text-neutral-300">
+        ${average.toFixed(0)}<span class="text-sm text-neutral-500">/mo</span>
+      </span>
+    </div>
+    <div class="flex justify-between items-baseline">
+      <span class="text-neutral-400 text-sm">Plans</span>
+      <span class="text-neutral-300 tabular-nums">{planCount}</span>
+    </div>
+  </div>
+
+  <div class="mt-4 text-sm text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+    Compare plans &rarr;
+  </div>
+</a>
