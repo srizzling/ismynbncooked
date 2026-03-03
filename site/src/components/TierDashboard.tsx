@@ -35,11 +35,16 @@ export default function TierDashboard({ speed, label, tierData, history, compari
   const [otherTierPlan, setOtherTierPlan] = useState<{ speed: SpeedTier; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
 
+  const cheapestEffective = tierData.plans.length
+    ? Math.min(...tierData.plans.map(p => p.effectiveMonthly))
+    : tierData.cheapest;
+  const baseline = cheapestEffective < tierData.cheapest ? cheapestEffective : tierData.cheapest;
+
   useEffect(() => {
     // Check for existing user plan on this tier
     const existing = getUserPlan(speed);
     if (existing) {
-      setCookedResult(calculateCooked(existing.price, tierData.cheapest));
+      setCookedResult(calculateCooked(existing.price, baseline));
     } else {
       // Check for plans on other tiers (for cross-tier context)
       setOtherTierPlan(findOtherTierPlan(speed));
@@ -59,16 +64,13 @@ export default function TierDashboard({ speed, label, tierData, history, compari
     }
     // Save this visit
     saveTierVisit(speed, tierData.cheapest);
-  }, [speed, tierData.cheapest]);
+  }, [speed, baseline]);
 
   function handleCookedChange(result: CookedResult | null) {
     setCookedResult(result);
   }
 
   const cheapest = tierData.cheapest;
-  const cheapestEffective = tierData.plans.length
-    ? Math.min(...tierData.plans.map(p => p.effectiveMonthly))
-    : cheapest;
   const userPlan = getUserPlan(speed);
 
   return (
