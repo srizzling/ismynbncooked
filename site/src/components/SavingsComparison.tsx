@@ -5,6 +5,12 @@ interface Props {
   monthlySavings: number;
   units: Record<string, ComparisonUnit>;
   userState?: AUState | null;
+  /** When user is on a promo, show breakdown by period */
+  promo?: {
+    promoSavings: number;     // savings/mo during promo (promoPrice - cheapest)
+    fullPriceSavings: number; // savings/mo after promo (fullPrice - cheapest)
+    promoMonthsLeft: number;
+  };
 }
 
 function SourceTooltip({ unit }: { unit: ComparisonUnit }) {
@@ -55,7 +61,33 @@ function SourceTooltipInline({ unit }: { unit: ComparisonUnit }) {
   );
 }
 
-export default function SavingsComparison({ monthlySavings, units, userState }: Props) {
+function SavingsGrid({ savings, units, label }: { savings: number; units: Record<string, ComparisonUnit>; label?: string }) {
+  const conversions = convertSavings(savings, units);
+  const monthlyItems = conversions.filter((c) => c.unit.per === 'month');
+
+  return (
+    <div>
+      {label && <div class="text-sm text-neutral-400 mb-3">{label}</div>}
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {monthlyItems.map((c) => (
+          <div key={c.key} class="text-center group relative cursor-default">
+            <div class="text-3xl mb-1">{c.unit.icon}</div>
+            <div class="text-2xl font-display font-bold tabular-nums">
+              {c.monthly.toFixed(1)}
+            </div>
+            <div class="text-sm text-neutral-400">{c.unit.label}/mo</div>
+            <div class="text-xs text-neutral-500 mt-1">
+              ({c.yearly.toFixed(0)}/yr)
+            </div>
+            <SourceTooltip unit={c.unit} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function SavingsComparison({ monthlySavings, units, userState, promo }: Props) {
   if (monthlySavings <= 0) return null;
 
   // Filter units: show non-state units + only the PT unit matching user's state
@@ -70,35 +102,47 @@ export default function SavingsComparison({ monthlySavings, units, userState }: 
     }
   }
 
+  const hasPromoBreakdown = promo && promo.promoMonthsLeft > 0 && promo.fullPriceSavings > promo.promoSavings;
+
+  // Compute total items for house deposit calculation
   const conversions = convertSavings(monthlySavings, filteredUnits);
-  const monthlyItems = conversions.filter((c) => c.unit.per === 'month');
   const totalItems = conversions.filter((c) => c.unit.per === 'total');
 
   return (
     <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8">
       <h3 class="font-display font-bold text-xl mb-1">What you're throwing away</h3>
-      <p class="text-neutral-400 text-sm mb-6">
-        Every month, you could be spending ${monthlySavings.toFixed(2)} on...
-      </p>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {monthlyItems.map((c) => (
-          <div
-            key={c.key}
-            class="text-center group relative cursor-default"
-          >
-            <div class="text-3xl mb-1">{c.unit.icon}</div>
-            <div class="text-2xl font-display font-bold tabular-nums">
-              {c.monthly.toFixed(1)}
-            </div>
-            <div class="text-sm text-neutral-400">{c.unit.label}/mo</div>
-            <div class="text-xs text-neutral-500 mt-1">
-              ({c.yearly.toFixed(0)}/yr)
-            </div>
-            <SourceTooltip unit={c.unit} />
+      {hasPromoBreakdown ? (
+        <div class="space-y-6">
+          <p class="text-neutral-400 text-sm">
+            You're overpaying <span class="text-white font-medium">${promo.promoSavings.toFixed(2)}/mo</span> now, jumping to{' '}
+            <span class="text-white font-medium">${promo.fullPriceSavings.toFixed(2)}/mo</span> in {promo.promoMonthsLeft} month{promo.promoMonthsLeft !== 1 ? 's' : ''}
+          </p>
+
+          {promo.promoSavings > 0 && (
+            <SavingsGrid
+              savings={promo.promoSavings}
+              units={filteredUnits}
+              label={`Now (${promo.promoMonthsLeft}mo left on promo) — $${promo.promoSavings.toFixed(2)}/mo wasted on...`}
+            />
+          )}
+
+          <div class={promo.promoSavings > 0 ? 'pt-4 border-t border-surface-border' : ''}>
+            <SavingsGrid
+              savings={promo.fullPriceSavings}
+              units={filteredUnits}
+              label={`After promo ends — $${promo.fullPriceSavings.toFixed(2)}/mo wasted on...`}
+            />
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <>
+          <p class="text-neutral-400 text-sm mb-6">
+            Every month, you could be spending ${monthlySavings.toFixed(2)} on...
+          </p>
+          <SavingsGrid savings={monthlySavings} units={filteredUnits} />
+        </>
+      )}
 
       {totalItems.length > 0 && (
         <div class="mt-6 pt-6 border-t border-surface-border">

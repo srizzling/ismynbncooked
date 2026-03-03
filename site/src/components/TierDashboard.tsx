@@ -146,13 +146,29 @@ export default function TierDashboard({ speed, label, tierData, history, compari
       />
 
       {/* Savings Comparison — only shows when user has savings */}
-      {cookedResult && cookedResult.monthlySavings > 0 && comparisons && (
-        <SavingsComparison
-          monthlySavings={cookedResult.monthlySavings}
-          units={comparisons.units}
-          userState={getUserState()}
-        />
-      )}
+      {cookedResult && cookedResult.monthlySavings > 0 && comparisons && (() => {
+        // Compute promo breakdown if user is on a promo
+        let promoInfo: { promoSavings: number; fullPriceSavings: number; promoMonthsLeft: number } | undefined;
+        if (userPlan?.fullPrice && userPlan?.promoMonthsLeft) {
+          const monthsSince = Math.floor((Date.now() - new Date(userPlan.savedAt).getTime()) / (30 * 24 * 60 * 60 * 1000));
+          const remaining = Math.max(0, userPlan.promoMonthsLeft - monthsSince);
+          if (remaining > 0) {
+            promoInfo = {
+              promoSavings: Math.max(0, userPlan.price - baseline),
+              fullPriceSavings: Math.max(0, userPlan.fullPrice - baseline),
+              promoMonthsLeft: remaining,
+            };
+          }
+        }
+        return (
+          <SavingsComparison
+            monthlySavings={cookedResult.monthlySavings}
+            units={comparisons.units}
+            userState={getUserState()}
+            promo={promoInfo}
+          />
+        );
+      })()}
 
       {/* Plan Table */}
       <div>
