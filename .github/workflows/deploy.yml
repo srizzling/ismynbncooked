@@ -87,6 +87,6 @@ jobs:
         working-directory: site
         run: pnpm build
 
-      - name: Deploy to Cloudflare
+      - name: Deploy to Cloudflare Pages
         working-directory: site
-        run: pnpm exec wrangler deploy
+        run: pnpm exec wrangler pages deploy dist/

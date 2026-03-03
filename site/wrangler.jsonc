@@ -1,11 +1,7 @@
 {
   "name": "ismynbncooked",
-  "main": "./dist/_worker.js",
   "compatibility_date": "2026-03-01",
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS"
-  },
+  "pages_build_output_dir": "./dist",
   "r2_buckets": [
     {
       "binding": "DATA_BUCKET",
