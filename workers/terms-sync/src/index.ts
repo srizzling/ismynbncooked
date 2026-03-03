@@ -181,7 +181,7 @@ function delay(ms: number): Promise<void> {
 }
 
 export default {
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext, maxUrls?: number): Promise<void> {
     console.log('[terms-sync] Starting terms extraction...');
 
     // Load existing terms
@@ -207,11 +207,15 @@ export default {
     console.log(`[terms-sync] Found ${cisUrls.size} unique CIS URLs`);
 
     // Extract terms for URLs not yet processed or older than 30 days
+    // Limit per run to avoid waitUntil() timeouts on HTTP triggers
+    const limit = maxUrls ?? cisUrls.size; // No limit on cron, limited on HTTP
     const now = Date.now();
     let extracted = 0;
     let skipped = 0;
 
     for (const url of cisUrls) {
+      if (extracted >= limit) break;
+
       const existing = terms[url];
       if (existing && now - new Date(existing.extractedAt).getTime() < THIRTY_DAYS_MS) {
         skipped++;
@@ -306,7 +310,8 @@ export default {
       }
     }
 
-    ctx.waitUntil(this.scheduled({} as ScheduledEvent, env, ctx));
-    return new Response('Terms sync triggered', { status: 202 });
+    // Limit to 5 URLs per HTTP trigger to stay within waitUntil() time limits
+    ctx.waitUntil(this.scheduled({} as ScheduledEvent, env, ctx, 5));
+    return new Response('Terms sync triggered (batch of 5)', { status: 202 });
   },
 } satisfies ExportedHandler<Env>;
