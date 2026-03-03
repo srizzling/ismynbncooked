@@ -1,0 +1,53 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Find out if you're getting ripped off on your NBN plan. Compare prices across every Australian ISP." } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+
+    <link rel="preload" href="/fonts/ClashDisplay-Bold.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/GeneralSans-Regular.woff2" as="font" type="font/woff2" crossorigin />
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body class="min-h-screen">
+    <main class="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+      <slot />
+    </main>
+    <footer class="max-w-6xl mx-auto px-4 py-8 border-t border-surface-border text-neutral-500 text-sm space-y-3">
+      <p>
+        Data sourced from <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a>.
+        Prices, availability, and plan details may be out of date, inaccurate, or wrong.
+        Always check the provider's website before signing up. This site does not guarantee plan
+        availability and is <span class="text-neutral-300">not financial advice</span>.
+      </p>
+      <p>
+        This site is <span class="text-neutral-300 font-medium">not associated with any NBN provider, RSP, or NBN Co</span>.
+        It's just built by a bloke who's trying to buy a house and reckons everyone's paying too much for internet.
+      </p>
+      <p>
+        This site will <span class="text-neutral-300 font-medium">never run ads</span> and I don't accept donations.
+        If you want to support someone, chuck a few bucks at
+        <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a> —
+        the legends who actually maintain the plan data.
+      </p>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>

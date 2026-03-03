@@ -1,0 +1,71 @@
+---
+import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
+import TierCard from '../components/TierCard.astro';
+import PlanChecker from '../components/PlanChecker';
+import DataFreshness from '../components/DataFreshness';
+import { SPEED_TIERS, TIER_LABELS, type SpeedTier } from '../lib/types';
+import { getFixtureTierSummaries } from '../lib/data';
+
+// At build time, try to load summary data from R2
+// Falls back to fixture data when R2 is not configured
+let tierSummaries: Record<SpeedTier, { cheapest: number; average: number; planCount: number }>;
+
+const dataUrl = import.meta.env.PUBLIC_DATA_URL;
+if (dataUrl) {
+  try {
+    const results = await Promise.allSettled(
+      SPEED_TIERS.map(async (speed) => {
+        const res = await fetch(`${dataUrl}/plans/nbn-${speed}.json`);
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        return [speed, { cheapest: data.cheapest, average: data.average, planCount: data.planCount }] as const;
+      })
+    );
+
+    const fixture = getFixtureTierSummaries();
+    tierSummaries = { ...fixture };
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const [speed, summary] = result.value;
+        tierSummaries[speed] = summary;
+      }
+    }
+  } catch {
+    tierSummaries = getFixtureTierSummaries();
+  }
+} else {
+  tierSummaries = getFixtureTierSummaries();
+}
+---
+
+<Base title="Is My NBN Cooked? — Australian NBN Price Comparison">
+  <div class="flex justify-end mb-2">
+    <DataFreshness client:load />
+  </div>
+  <Hero />
+
+  <section class="mb-12">
+    <PlanChecker client:load />
+  </section>
+
+  <section>
+    <h2 class="font-display font-bold text-2xl mb-4">Or browse by speed tier</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {SPEED_TIERS.map((speed) => (
+        <TierCard
+          speed={speed}
+          cheapest={tierSummaries[speed].cheapest}
+          average={tierSummaries[speed].average}
+          planCount={tierSummaries[speed].planCount}
+        />
+      ))}
+    </div>
+  </section>
+
+  <section class="mt-12 text-center">
+    <p class="text-neutral-500 text-sm">
+      Prices updated daily. All plans are month-to-month unless noted.
+    </p>
+  </section>
+</Base>
