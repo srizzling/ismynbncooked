@@ -5,6 +5,7 @@ dist/
 .dev.vars
 *.log
 .DS_Store
+.direnv/
 
 # Dev fixture data (fetched from R2 in production)
 site/public/data/
