@@ -17,7 +17,7 @@ export default {
 
     // Serve R2 data at /data/*
     if (url.pathname.startsWith('/data/')) {
-      const key = url.pathname.slice('/data/'.length);
+      const key = url.pathname.slice(1); // R2 keys include the "data/" prefix
       if (!key) {
         return new Response('Not found', { status: 404 });
       }
