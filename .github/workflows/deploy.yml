@@ -1,0 +1,71 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  deploy-workers:
+    name: Deploy Workers
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        worker:
+          - name: price-sync
+            path: workers/price-sync
+          - name: terms-sync
+            path: workers/terms-sync
+          - name: prices-sync
+            path: workers/prices-sync
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Deploy ${{ matrix.worker.name }}
+        working-directory: ${{ matrix.worker.path }}
+        run: pnpm exec wrangler deploy
+
+  deploy-site:
+    name: Deploy Site
+    runs-on: ubuntu-latest
+    needs: deploy-workers
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build Astro site
+        working-directory: site
+        run: pnpm build
+
+      - name: Deploy to Cloudflare
+        working-directory: site
+        run: pnpm exec wrangler deploy
