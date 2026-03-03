@@ -1,0 +1,12 @@
+{
+  "name": "ismynbncooked",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter ismynbncooked-site dev",
+    "build": "pnpm --filter ismynbncooked-site build",
+    "preview": "pnpm --filter ismynbncooked-site preview"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "sharp", "workerd"]
+  }
+}

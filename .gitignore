@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+
+# Dev fixture data (fetched from R2 in production)
+site/public/data/
+
+# Migration script output
+scripts/output/
