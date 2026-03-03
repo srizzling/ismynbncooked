@@ -1,0 +1,13 @@
+name = "ismynbncooked-terms-sync"
+main = "src/index.ts"
+compatibility_date = "2026-03-01"
+
+[triggers]
+crons = ["0 8 * * 0"]
+
+[[r2_buckets]]
+binding = "DATA_BUCKET"
+bucket_name = "ismynbncooked-data"
+
+[vars]
+# FIRECRAWL_API_KEY set via `wrangler secret put FIRECRAWL_API_KEY`
