@@ -4,11 +4,14 @@ import type { SpeedTier } from '../lib/types';
 interface Props {
   speed: SpeedTier;
   cheapest: number;
+  cheapestEffective?: number;
   average: number;
   planCount: number;
 }
 
-const { speed, cheapest, average, planCount } = Astro.props;
+const { speed, cheapest, cheapestEffective, average, planCount } = Astro.props;
+const displayPrice = cheapestEffective && cheapestEffective < cheapest ? cheapestEffective : cheapest;
+const hasPromo = cheapestEffective != null && cheapestEffective < cheapest;
 
 const tierNames: Record<SpeedTier, string> = {
   25: 'NBN 25',
@@ -46,7 +49,8 @@ const speedDesc: Record<SpeedTier, string> = {
     <div class="flex justify-between items-baseline">
       <span class="text-neutral-400 text-sm">From</span>
       <span class="text-2xl font-display font-bold tabular-nums">
-        ${cheapest.toFixed(0)}<span class="text-sm text-neutral-500">/mo</span>
+        ${displayPrice.toFixed(0)}<span class="text-sm text-neutral-500">/mo</span>
+        {hasPromo && <span class="text-xs text-accent ml-1">promo</span>}
       </span>
     </div>
     <div class="flex justify-between items-baseline">

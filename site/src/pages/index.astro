@@ -7,7 +7,9 @@ import DataFreshness from '../components/DataFreshness';
 import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type MetaData } from '../lib/types';
 import { getFixtureTierSummaries } from '../lib/data';
 
-let tierSummaries: Record<SpeedTier, { cheapest: number; average: number; planCount: number }>;
+import type { TierData } from '../lib/types';
+
+let tierSummaries: Record<SpeedTier, { cheapest: number; cheapestEffective: number; average: number; planCount: number }>;
 let meta: MetaData | null = null;
 
 try {
@@ -17,8 +19,16 @@ try {
     SPEED_TIERS.map(async (speed) => {
       const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
       if (!obj) throw new Error(`No data for nbn-${speed}`);
-      const data = await obj.json() as { cheapest: number; average: number; planCount: number };
-      return [speed, { cheapest: data.cheapest, average: data.average, planCount: data.planCount }] as const;
+      const data = await obj.json() as TierData;
+      const cheapestEffective = data.plans.length
+        ? Math.min(...data.plans.map(p => p.effectiveMonthly))
+        : data.cheapest;
+      return [speed, {
+        cheapest: data.cheapest,
+        cheapestEffective: Math.min(data.cheapest, cheapestEffective),
+        average: data.average,
+        planCount: data.planCount,
+      }] as const;
     })
   );
 
@@ -60,6 +70,7 @@ try {
         <TierCard
           speed={speed}
           cheapest={tierSummaries[speed].cheapest}
+          cheapestEffective={tierSummaries[speed].cheapestEffective}
           average={tierSummaries[speed].average}
           planCount={tierSummaries[speed].planCount}
         />
