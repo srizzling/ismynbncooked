@@ -1,0 +1,8 @@
+{
+  "name": "ismynbncooked",
+  "compatibility_date": "2026-03-01",
+  // Static site deployment — Astro builds to dist/
+  "assets": {
+    "directory": "./dist"
+  }
+}
