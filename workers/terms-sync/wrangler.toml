@@ -9,5 +9,12 @@ crons = ["0 8 * * SUN"]
 binding = "DATA_BUCKET"
 bucket_name = "ismynbncooked-data"
 
-[vars]
-# FIRECRAWL_API_KEY set via `wrangler secret put FIRECRAWL_API_KEY`
+[[queues.producers]]
+binding = "TERMS_QUEUE"
+queue = "ismynbncooked-terms"
+
+[[queues.consumers]]
+queue = "ismynbncooked-terms"
+max_batch_size = 1
+max_concurrency = 1
+max_retries = 2

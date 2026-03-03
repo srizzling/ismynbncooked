@@ -147,7 +147,24 @@ export default function SavingsComparison({ monthlySavings, units, userState, pr
       {totalItems.length > 0 && (
         <div class="mt-6 pt-6 border-t border-surface-border">
           {totalItems.map((c) => {
-            const yearlySavings = monthlySavings * 12;
+            // For promo users: first year has mixed savings, then full-price savings after
+            let yearlySavings: number;
+            let depositNote: string | null = null;
+
+            if (hasPromoBreakdown) {
+              const promoMonths = Math.min(promo.promoMonthsLeft, 12);
+              const fullMonths = 12 - promoMonths;
+              const firstYearSavings = promoMonths * promo.promoSavings + fullMonths * promo.fullPriceSavings;
+              const ongoingSavings = promo.fullPriceSavings * 12;
+              // Use ongoing rate for the deposit calc since the promo period is short
+              yearlySavings = ongoingSavings;
+              if (firstYearSavings !== ongoingSavings) {
+                depositNote = `$${firstYearSavings.toFixed(0)} in year 1, then $${ongoingSavings.toFixed(0)}/yr after`;
+              }
+            } else {
+              yearlySavings = monthlySavings * 12;
+            }
+
             const yearsToDeposit = yearlySavings > 0 ? c.unit.price / yearlySavings : Infinity;
 
             if (yearsToDeposit < 1) {
@@ -160,6 +177,7 @@ export default function SavingsComparison({ monthlySavings, units, userState, pr
                     <span class="font-bold text-white">{months} months</span>
                     {c.unit.note ? ` (${c.unit.note})` : ''}
                   </p>
+                  {depositNote && <p class="text-neutral-500 text-xs mt-1">{depositNote}</p>}
                   <SourceTooltipInline unit={c.unit} />
                 </div>
               );
@@ -175,6 +193,7 @@ export default function SavingsComparison({ monthlySavings, units, userState, pr
                   </span>
                   {c.unit.note ? ` (${c.unit.note})` : ''}
                 </p>
+                {depositNote && <p class="text-neutral-500 text-xs mt-1">{depositNote}</p>}
                 <SourceTooltipInline unit={c.unit} />
               </div>
             );

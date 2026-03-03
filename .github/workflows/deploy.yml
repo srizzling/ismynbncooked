@@ -37,6 +37,9 @@ jobs:
       - name: Create Pages project (if not exists)
         run: npx wrangler pages project create ismynbncooked --production-branch main 2>&1 || true
 
+      - name: Create Queue (if not exists)
+        run: npx wrangler queues create ismynbncooked-terms 2>&1 || true
+
   deploy-workers:
     name: Deploy Workers
     needs: setup-infra
