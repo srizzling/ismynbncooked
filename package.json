@@ -10,6 +10,9 @@
     "deploy:all": "pnpm deploy:workers && pnpm deploy:site"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp", "workerd"]
+    "onlyBuiltDependencies": ["esbuild", "sharp", "workerd"],
+    "overrides": {
+      "undici": ">=7.18.2"
+    }
   }
 }
