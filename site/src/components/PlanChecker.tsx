@@ -64,7 +64,7 @@ export default function PlanChecker() {
       <p class="text-neutral-400 text-sm mb-6">
         {hasExisting
           ? 'Your details are saved below. Update them or check a different speed tier.'
-          : "Tell us what you're paying and we'll tell you if you're cooked"}
+          : "Tell us what you're paying and we'll tell you if you're getting rorted"}
       </p>
 
       <form onSubmit={handleSubmit} class="space-y-4">
@@ -201,7 +201,7 @@ export default function PlanChecker() {
           type="submit"
           class="w-full sm:w-auto bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
         >
-          Am I cooked?
+          Am I getting rorted?
         </button>
       </form>
     </div>
