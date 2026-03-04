@@ -1,16 +1,36 @@
-import { useState, useMemo } from 'preact/hooks';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks';
 import type { NBNPlan, ProviderHistory } from '../lib/types';
 
 type SortKey = 'monthlyPrice' | 'totalCost' | 'effectiveCost' | 'typicalEveningSpeed';
 type SortDir = 'asc' | 'desc';
 type Horizon = 3 | 6 | 12 | 24;
 
+interface ColumnDef {
+  key: string;
+  label: string | ((horizon: string) => string);
+  always?: boolean;
+  mobileDefault?: boolean;
+  sortKey?: SortKey;
+}
+
+const COLUMNS: ColumnDef[] = [
+  { key: 'provider', label: 'Provider', always: true, mobileDefault: true },
+  { key: 'planName', label: 'Plan', always: true, mobileDefault: true },
+  { key: 'monthlyPrice', label: 'Monthly', mobileDefault: true, sortKey: 'monthlyPrice' },
+  { key: 'promo', label: 'Promo', mobileDefault: true },
+  { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
+  { key: 'effectiveCost', label: 'Effective/mo', sortKey: 'effectiveCost' },
+  { key: 'typicalEveningSpeed', label: 'Eve Speed', sortKey: 'typicalEveningSpeed' },
+  { key: 'contract', label: 'Contract' },
+  { key: 'noticePeriod', label: 'Notice' },
+];
+
 interface Props {
   plans: NBNPlan[];
   highlightProvider?: string;
   userPrice?: number;
-  userFullPrice?: number;       // User's price after promo ends
-  userPromoMonthsLeft?: number; // Months left on user's promo
+  userFullPrice?: number;
+  userPromoMonthsLeft?: number;
   providerHistory?: Record<string, ProviderHistory>;
 }
 
@@ -30,45 +50,130 @@ function calcCosts(plan: NBNPlan, months: Horizon) {
   };
 }
 
-// Mini sparkline for provider price history
+function isNoNotice(val: string | null | undefined): boolean {
+  if (!val) return true;
+  const lower = val.toLowerCase().trim();
+  return lower === '' || lower === 'none' || lower === 'not specified' || lower === 'no notice required';
+}
+
+// Interactive sparkline for provider price history
 function ProviderSparkline({ history }: { history: { date: string; monthlyPrice: number }[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
   if (history.length < 2) return null;
 
   const prices = history.map(h => h.monthlyPrice);
   const min = Math.min(...prices) - 2;
   const max = Math.max(...prices) + 2;
   const range = max - min || 1;
-  const w = 280;
-  const h = 60;
+  const w = 400;
+  const h = 80;
+  const pad = 5;
 
-  const points = history
-    .map((entry, i) => {
-      const x = (i / (history.length - 1)) * w;
-      const y = h - ((entry.monthlyPrice - min) / range) * h;
-      return `${x},${y}`;
-    })
-    .join(' ');
+  const dataPoints = history.map((entry, i) => {
+    const x = (i / (history.length - 1)) * w;
+    const y = h - ((entry.monthlyPrice - min) / range) * h;
+    return { x, y, date: entry.date, value: entry.monthlyPrice };
+  });
+
+  const points = dataPoints.map(p => `${p.x},${p.y}`).join(' ');
 
   const firstDate = new Date(history[0].date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
   const lastDate = new Date(history[history.length - 1].date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
 
+  const handleMouseMove = (e: MouseEvent) => {
+    const svg = svgRef.current;
+    if (!svg || !dataPoints.length) return;
+    const rect = svg.getBoundingClientRect();
+    const svgWidth = w + pad * 2;
+    const scaleX = svgWidth / rect.width;
+    const mouseX = (e.clientX - rect.left) * scaleX - pad;
+
+    let nearest = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < dataPoints.length; i++) {
+      const dist = Math.abs(dataPoints[i].x - mouseX);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = i;
+      }
+    }
+    setActiveIndex(nearest);
+  };
+
+  const handleMouseLeave = () => setActiveIndex(null);
+
+  const activePoint = activeIndex != null ? dataPoints[activeIndex] : null;
+  const svgW = w + pad * 2;
+  const svgH = h + 20 + pad;
+
   return (
     <div>
       <div class="text-xs text-neutral-500 mb-1">Price history</div>
-      <svg viewBox={`-5 -5 ${w + 10} ${h + 20}`} class="w-full max-w-[280px]" preserveAspectRatio="xMidYMid meet">
-        <polyline
-          points={points}
-          fill="none"
-          stroke="#f97316"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-        <text x={0} y={h + 14} fill="#737373" font-size="9">{firstDate}</text>
-        <text x={w} y={h + 14} fill="#737373" font-size="9" text-anchor="end">{lastDate}</text>
-        <text x={-2} y={6} fill="#737373" font-size="9" text-anchor="end">${max.toFixed(0)}</text>
-        <text x={-2} y={h} fill="#737373" font-size="9" text-anchor="end">${min.toFixed(0)}</text>
-      </svg>
+      <div class="relative">
+        <svg
+          ref={svgRef}
+          viewBox={`-${pad} -${pad} ${svgW} ${svgH}`}
+          class="w-full"
+          preserveAspectRatio="xMidYMid meet"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
+          <polyline
+            points={points}
+            fill="none"
+            stroke="#f97316"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          {activePoint && (
+            <>
+              <line
+                x1={activePoint.x}
+                y1={0}
+                x2={activePoint.x}
+                y2={h}
+                stroke="#525252"
+                stroke-width="1"
+                stroke-dasharray="4 3"
+              />
+              <circle
+                cx={activePoint.x}
+                cy={activePoint.y}
+                r="4"
+                fill="#f97316"
+                stroke="#1c1917"
+                stroke-width="2"
+              />
+            </>
+          )}
+          <text x={0} y={h + 14} fill="#737373" font-size="9">{firstDate}</text>
+          <text x={w} y={h + 14} fill="#737373" font-size="9" text-anchor="end">{lastDate}</text>
+          <text x={-2} y={6} fill="#737373" font-size="9" text-anchor="end">${max.toFixed(0)}</text>
+          <text x={-2} y={h} fill="#737373" font-size="9" text-anchor="end">${min.toFixed(0)}</text>
+        </svg>
+        {activePoint && (
+          <div
+            class="absolute pointer-events-none bg-surface border border-surface-border rounded-lg px-3 py-1.5 shadow-lg text-xs z-10"
+            style={{
+              left: `${((activePoint.x + pad) / svgW) * 100}%`,
+              top: `${((activePoint.y + pad) / svgH) * 100 - 10}%`,
+              transform: 'translate(-50%, -100%)',
+            }}
+          >
+            <div class="text-white font-medium tabular-nums">${activePoint.value.toFixed(2)}</div>
+            <div class="text-neutral-400">
+              {new Date(activePoint.date).toLocaleDateString('en-AU', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -78,14 +183,44 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterNoLockin, setFilterNoLockin] = useState(false);
   const [filterHasPromo, setFilterHasPromo] = useState(false);
+  const [filterNoNotice, setFilterNoNotice] = useState(false);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [horizon, setHorizon] = useState<Horizon>(12);
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    // SSR-safe default: mobile set. Will update on mount via useEffect.
+    return new Set(['monthlyPrice', 'promo']);
+  });
+  const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Set initial visible columns based on screen size
+  useEffect(() => {
+    const isLg = window.matchMedia('(min-width: 1024px)').matches;
+    if (isLg) {
+      setVisibleColumns(new Set(COLUMNS.filter(c => !c.always).map(c => c.key)));
+    } else {
+      setVisibleColumns(new Set(COLUMNS.filter(c => c.mobileDefault && !c.always).map(c => c.key)));
+    }
+  }, []);
+
+  // Close column picker on outside click
+  useEffect(() => {
+    if (!columnPickerOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setColumnPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [columnPickerOpen]);
 
   const filtered = useMemo(() => {
     let result = plans;
     if (filterNoLockin) result = result.filter((p) => p.contractLength === 0);
     if (filterHasPromo) result = result.filter((p) => p.promoValue && p.promoValue > 0);
+    if (filterNoNotice) result = result.filter((p) => isNoNotice(p.noticePeriod));
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -94,7 +229,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
       );
     }
     return result;
-  }, [plans, filterNoLockin, filterHasPromo, search]);
+  }, [plans, filterNoLockin, filterHasPromo, filterNoNotice, search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -126,10 +261,126 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
     setExpandedId(expandedId === id ? null : id);
   }
 
+  function toggleColumn(key: string) {
+    setVisibleColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   const sortIndicator = (key: SortKey) =>
     sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
 
   const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
+
+  const activeColumns = COLUMNS.filter(
+    (c) => c.always || visibleColumns.has(c.key)
+  );
+  const visibleCount = activeColumns.length;
+
+  function getColumnLabel(col: ColumnDef): string {
+    return typeof col.label === 'function' ? col.label(horizonLabel) : col.label;
+  }
+
+  function renderCell(col: ColumnDef, plan: NBNPlan, totalCost: number, effectiveCost: number) {
+    switch (col.key) {
+      case 'provider':
+        return (
+          <td class="px-4 py-3 font-medium text-white" key={col.key}>
+            <span class="flex items-center gap-1.5">
+              <span class={`text-[10px] text-neutral-500 transition-transform ${expandedId === plan.id ? 'rotate-90' : ''}`}>&#9654;</span>
+              {plan.providerName}
+            </span>
+          </td>
+        );
+      case 'planName':
+        return (
+          <td class="px-4 py-3 text-neutral-300 max-w-[200px] truncate" key={col.key}>
+            {plan.cisUrl ? (
+              <a
+                href={plan.cisUrl}
+                target="_blank"
+                rel="noopener"
+                class="hover:text-accent underline decoration-neutral-600 hover:decoration-accent truncate"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {plan.planName}
+              </a>
+            ) : (
+              <span class="truncate">{plan.planName}</span>
+            )}
+          </td>
+        );
+      case 'monthlyPrice':
+        return (
+          <td class="px-4 py-3 tabular-nums font-medium" key={col.key}>
+            ${plan.monthlyPrice.toFixed(2)}
+          </td>
+        );
+      case 'promo': {
+        const hasPromo = plan.promoValue && plan.promoValue > 0 && plan.promoDuration;
+        const promoCoversHorizon = hasPromo && (plan.promoDuration ?? 0) >= horizon;
+        return (
+          <td class="px-4 py-3 text-sm" key={col.key}>
+            {hasPromo ? (
+              <span class={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${
+                promoCoversHorizon
+                  ? 'bg-cooked-green/20 text-cooked-green'
+                  : 'bg-accent/20 text-accent'
+              }`}>
+                ${(plan.monthlyPrice - (plan.promoValue ?? 0)).toFixed(2)} x {plan.promoDuration}mo
+              </span>
+            ) : (
+              <span class="text-neutral-600">—</span>
+            )}
+          </td>
+        );
+      }
+      case 'totalCost':
+        return (
+          <td class="px-4 py-3 tabular-nums text-neutral-300" key={col.key}>
+            ${totalCost.toFixed(0)}
+          </td>
+        );
+      case 'effectiveCost':
+        return (
+          <td class="px-4 py-3 tabular-nums" key={col.key}>
+            <span class={effectiveCost < plan.monthlyPrice ? 'text-cooked-green font-medium' : 'text-neutral-300'}>
+              ${effectiveCost.toFixed(2)}
+            </span>
+          </td>
+        );
+      case 'typicalEveningSpeed':
+        return (
+          <td class="px-4 py-3 tabular-nums text-neutral-300" key={col.key}>
+            {plan.typicalEveningSpeed
+              ? `${plan.typicalEveningSpeed} Mbps`
+              : '—'}
+          </td>
+        );
+      case 'contract':
+        return (
+          <td class="px-4 py-3 text-neutral-400" key={col.key}>
+            {plan.contractLength === 0
+              ? 'No lock-in'
+              : `${plan.contractLength} mo`}
+          </td>
+        );
+      case 'noticePeriod':
+        return (
+          <td class="px-4 py-3 text-neutral-400" key={col.key}>
+            {plan.noticePeriod ?? '—'}
+          </td>
+        );
+      default:
+        return null;
+    }
+  }
 
   return (
     <div>
@@ -160,7 +411,49 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
           />
           Has promo
         </label>
-        <span class="text-sm text-neutral-500 self-center ml-auto">
+        <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filterNoNotice}
+            onChange={() => setFilterNoNotice(!filterNoNotice)}
+            class="accent-accent"
+          />
+          No notice period
+        </label>
+
+        {/* Column picker */}
+        <div class="relative ml-auto self-center" ref={pickerRef}>
+          <button
+            onClick={() => setColumnPickerOpen(!columnPickerOpen)}
+            class={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              columnPickerOpen
+                ? 'bg-accent/10 border-accent text-accent'
+                : 'bg-surface border-surface-border text-neutral-400 hover:text-white hover:border-neutral-600'
+            }`}
+          >
+            Columns
+          </button>
+          {columnPickerOpen && (
+            <div class="absolute right-0 top-full mt-1 z-20 bg-surface border border-surface-border rounded-lg shadow-xl p-2 min-w-[160px]">
+              {COLUMNS.filter(c => !c.always).map((col) => (
+                <label
+                  key={col.key}
+                  class="flex items-center gap-2 text-sm text-neutral-300 cursor-pointer px-2 py-1.5 rounded hover:bg-surface-raised/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.has(col.key)}
+                    onChange={() => toggleColumn(col.key)}
+                    class="accent-accent"
+                  />
+                  {getColumnLabel(col)}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <span class="text-sm text-neutral-500 self-center">
           {sorted.length} plan{sorted.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -188,34 +481,25 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-surface-border text-left text-neutral-400">
-              <th class="px-4 py-3 font-medium">Provider</th>
-              <th class="px-4 py-3 font-medium">Plan</th>
-              <th
-                class="px-4 py-3 font-medium cursor-pointer hover:text-white whitespace-nowrap"
-                onClick={() => toggleSort('monthlyPrice')}
-              >
-                Monthly{sortIndicator('monthlyPrice')}
-              </th>
-              <th
-                class="px-4 py-3 font-medium cursor-pointer hover:text-white whitespace-nowrap hidden sm:table-cell"
-                onClick={() => toggleSort('totalCost')}
-              >
-                {horizonLabel} total{sortIndicator('totalCost')}
-              </th>
-              <th
-                class="px-4 py-3 font-medium cursor-pointer hover:text-white whitespace-nowrap hidden md:table-cell"
-                onClick={() => toggleSort('effectiveCost')}
-              >
-                Effective/mo{sortIndicator('effectiveCost')}
-              </th>
-              <th
-                class="px-4 py-3 font-medium cursor-pointer hover:text-white whitespace-nowrap hidden lg:table-cell"
-                onClick={() => toggleSort('typicalEveningSpeed')}
-              >
-                Eve Speed{sortIndicator('typicalEveningSpeed')}
-              </th>
-              <th class="px-4 py-3 font-medium hidden lg:table-cell">Contract</th>
-              <th class="px-4 py-3 font-medium hidden lg:table-cell">Notice</th>
+              {activeColumns.map((col) => {
+                const label = getColumnLabel(col);
+                if (col.sortKey) {
+                  return (
+                    <th
+                      key={col.key}
+                      class="px-4 py-3 font-medium cursor-pointer hover:text-white whitespace-nowrap"
+                      onClick={() => toggleSort(col.sortKey!)}
+                    >
+                      {label}{sortIndicator(col.sortKey)}
+                    </th>
+                  );
+                }
+                return (
+                  <th key={col.key} class="px-4 py-3 font-medium">
+                    {label}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -229,10 +513,6 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
               const hasSavings = userPrice && userPrice > effectiveCost;
               const savings = userPrice ? userPrice - effectiveCost : 0;
               const hasPromo = plan.promoValue && plan.promoValue > 0 && plan.promoDuration;
-              // Is the promo still active within the selected horizon?
-              const promoActive = hasPromo && (plan.promoDuration ?? 0) > 0;
-              // Does the promo fully cover the horizon?
-              const promoCoversHorizon = hasPromo && (plan.promoDuration ?? 0) >= horizon;
 
               return (
                 <>
@@ -243,71 +523,16 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                       isHighlighted ? 'bg-accent/10 border-l-2 border-l-accent' : ''
                     } ${isExpanded ? 'bg-surface-raised/70' : ''}`}
                   >
-                    <td class="px-4 py-3 font-medium text-white">
-                      <span class="flex items-center gap-1.5">
-                        <span class={`text-[10px] text-neutral-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
-                        {plan.providerName}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3 text-neutral-300 max-w-[200px] truncate">
-                      <span class="flex items-center gap-2">
-                        {plan.cisUrl ? (
-                          <a
-                            href={plan.cisUrl}
-                            target="_blank"
-                            rel="noopener"
-                            class="hover:text-accent underline decoration-neutral-600 hover:decoration-accent truncate"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {plan.planName}
-                          </a>
-                        ) : (
-                          <span class="truncate">{plan.planName}</span>
-                        )}
-                        {hasPromo && (
-                          <span class={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            promoCoversHorizon
-                              ? 'bg-cooked-green/20 text-cooked-green'
-                              : 'bg-accent/20 text-accent'
-                          }`}>
-                            -{plan.promoValue?.toFixed(0)}/mo x {plan.promoDuration}mo
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3 tabular-nums font-medium">
-                      ${plan.monthlyPrice.toFixed(2)}
-                    </td>
-                    <td class="px-4 py-3 tabular-nums text-neutral-300 hidden sm:table-cell">
-                      ${totalCost.toFixed(0)}
-                    </td>
-                    <td class="px-4 py-3 tabular-nums hidden md:table-cell">
-                      <span class={effectiveCost < plan.monthlyPrice ? 'text-cooked-green font-medium' : 'text-neutral-300'}>
-                        ${effectiveCost.toFixed(2)}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3 tabular-nums text-neutral-300 hidden lg:table-cell">
-                      {plan.typicalEveningSpeed
-                        ? `${plan.typicalEveningSpeed} Mbps`
-                        : '—'}
-                    </td>
-                    <td class="px-4 py-3 text-neutral-400 hidden lg:table-cell">
-                      {plan.contractLength === 0
-                        ? 'No lock-in'
-                        : `${plan.contractLength} mo`}
-                    </td>
-                    <td class="px-4 py-3 text-neutral-400 hidden lg:table-cell">
-                      {plan.noticePeriod ?? '—'}
-                    </td>
+                    {activeColumns.map((col) => renderCell(col, plan, totalCost, effectiveCost))}
                   </tr>
 
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr key={`${plan.id}-detail`} class="border-b border-surface-border/50 bg-surface-raised/30">
-                      <td colSpan={8} class="px-4 py-4">
+                      <td colSpan={visibleCount} class="px-4 py-4">
                         <div class="flex flex-col sm:flex-row gap-6">
-                          {/* Plan details + comparison */}
-                          <div class="flex-1 space-y-3">
+                          {/* Plan details */}
+                          <div class="sm:w-1/3 space-y-3">
                             {/* Promo breakdown */}
                             {hasPromo && (
                               <div class="bg-accent/10 border border-accent/20 rounded-lg p-3 text-sm">
@@ -376,37 +601,6 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                               )}
                             </div>
 
-                            {/* Comparison with user's plan */}
-                            {userPrice && (
-                              <div class={`rounded-lg p-3 text-sm ${hasSavings ? 'bg-cooked-green/10 border border-cooked-green/20' : 'bg-surface border border-surface-border'}`}>
-                                {hasSavings ? (
-                                  <p class="text-neutral-300">
-                                    Over {horizonLabel}, effectively save <span class="font-bold text-cooked-green">${savings.toFixed(2)}/mo</span>{' '}
-                                    (<span class="font-bold text-cooked-green">${(savings * horizon).toFixed(0)} total</span>)
-                                  </p>
-                                ) : savings < 0 ? (
-                                  <p class="text-neutral-400">
-                                    Over {horizonLabel}, effectively <span class="font-medium text-white">${Math.abs(savings).toFixed(2)}/mo more</span> than your current plan
-                                  </p>
-                                ) : (
-                                  <p class="text-neutral-400">
-                                    Same effective price as your current plan
-                                  </p>
-                                )}
-                                {/* Show post-promo comparison if user is on a promo */}
-                                {userFullPrice && userPromoMonthsLeft != null && userPromoMonthsLeft > 0 && (
-                                  <p class="text-neutral-500 text-xs mt-1.5">
-                                    After your promo ends ({userPromoMonthsLeft}mo left): you'll pay <span class="text-white">${userFullPrice.toFixed(2)}/mo</span>
-                                    {userFullPrice > effectiveCost ? (
-                                      <> — switching saves <span class="text-cooked-green">${(userFullPrice - effectiveCost).toFixed(2)}/mo</span></>
-                                    ) : userFullPrice < effectiveCost ? (
-                                      <> — still cheaper than this plan by ${(effectiveCost - userFullPrice).toFixed(2)}/mo</>
-                                    ) : null}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
                             {plan.cisUrl && (
                               <a
                                 href={plan.cisUrl}
@@ -425,11 +619,42 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
 
                           {/* Provider price history chart */}
                           {history && history.length >= 2 && (
-                            <div class="flex-shrink-0">
+                            <div class="sm:w-2/3">
                               <ProviderSparkline history={history} />
                             </div>
                           )}
                         </div>
+
+                        {/* Comparison with user's plan — full width */}
+                        {userPrice && (
+                          <div class={`mt-4 rounded-lg p-3 text-sm text-center ${hasSavings ? 'bg-cooked-green/10 border border-cooked-green/20' : 'bg-surface border border-surface-border'}`}>
+                            {hasSavings ? (
+                              <p class="text-neutral-300">
+                                Over {horizonLabel}, effectively save <span class="font-bold text-cooked-green">${savings.toFixed(2)}/mo</span>{' '}
+                                (<span class="font-bold text-cooked-green">${(savings * horizon).toFixed(0)} total</span>)
+                              </p>
+                            ) : savings < 0 ? (
+                              <p class="text-neutral-400">
+                                Over {horizonLabel}, effectively <span class="font-medium text-white">${Math.abs(savings).toFixed(2)}/mo more</span> than your current plan
+                              </p>
+                            ) : (
+                              <p class="text-neutral-400">
+                                Same effective price as your current plan
+                              </p>
+                            )}
+                            {/* Show post-promo comparison if user is on a promo */}
+                            {userFullPrice && userPromoMonthsLeft != null && userPromoMonthsLeft > 0 && (
+                              <p class="text-neutral-500 text-xs mt-1.5">
+                                After your promo ends ({userPromoMonthsLeft}mo left): you'll pay <span class="text-white">${userFullPrice.toFixed(2)}/mo</span>
+                                {userFullPrice > effectiveCost ? (
+                                  <> — switching saves <span class="text-cooked-green">${(userFullPrice - effectiveCost).toFixed(2)}/mo</span></>
+                                ) : userFullPrice < effectiveCost ? (
+                                  <> — still cheaper than this plan by ${(effectiveCost - userFullPrice).toFixed(2)}/mo</>
+                                ) : null}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
