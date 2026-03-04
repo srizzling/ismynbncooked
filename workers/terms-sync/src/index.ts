@@ -33,7 +33,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Schema for extracting contract terms + speed from a CIS PDF
 const CIS_EXTRACT_PROMPT =
-  'Extract the key details from this Australian NBN internet Critical Information Summary (CIS) document. Focus on: 1) The minimum contract term or lock-in period, 2) Any early termination or cancellation fees, 3) The notice period required to cancel, 4) The typical evening download speed (also called "typical busy period download speed", measured 7pm-11pm). These are Australian telecommunications CIS documents required by the ACMA.';
+  'Extract the key details from this Australian NBN internet Critical Information Summary (CIS) document. Focus on: 1) The minimum contract term or lock-in period, 2) Any early termination or cancellation fees, 3) The notice period required to cancel — look carefully in sections about "Cancellation", "Termination", "Cooling Off", or "How to cancel". Many providers require 30 days written notice. 4) The typical evening download speed (also called "typical busy period download speed", measured 7pm-11pm). These are Australian telecommunications CIS documents required by the ACMA. Read the ENTIRE document carefully before answering.';
 
 const CIS_EXTRACT_SCHEMA = {
   type: 'object',
@@ -48,7 +48,7 @@ const CIS_EXTRACT_SCHEMA = {
     },
     noticePeriod: {
       type: 'string',
-      description: 'The notice period required to cancel the service. Examples: "30 days", "14 days", "None", "No notice required". If not mentioned, return "Not specified".',
+      description: 'The notice period required to cancel the service. Check sections about cancellation, termination, or how to end the service. Examples: "30 days written notice", "14 days", "30 days", "None". Australian ISPs commonly require 30 days notice. Only return "Not specified" if you have thoroughly checked the entire document and found no mention of notice period anywhere.',
     },
     typicalEveningSpeed: {
       type: 'number',
