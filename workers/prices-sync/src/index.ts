@@ -24,9 +24,18 @@ type AUState = 'nsw' | 'vic' | 'qld' | 'sa' | 'wa' | 'tas' | 'act' | 'nt';
 // Fallback prices — used when scraping fails
 const FALLBACK = {
   petrol: 2.10,
-  flatWhite: 5.50,
   avo: 3.50,
   netflix: 20.99,
+  flatWhite: {
+    nsw: 6.00,  // Sydney
+    vic: 5.80,  // Melbourne
+    qld: 5.40,  // Brisbane
+    sa: 5.20,   // Adelaide
+    wa: 5.50,   // Perth
+    tas: 5.10,  // Hobart
+    act: 5.60,  // Canberra
+    nt: 5.00,   // Darwin
+  },
   pt: {
     nsw: 4.80, vic: 5.30, qld: 4.96, sa: 4.45,
     wa: 4.90, tas: 3.60, act: 5.12, nt: 3.00,
@@ -222,6 +231,49 @@ async function fetchNetflixPrice(firecrawlKey?: string): Promise<number> {
   return FALLBACK.netflix;
 }
 
+const COFFEE_PRICES_URL = 'https://www.torrens.edu.au/stories/blog/hospitality/why-are-coffee-prices-rising-in-australia';
+
+async function fetchAllCoffeePrices(firecrawlKey?: string): Promise<Record<AUState, number>> {
+  const fallback = { ...FALLBACK.flatWhite };
+
+  if (!firecrawlKey) return fallback;
+
+  const extracted = await firecrawlScrape(
+    firecrawlKey,
+    COFFEE_PRICES_URL,
+    'This page has a table or breakdown of average coffee prices by Australian city. Extract the average flat white (or regular coffee) price for each capital city: Sydney, Melbourne, Brisbane, Adelaide, Perth, Hobart, Canberra, Darwin. Return prices as numbers in AUD.',
+    {
+      type: 'object',
+      properties: {
+        sydney:    { type: 'number', description: 'Sydney average flat white price in AUD' },
+        melbourne: { type: 'number', description: 'Melbourne average flat white price in AUD' },
+        brisbane:  { type: 'number', description: 'Brisbane average flat white price in AUD' },
+        adelaide:  { type: 'number', description: 'Adelaide average flat white price in AUD' },
+        perth:     { type: 'number', description: 'Perth average flat white price in AUD' },
+        hobart:    { type: 'number', description: 'Hobart average flat white price in AUD' },
+        canberra:  { type: 'number', description: 'Canberra average flat white price in AUD' },
+        darwin:    { type: 'number', description: 'Darwin average flat white price in AUD' },
+      },
+    }
+  );
+
+  if (extracted) {
+    const mapping: Record<string, AUState> = {
+      sydney: 'nsw', melbourne: 'vic', brisbane: 'qld', adelaide: 'sa',
+      perth: 'wa', hobart: 'tas', canberra: 'act', darwin: 'nt',
+    };
+    for (const [city, state] of Object.entries(mapping)) {
+      const price = extracted[city];
+      if (typeof price === 'number' && price >= 3 && price <= 12) {
+        fallback[state] = price;
+        console.log(`[prices-sync] Coffee ${state} (torrens): $${price}`);
+      }
+    }
+  }
+
+  return fallback;
+}
+
 // PT fare fetchers — each tries to scrape the state transit website
 async function fetchPtFare(state: AUState, firecrawlKey?: string): Promise<number> {
   const urls: Record<AUState, string> = {
@@ -351,8 +403,11 @@ export default {
 
     console.log(`[prices-sync] Petrol: $${petrol.toFixed(2)}, Avo: $${avo.toFixed(2)}, Netflix: $${netflix.toFixed(2)}`);
 
-    // Fetch house prices in one batch (single page has all cities)
-    const housePrices = await fetchAllHousePrices(firecrawlKey);
+    // Fetch house + coffee prices in parallel (each is a single Firecrawl call)
+    const [housePrices, coffeePrices] = await Promise.all([
+      fetchAllHousePrices(firecrawlKey),
+      fetchAllCoffeePrices(firecrawlKey),
+    ]);
 
     // Fetch per-state PT fares in parallel
     const ptPrices: Record<AUState, number> = {} as any;
@@ -378,12 +433,24 @@ export default {
 
     // Build units
     const units: Record<string, ComparisonUnit> = {
-      flatWhite: { label: 'Flat Whites',      icon: '☕', price: 5.50,    per: 'month', source: 'Average Australian cafe price' },
       avo:       { label: 'Avocados',          icon: '🥑', price: avo,     per: 'month', source: 'Woolworths Hass Avocado', sourceUrl: 'https://www.woolworths.com.au/shop/productdetails/120080/hass-avocado' },
       bunnings:  { label: 'Bunnings Snags',    icon: '🌭', price: 3.50,    per: 'month', source: 'Bunnings weekend sausage sizzle' },
       petrol:    { label: 'Litres of Petrol',  icon: '⛽', price: petrol,  per: 'month', source: 'Average ULP price (FuelWatch)', sourceUrl: 'https://www.fuelwatch.wa.gov.au/' },
       netflix:   { label: 'Netflix Months',    icon: '📺', price: netflix, per: 'month', source: 'Netflix Australia Standard plan', sourceUrl: 'https://help.netflix.com/en/node/24926' },
     };
+
+    // Add per-state flat white prices
+    for (const state of states) {
+      units[`flatWhite_${state}`] = {
+        label: 'Flat Whites',
+        icon: '☕',
+        price: coffeePrices[state],
+        per: 'month',
+        state,
+        source: `Average flat white in ${STATE_NAMES[state]}`,
+        sourceUrl: COFFEE_PRICES_URL,
+      };
+    }
 
     const ptSources: Record<AUState, { label: string; url: string }> = {
       nsw: { label: 'Transport NSW Opal fares', url: 'https://transportnsw.info/tickets-opal/opal/fares' },
@@ -424,6 +491,7 @@ export default {
       };
     }
 
+    console.log('[prices-sync] Coffee:', Object.entries(coffeePrices).map(([s, p]) => `${s}: $${p.toFixed(2)}`).join(', '));
     console.log('[prices-sync] PT fares:', Object.entries(ptPrices).map(([s, p]) => `${s}: $${p.toFixed(2)}`).join(', '));
     console.log('[prices-sync] House 2BR:', Object.entries(housePrices).map(([s, p]) => `${s}: $${Math.round(p / 1000)}k`).join(', '));
 
