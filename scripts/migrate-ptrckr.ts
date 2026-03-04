@@ -1,21 +1,27 @@
 /**
- * One-time migration script: ptrckr SQLite → ismynbncooked history JSON
+ * Migration script: ptrckr API → ismynbncooked history JSON → R2
  *
- * Reads ptrckr's SQLite DB and exports speed snapshots to history files.
- * Only history data is exported — the price-sync worker handles fresh plans,
- * terms, comparisons, and meta.
+ * Fetches historical snapshot data from ptrckr's API and transforms it
+ * into the history format used by ismynbncooked, then uploads to R2.
  *
- * Output files are written to ./output/ ready for R2 upload via:
- *   wrangler r2 object put ismynbncooked-data/data/history/nbn-100.json --file output/history/nbn-100.json
+ * Prerequisites:
+ *   - ptrckr running at PTRCKR_URL (default http://localhost:3000)
+ *   - wrangler authenticated for R2 uploads
+ *
+ * Usage:
+ *   npx tsx scripts/migrate-ptrckr.ts                    # write to ./output/
+ *   npx tsx scripts/migrate-ptrckr.ts --upload            # write + upload to R2
+ *   PTRCKR_URL=http://host:3000 npx tsx scripts/migrate-ptrckr.ts
  */
 
-import Database from 'better-sqlite3';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
 
 // --- Config ---
-const PTRCKR_DB_PATH = process.env.PTRCKR_DB ?? join(import.meta.dirname, '../../ptrckr/data/ptrckr.db');
+const PTRCKR_URL = process.env.PTRCKR_URL ?? 'http://localhost:3000';
 const OUTPUT_DIR = join(import.meta.dirname, 'output');
+const UPLOAD = process.argv.includes('--upload');
 
 const SPEED_TIERS = [25, 50, 100, 250, 500, 750, 1000, 2000] as const;
 type SpeedTier = (typeof SPEED_TIERS)[number];
@@ -36,6 +42,28 @@ interface TierHistory {
   daily: DailySummary[];
 }
 
+interface PtrckrSnapshot {
+  id: number;
+  watchedSpeedId: number;
+  providerName: string;
+  planName: string;
+  monthlyPrice: number;
+  promoValue: number | null;
+  promoDuration: number | null;
+  yearlyCost: number;
+  setupFee: number;
+  typicalEveningSpeed: number | null;
+  cisUrl: string | null;
+  scrapedAt: string; // ISO timestamp
+}
+
+interface PtrckrWatchedSpeed {
+  id: number;
+  speed: number;
+  label: string;
+  snapshots: PtrckrSnapshot[];
+}
+
 // --- Helpers ---
 function ensureDir(dir: string) {
   mkdirSync(dir, { recursive: true });
@@ -46,52 +74,45 @@ function writeJSON(path: string, data: unknown) {
   console.log(`  ✓ ${path}`);
 }
 
-function tsToDate(ts: number | null): string {
-  if (!ts) return new Date().toISOString().split('T')[0];
-  return new Date(ts * 1000).toISOString().split('T')[0];
+function snapshotDate(scrapedAt: string): string {
+  return new Date(scrapedAt).toISOString().split('T')[0];
+}
+
+async function fetchJSON<T>(path: string): Promise<T> {
+  const url = `${PTRCKR_URL}${path}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url} returned ${res.status}`);
+  return res.json() as Promise<T>;
 }
 
 // --- Main ---
-console.log(`\nMigrating ptrckr history data from: ${PTRCKR_DB_PATH}\n`);
+console.log(`\nMigrating from ptrckr at: ${PTRCKR_URL}\n`);
 
-const db = new Database(PTRCKR_DB_PATH, { readonly: true });
-
-// Set up output dirs
 ensureDir(join(OUTPUT_DIR, 'history'));
 
-// 1. Get watched speed → ID mapping
-const watchedSpeeds = db.prepare('SELECT id, speed FROM watched_nbn_speeds').all() as { id: number; speed: number }[];
-const speedIdMap = new Map<number, number>(); // speed → id
-for (const ws of watchedSpeeds) {
-  speedIdMap.set(ws.speed, ws.id);
+// 1. Fetch all watched speeds with full snapshot history
+console.log('Fetching snapshot data from ptrckr API...');
+const { speeds } = await fetchJSON<{ speeds: PtrckrWatchedSpeed[] }>('/api/nbn/snapshots');
+
+const speedMap = new Map<number, PtrckrWatchedSpeed>();
+for (const s of speeds) {
+  speedMap.set(s.speed, s);
 }
-console.log(`Found ${watchedSpeeds.length} watched speed tiers: ${watchedSpeeds.map(w => w.speed).join(', ')}\n`);
+console.log(`Found ${speeds.length} watched tiers: ${speeds.map(s => s.speed).join(', ')}\n`);
 
-// 2. Export speed snapshots → history/nbn-{speed}.json
-console.log('--- Exporting speed snapshots to history ---');
+// 2. Transform snapshots → history format
+console.log('--- Building history files ---');
 for (const speed of SPEED_TIERS) {
-  const watchedId = speedIdMap.get(speed);
-  if (!watchedId) {
-    console.log(`  NBN ${speed}: not watched, skipping`);
+  const watched = speedMap.get(speed);
+  if (!watched || watched.snapshots.length === 0) {
+    console.log(`  NBN ${speed}: no data, skipping`);
     continue;
   }
 
-  const snapshots = db.prepare(
-    `SELECT provider_name, plan_name, monthly_price, yearly_cost, scraped_at
-     FROM nbn_speed_snapshots WHERE watched_speed_id = ?
-     ORDER BY scraped_at ASC`
-  ).all(watchedId) as {
-    provider_name: string;
-    plan_name: string;
-    monthly_price: number;
-    yearly_cost: number;
-    scraped_at: number;
-  }[];
+  const snapshots = watched.snapshots;
 
-  if (snapshots.length === 0) {
-    console.log(`  NBN ${speed}: no snapshots, skipping`);
-    continue;
-  }
+  // Sort oldest first
+  snapshots.sort((a, b) => new Date(a.scrapedAt).getTime() - new Date(b.scrapedAt).getTime());
 
   // Build provider history
   const providerMap = new Map<string, {
@@ -103,20 +124,20 @@ for (const speed of SPEED_TIERS) {
   const dailyMap = new Map<string, { prices: number[]; count: number }>();
 
   for (const snap of snapshots) {
-    const date = tsToDate(snap.scraped_at);
+    const date = snapshotDate(snap.scrapedAt);
 
     // Provider history
-    if (!providerMap.has(snap.provider_name)) {
-      providerMap.set(snap.provider_name, {
+    if (!providerMap.has(snap.providerName)) {
+      providerMap.set(snap.providerName, {
         current: { monthlyPrice: 0, planName: '', yearlyCost: 0 },
         history: [],
       });
     }
-    const prov = providerMap.get(snap.provider_name)!;
+    const prov = providerMap.get(snap.providerName)!;
     prov.current = {
-      monthlyPrice: snap.monthly_price,
-      planName: snap.plan_name,
-      yearlyCost: snap.yearly_cost,
+      monthlyPrice: snap.monthlyPrice,
+      planName: snap.planName,
+      yearlyCost: snap.yearlyCost,
     };
 
     // Only add one entry per day per provider
@@ -124,15 +145,15 @@ for (const speed of SPEED_TIERS) {
     if (!lastEntry || lastEntry.date !== date) {
       prov.history.push({
         date,
-        monthlyPrice: snap.monthly_price,
-        yearlyCost: snap.yearly_cost,
+        monthlyPrice: snap.monthlyPrice,
+        yearlyCost: snap.yearlyCost,
       });
     }
 
     // Daily summary
     if (!dailyMap.has(date)) dailyMap.set(date, { prices: [], count: 0 });
     const day = dailyMap.get(date)!;
-    day.prices.push(snap.monthly_price);
+    day.prices.push(snap.monthlyPrice);
     day.count++;
   }
 
@@ -172,13 +193,29 @@ for (const speed of SPEED_TIERS) {
     daily: rolledDaily,
   };
 
-  writeJSON(join(OUTPUT_DIR, 'history', `nbn-${speed}.json`), history);
+  const filePath = join(OUTPUT_DIR, 'history', `nbn-${speed}.json`);
+  writeJSON(filePath, history);
   console.log(`  NBN ${speed}: ${snapshots.length} snapshots, ${daily.length} days, ${providerMap.size} providers`);
 }
 
-db.close();
+// 3. Upload to R2 if --upload flag
+if (UPLOAD) {
+  console.log('\n--- Uploading to R2 ---');
+  for (const speed of SPEED_TIERS) {
+    const filePath = join(OUTPUT_DIR, 'history', `nbn-${speed}.json`);
+    try {
+      const r2Key = `ismynbncooked-data/data/history/nbn-${speed}.json`;
+      execSync(`wrangler r2 object put ${r2Key} --file ${filePath} --content-type application/json`, {
+        stdio: 'inherit',
+      });
+    } catch {
+      console.log(`  Skipping NBN ${speed} (no file)`);
+    }
+  }
+}
+
 console.log(`\n✅ Migration complete! Output in: ${OUTPUT_DIR}`);
-console.log('\nTo upload history to R2:');
-console.log('  for f in output/history/*.json; do');
-console.log('    wrangler r2 object put ismynbncooked-data/data/history/$(basename "$f") --file "$f"');
-console.log('  done');
+if (!UPLOAD) {
+  console.log('\nTo upload to R2, re-run with --upload:');
+  console.log('  npx tsx scripts/migrate-ptrckr.ts --upload');
+}
