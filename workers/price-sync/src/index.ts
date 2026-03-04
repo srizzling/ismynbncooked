@@ -246,7 +246,7 @@ export default {
       }
     }
 
-    ctx.waitUntil(this.scheduled({} as ScheduledEvent, env, ctx));
-    return new Response('Sync triggered', { status: 202 });
+    await this.scheduled({} as ScheduledEvent, env, ctx);
+    return new Response('Sync complete', { status: 200 });
   },
 } satisfies ExportedHandler<Env>;

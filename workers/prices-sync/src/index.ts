@@ -354,15 +354,21 @@ export default {
     // Fetch house prices in one batch (single page has all cities)
     const housePrices = await fetchAllHousePrices(firecrawlKey);
 
-    // Fetch per-state PT fares sequentially to avoid rate-limiting Firecrawl
+    // Fetch per-state PT fares in parallel
     const ptPrices: Record<AUState, number> = {} as any;
-
-    for (const state of states) {
-      const ptResult = await fetchPtFare(state, firecrawlKey);
-      ptPrices[state] = ptResult;
-
-      // Brief delay between states to be polite to APIs
-      await new Promise(r => setTimeout(r, 1000));
+    const ptResults = await Promise.allSettled(
+      states.map(async (state) => {
+        const fare = await fetchPtFare(state, firecrawlKey);
+        return [state, fare] as const;
+      })
+    );
+    for (const r of ptResults) {
+      if (r.status === 'fulfilled') {
+        ptPrices[r.value[0]] = r.value[1];
+      } else {
+        const state = states[ptResults.indexOf(r)];
+        ptPrices[state] = FALLBACK.pt[state];
+      }
     }
 
     const ptLabels: Record<AUState, string> = {
@@ -465,7 +471,7 @@ export default {
       }
     }
 
-    ctx.waitUntil(this.scheduled({} as ScheduledEvent, env, ctx));
-    return new Response('Prices sync triggered', { status: 202 });
+    await this.scheduled({} as ScheduledEvent, env, ctx);
+    return new Response('Prices sync complete', { status: 200 });
   },
 } satisfies ExportedHandler<Env>;
