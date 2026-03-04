@@ -1,3 +1,5 @@
+import millify from 'millify';
+
 interface Env {
   DATA_BUCKET: R2Bucket;
   FIRECRAWL_API_KEY?: string;
@@ -557,7 +559,7 @@ export default {
         price: deposit,
         per: 'total',
         state,
-        note: `5% of $${(housePrices[state] / 1000000).toFixed(1)}M median dwelling in ${STATE_NAMES[state]}`,
+        note: `5% of $${millify(housePrices[state], { precision: 2 })} median dwelling in ${STATE_NAMES[state]}`,
         source: `PropTrack Home Price Index — ${STATE_NAMES[state]} median unit price`,
         sourceUrl: 'https://www.proptrack.com.au/home-price-index/',
       };
