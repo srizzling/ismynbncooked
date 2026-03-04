@@ -1,4 +1,8 @@
-import millify from 'millify';
+function formatPrice(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
+}
 
 interface Env {
   DATA_BUCKET: R2Bucket;
@@ -559,7 +563,7 @@ export default {
         price: deposit,
         per: 'total',
         state,
-        note: `5% of $${millify(housePrices[state], { precision: 2 })} median dwelling in ${STATE_NAMES[state]}`,
+        note: `5% of $${formatPrice(housePrices[state])} median dwelling in ${STATE_NAMES[state]}`,
         source: `PropTrack Home Price Index — ${STATE_NAMES[state]} median unit price`,
         sourceUrl: 'https://www.proptrack.com.au/home-price-index/',
       };
