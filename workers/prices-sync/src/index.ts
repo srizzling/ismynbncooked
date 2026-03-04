@@ -434,7 +434,7 @@ export default {
     // Build units
     const units: Record<string, ComparisonUnit> = {
       avo:       { label: 'Avocados',          icon: '🥑', price: avo,     per: 'month', source: 'Woolworths Hass Avocado', sourceUrl: 'https://www.woolworths.com.au/shop/productdetails/120080/hass-avocado' },
-      bunnings:  { label: 'Bunnings Snags',    icon: '🌭', price: 3.50,    per: 'month', source: 'Bunnings weekend sausage sizzle' },
+      bunnings:  { label: 'Bunnings Snags',    icon: '🌭', price: 3.50,    per: 'month', source: 'Bunnings weekend sausage sizzle', sourceUrl: 'https://www.bunnings.com.au/about-us/in-our-community' },
       petrol:    { label: 'Litres of Petrol',  icon: '⛽', price: petrol,  per: 'month', source: 'Average ULP price (FuelWatch)', sourceUrl: 'https://www.fuelwatch.wa.gov.au/' },
       netflix:   { label: 'Netflix Months',    icon: '📺', price: netflix, per: 'month', source: 'Netflix Australia Standard plan', sourceUrl: 'https://help.netflix.com/en/node/24926' },
     };
