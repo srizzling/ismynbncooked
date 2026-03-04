@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'preact/hooks';
 import type { SpeedTier, CookedResult } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
+import { LEVELS } from '../lib/cooked';
 import { getUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
 
 interface Props {
   speed: SpeedTier;
   cheapestPrice: number;
-  cheapestEffective?: number; // Cheapest first-year effective monthly (with promos)
+  cheapestEffective?: number;
   onCookedChange?: (result: CookedResult | null) => void;
 }
 
@@ -25,16 +26,83 @@ function computeEffectiveRate(price: number, fullPrice: number | undefined, prom
   return (promoMonths * price + fullMonths * fullPrice) / 12;
 }
 
+function RortScale({ currentLevel }: { currentLevel: string }) {
+  const [open, setOpen] = useState(false);
+
+  // Reverse so we display from best to worst (Sweet As first)
+  const ordered = [...LEVELS].reverse();
+
+  return (
+    <div class="relative inline-block">
+      <button
+        onClick={() => setOpen(!open)}
+        class="text-sm text-neutral-500 hover:text-neutral-300 underline decoration-dashed underline-offset-2 transition-colors"
+      >
+        What does this mean?
+      </button>
+      {open && (
+        <>
+          <div class="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div class="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-40 bg-surface border border-surface-border rounded-xl shadow-2xl p-4 w-72 sm:w-80">
+            <div class="font-display font-bold text-sm text-white mb-3">The Rort Scale</div>
+            <div class="space-y-2">
+              {ordered.map((level) => {
+                const isCurrent = level.level === currentLevel;
+                return (
+                  <div
+                    key={level.level}
+                    class={`flex items-start gap-3 rounded-lg px-3 py-2 transition-colors ${
+                      isCurrent ? 'bg-white/5 ring-1 ring-white/10' : 'opacity-50'
+                    }`}
+                  >
+                    <div
+                      class="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0"
+                      style={{ backgroundColor: level.color }}
+                    />
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="font-bold text-sm"
+                          style={{ color: isCurrent ? level.color : undefined }}
+                        >
+                          {level.label}
+                        </span>
+                        {isCurrent && (
+                          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-neutral-300">
+                            YOU
+                          </span>
+                        )}
+                      </div>
+                      <div class="text-xs text-neutral-400 mt-0.5">
+                        {level.level === 'winning'
+                          ? 'Cheaper than the cheapest'
+                          : level.threshold > 0
+                            ? `${(level.threshold * 100).toFixed(0)}%+ overpaying`
+                            : '0–5% overpaying'}
+                      </div>
+                      {isCurrent && (
+                        <div class="text-xs text-neutral-300 mt-1">{level.description}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function CookedRating({ speed, cheapestPrice, cheapestEffective, onCookedChange }: Props) {
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [result, setResult] = useState<CookedResult | null>(null);
   const [hasExisting, setHasExisting] = useState(false);
-  // Promo state for display
   const [userFullPrice, setUserFullPrice] = useState<number | null>(null);
   const [userPromoLeft, setUserPromoLeft] = useState<number>(0);
 
-  // The baseline to compare against: cheapest effective rate if available and lower
   const baseline = cheapestEffective && cheapestEffective < cheapestPrice
     ? cheapestEffective : cheapestPrice;
 
@@ -49,7 +117,6 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
         const remaining = getPromoRemaining(existing);
         setUserFullPrice(existing.fullPrice);
         setUserPromoLeft(remaining);
-        // Compute the user's effective annual rate
         const userEffective = computeEffectiveRate(existing.price, existing.fullPrice, remaining);
         const r = calculateCooked(userEffective, baseline);
         setResult(r);
@@ -95,6 +162,10 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
           {result.label}
         </div>
 
+        <div class="mt-2">
+          <RortScale currentLevel={result.level} />
+        </div>
+
         {result.monthlySavings > 0 ? (
           <div class="mt-4 space-y-1">
             <p class="text-lg text-neutral-300">
@@ -103,6 +174,15 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
             <p class="text-neutral-400">
               That's <span class="font-medium text-white">${result.monthlySavings.toFixed(2)}/mo</span> or{' '}
               <span class="font-medium text-white">${result.yearlySavings.toFixed(0)}/yr</span> you could save
+            </p>
+          </div>
+        ) : result.level === 'winning' ? (
+          <div class="mt-4 space-y-1">
+            <p class="text-lg text-neutral-300">
+              You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan we track
+            </p>
+            <p class="text-neutral-400">
+              Whatever you did, don't change a thing.
             </p>
           </div>
         ) : (
@@ -163,7 +243,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
 
   return (
     <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8">
-      <h3 class="font-display font-bold text-xl mb-1">Check if you're cooked</h3>
+      <h3 class="font-display font-bold text-xl mb-1">Are you getting rorted?</h3>
       <p class="text-neutral-400 text-sm mb-4">
         Enter what you pay for NBN {speed} and we'll tell you the truth
       </p>
@@ -189,7 +269,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
           type="submit"
           class="bg-accent hover:bg-accent/90 text-white font-medium rounded-lg px-5 py-2 transition-colors"
         >
-          Am I cooked?
+          Am I getting rorted?
         </button>
       </form>
     </div>

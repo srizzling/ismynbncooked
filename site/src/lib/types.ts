@@ -93,7 +93,7 @@ export interface UserPlan {
 
 export type UserPlans = Partial<Record<`nbn${SpeedTier}`, UserPlan>>;
 
-export type CookedLevel = 'not-cooked' | 'slightly-cooked' | 'cooked' | 'absolutely-cooked';
+export type CookedLevel = 'winning' | 'sweet-as' | 'bit-shit' | 'taking-the-piss' | 'absolute-rort';
 
 export interface CookedResult {
   level: CookedLevel;
