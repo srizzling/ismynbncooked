@@ -105,7 +105,11 @@ async function firecrawlScrape(
 }
 
 async function resolveContentType(url: string): Promise<'pdf' | 'html'> {
-  if (url.toLowerCase().endsWith('.pdf')) return 'pdf';
+  // Check the pathname (ignoring query string) for .pdf extension
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    if (pathname.endsWith('.pdf')) return 'pdf';
+  } catch {}
   try {
     const response = await fetch(url, {
       method: 'HEAD',
@@ -114,7 +118,9 @@ async function resolveContentType(url: string): Promise<'pdf' | 'html'> {
     });
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/pdf')) return 'pdf';
-  } catch {}
+  } catch (e) {
+    console.log(`[terms-sync] HEAD failed for ${url}:`, e);
+  }
   return 'html';
 }
 
