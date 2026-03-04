@@ -2,6 +2,12 @@
   "name": "ismynbncooked",
   "compatibility_date": "2026-03-01",
   "pages_build_output_dir": "./dist",
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
   "r2_buckets": [
     {
       "binding": "DATA_BUCKET",
