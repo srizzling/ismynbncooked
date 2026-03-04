@@ -1,16 +1,25 @@
 ---
 interface Props {
   subtitle?: string;
+  tagline?: string;
 }
 
-const { subtitle = "Find out if you're getting ripped off" } = Astro.props;
+const {
+  subtitle = "Compare every Australian NBN internet plan side-by-side and find out if your provider is ripping you off.",
+  tagline,
+} = Astro.props;
 ---
 
 <section class="text-center py-12 sm:py-20">
   <h1 class="text-5xl sm:text-7xl lg:text-8xl font-display font-bold tracking-tight">
-    Is Your NBN <span class="text-accent">Cooked?</span>
+    Am I Getting <span class="text-accent">Rorted?</span>
   </h1>
   <p class="mt-4 text-lg sm:text-xl text-neutral-400 max-w-2xl mx-auto">
     {subtitle}
   </p>
+  {tagline && (
+    <p class="mt-2 text-sm text-neutral-500 max-w-xl mx-auto">
+      {tagline}
+    </p>
+  )}
 </section>

@@ -51,20 +51,72 @@ try {
 }
 ---
 
-<Base title="Is My NBN Cooked? — Australian NBN Price Comparison">
+<Base
+  title="Am I Getting Rorted? — Compare Australian NBN Internet Plans & Prices"
+  description="Compare every Australian NBN internet plan side-by-side. Find the cheapest NBN 25, 50, 100, 250, 500, 1000 plans across all ISPs. Prices updated daily."
+  canonicalPath="/"
+  jsonLd={[
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Am I Getting Rorted?",
+      "alternateName": "IsMyNBNCooked",
+      "url": Astro.url.origin,
+      "description": "Compare every Australian NBN internet plan side-by-side and find out if your provider is ripping you off.",
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the cheapest NBN plan in Australia?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": `The cheapest NBN plan currently starts from $${Math.min(...SPEED_TIERS.map(s => tierSummaries[s].cheapest)).toFixed(0)}/month for an NBN 25 plan. Prices vary by speed tier and provider. Use our comparison tool to find the cheapest plan for your speed tier.`,
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "How do I know if I'm paying too much for NBN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Enter your current monthly price and we'll compare it against every available plan at your speed tier. Our 'Rort Scale' rates how much you're overpaying — from 'Sweet As' (fair price) to 'Absolute Rort' (30%+ above the cheapest).",
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "How many NBN providers are there in Australia?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": `We track plans from dozens of Australian ISPs (retail service providers) across all NBN speed tiers from NBN 25 to NBN 1000. Currently comparing ${SPEED_TIERS.reduce((sum, s) => sum + tierSummaries[s].planCount, 0)} plans total.`,
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "What NBN speed tiers are available?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "NBN speed tiers in Australia are: NBN 25 (25/5 Mbps), NBN 50 (50/20 Mbps), NBN 100 (100/20 Mbps), NBN 250 (250/25 Mbps), NBN 500 (500/50 Mbps), NBN 750 (750/50 Mbps), NBN 1000 (1000/50 Mbps), and NBN 2000 (2000/200 Mbps). Not all tiers are available on all connection types.",
+          },
+        },
+      ],
+    },
+  ]}
+>
   {meta && (
     <div class="flex justify-end mb-2">
       <DataFreshness client:load meta={meta} />
     </div>
   )}
-  <Hero />
+  <Hero tagline="Prices updated daily across all Australian ISPs. No ads, no affiliate links." />
 
   <section class="mb-12">
     <PlanChecker client:load />
   </section>
 
   <section>
-    <h2 class="font-display font-bold text-2xl mb-4">Or browse by speed tier</h2>
+    <h2 class="font-display font-bold text-2xl mb-4">Compare NBN plans by speed tier</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {SPEED_TIERS.map((speed) => (
         <TierCard
@@ -78,9 +130,72 @@ try {
     </div>
   </section>
 
+  <!-- SEO FAQ section — visible to users, crawlers, and AI -->
+  <section class="mt-16 max-w-3xl mx-auto">
+    <h2 class="font-display font-bold text-2xl mb-6 text-center">Frequently asked questions</h2>
+    <div class="space-y-4">
+      <details class="bg-surface-raised border border-surface-border rounded-xl">
+        <summary class="px-5 py-4 cursor-pointer text-white font-medium hover:text-accent transition-colors">
+          What is the cheapest NBN plan in Australia right now?
+        </summary>
+        <div class="px-5 pb-4 text-neutral-400 text-sm">
+          <p>
+            The cheapest NBN plan starts from <span class="text-white font-medium">${Math.min(...SPEED_TIERS.map(s => tierSummaries[s].cheapest)).toFixed(0)}/month</span> on the NBN 25 tier.
+            Cheapest prices vary by speed tier — for example, NBN 100 plans start
+            from <span class="text-white">${tierSummaries[100].cheapest.toFixed(0)}/month</span>.
+            We compare plans from every Australian ISP and update prices daily.
+          </p>
+        </div>
+      </details>
+
+      <details class="bg-surface-raised border border-surface-border rounded-xl">
+        <summary class="px-5 py-4 cursor-pointer text-white font-medium hover:text-accent transition-colors">
+          How do I know if I'm paying too much for NBN?
+        </summary>
+        <div class="px-5 pb-4 text-neutral-400 text-sm">
+          <p>
+            Enter your current monthly price into our plan checker above and we'll compare it against every
+            available plan at your speed tier. Our "Rort Scale" shows how much you're overpaying — from
+            "Sweet As" (you're on a fair deal) all the way to "Absolute Rort" (you're paying 30%+ more than the cheapest).
+            We also factor in promotional pricing and setup fees to give you the true effective monthly cost.
+          </p>
+        </div>
+      </details>
+
+      <details class="bg-surface-raised border border-surface-border rounded-xl">
+        <summary class="px-5 py-4 cursor-pointer text-white font-medium hover:text-accent transition-colors">
+          What NBN speed tier should I choose?
+        </summary>
+        <div class="px-5 pb-4 text-neutral-400 text-sm">
+          <p>
+            It depends on your household. <span class="text-white">NBN 25</span> suits light browsing and email.
+            <span class="text-white">NBN 50</span> handles HD streaming and small households.
+            <span class="text-white">NBN 100</span> is the most popular tier — good for families, 4K streaming, and working from home.
+            <span class="text-white">NBN 250+</span> is for heavy users, large households, or anyone who needs serious bandwidth.
+            Check the typical evening speeds on each plan — that's what you'll actually get during peak hours.
+          </p>
+        </div>
+      </details>
+
+      <details class="bg-surface-raised border border-surface-border rounded-xl">
+        <summary class="px-5 py-4 cursor-pointer text-white font-medium hover:text-accent transition-colors">
+          Does this site use affiliate links or ads?
+        </summary>
+        <div class="px-5 pb-4 text-neutral-400 text-sm">
+          <p>
+            No. This site has no ads, no affiliate links, and no sponsored placements.
+            Rankings are based purely on price. Plan data is sourced from
+            <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a>
+            and updated daily.
+          </p>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <section class="mt-12 text-center">
     <p class="text-neutral-500 text-sm">
-      Prices updated daily. All plans are month-to-month unless noted.
+      Prices updated daily. All plans are month-to-month unless noted. Comparing {SPEED_TIERS.reduce((sum, s) => sum + tierSummaries[s].planCount, 0)} NBN plans across Australia.
     </p>
   </section>
 </Base>

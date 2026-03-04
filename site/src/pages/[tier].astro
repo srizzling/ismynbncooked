@@ -12,32 +12,68 @@ if (!SPEED_TIERS.includes(speed)) return Astro.redirect('/');
 
 const label = TIER_LABELS[speed];
 
-const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+let tierData: TierData | null = null;
+let history: TierHistory | null = null;
+let comparisons: ComparisonsData | null = null;
 
-// Read tier data, history, and comparisons from R2 in parallel
-const [tierResult, historyResult, comparisonsResult] = await Promise.allSettled([
-  bucket.get(`data/plans/nbn-${speed}.json`).then(obj => obj ? obj.json() as Promise<TierData> : null),
-  bucket.get(`data/history/nbn-${speed}.json`).then(obj => obj ? obj.json() as Promise<TierHistory> : null),
-  bucket.get('data/comparisons.json').then(obj => obj ? obj.json() as Promise<ComparisonsData> : null),
-]);
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const [tierObj, historyObj, comparisonsObj] = await Promise.all([
+    bucket.get(`data/plans/nbn-${speed}.json`),
+    bucket.get(`data/history/nbn-${speed}.json`),
+    bucket.get('data/comparisons.json'),
+  ]);
+  tierData = tierObj ? await tierObj.json() as TierData : null;
+  history = historyObj ? await historyObj.json() as TierHistory : null;
+  comparisons = comparisonsObj ? await comparisonsObj.json() as ComparisonsData : null;
+} catch {
+  // R2 unavailable (local dev) — fall back to static JSON in public/data/
+}
 
-const tierData = tierResult.status === 'fulfilled' ? tierResult.value : null;
-const history = historyResult.status === 'fulfilled' ? historyResult.value : null;
-const comparisons = comparisonsResult.status === 'fulfilled' ? comparisonsResult.value : null;
+if (!tierData) {
+  const base = new URL('/', Astro.url);
+  const [tierRes, historyRes, comparisonsRes] = await Promise.all([
+    fetch(new URL(`data/plans/nbn-${speed}.json`, base)),
+    fetch(new URL(`data/history/nbn-${speed}.json`, base)),
+    fetch(new URL('data/comparisons.json', base)),
+  ]);
+  tierData = tierRes.ok ? await tierRes.json() as TierData : null;
+  history = historyRes.ok ? await historyRes.json() as TierHistory : null;
+  comparisons = comparisonsRes.ok ? await comparisonsRes.json() as ComparisonsData : null;
+}
 
 if (!tierData) return Astro.redirect('/');
 ---
 
-<Base title={`${label} Plans — Is My NBN Cooked?`}>
+<Base
+  title={`Cheapest ${label} Plans Australia — Compare ${tierData.planCount} NBN ${speed} Plans`}
+  description={`Compare ${tierData.planCount} Australian ${label} internet plans. Cheapest from $${tierData.cheapest.toFixed(0)}/mo. See prices, promos, evening speeds, and contract terms across all ISPs.`}
+  canonicalPath={`/nbn-${speed}`}
+  jsonLd={{
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": `${label} Plans — Australian NBN Price Comparison`,
+    "description": `Compare ${tierData.planCount} Australian ${label} internet plans from $${tierData.cheapest.toFixed(0)}/month.`,
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": Astro.url.origin },
+        { "@type": "ListItem", "position": 2, "name": `${label} Plans` },
+      ],
+    },
+  }}
+>
   <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">
     &larr; All tiers
   </a>
 
   <section class="mb-8">
     <h1 class="text-4xl sm:text-5xl font-display font-bold">
-      NBN {speed}
+      {label} Plans
     </h1>
-    <p class="text-neutral-400 mt-2">{label}</p>
+    <p class="text-neutral-400 mt-2">
+      Comparing {tierData.planCount} Australian NBN {speed} plans from ${tierData.cheapest.toFixed(0)}/mo. Prices updated daily.
+    </p>
   </section>
 
   <TierDashboard

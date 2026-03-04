@@ -2,9 +2,20 @@
 interface Props {
   title: string;
   description?: string;
+  canonicalPath?: string;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
-const { title, description = "Find out if you're getting ripped off on your NBN plan. Compare prices across every Australian ISP." } = Astro.props;
+const {
+  title,
+  description = "Compare every Australian NBN internet plan. See cheapest prices across all ISPs for NBN 25, 50, 100, 250, 1000 and find out if your provider is ripping you off.",
+  canonicalPath,
+  jsonLd,
+} = Astro.props;
+
+const canonicalUrl = canonicalPath
+  ? new URL(canonicalPath, Astro.site ?? Astro.url.origin).href
+  : Astro.url.href;
 ---
 
 <!doctype html>
@@ -15,13 +26,25 @@ const { title, description = "Find out if you're getting ripped off on your NBN 
     <meta name="description" content={description} />
     <title>{title}</title>
 
+    <link rel="canonical" href={canonicalUrl} />
+    <meta name="robots" content="index, follow" />
+
     <link rel="preload" href="/fonts/ClashDisplay-Bold.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/GeneralSans-Regular.woff2" as="font" type="font/woff2" crossorigin />
 
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    {jsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify(
+        Array.isArray(jsonLd) ? jsonLd : jsonLd
+      )} />
+    )}
   </head>
   <body class="min-h-screen">
     <main class="max-w-6xl mx-auto px-4 py-8 sm:py-12">
