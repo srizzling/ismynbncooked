@@ -23,8 +23,17 @@ type AUState = 'nsw' | 'vic' | 'qld' | 'sa' | 'wa' | 'tas' | 'act' | 'nt';
 
 // Fallback prices — used when scraping fails
 const FALLBACK = {
-  petrol: 2.10,
   avo: 3.50,
+  petrol: {
+    nsw: 1.95,  // Sydney
+    vic: 1.90,  // Melbourne
+    qld: 1.85,  // Brisbane
+    sa: 1.80,   // Adelaide
+    wa: 1.85,   // Perth (FuelWatch)
+    tas: 1.90,  // Hobart
+    act: 1.90,  // Canberra
+    nt: 2.00,   // Darwin
+  },
   netflix: 20.99,
   flatWhite: {
     nsw: 6.00,  // Sydney
@@ -106,7 +115,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 100
 
 // --- Fetchers ---
 
-async function fetchPetrolPrice(): Promise<number> {
+async function fetchPetrolPriceWA(): Promise<number> {
   try {
     const res = await fetchWithTimeout(
       'https://www.fuelwatch.wa.gov.au/fuelwatch/fuelWatchRSS?Product=1&Region=25',
@@ -117,13 +126,54 @@ async function fetchPetrolPrice(): Promise<number> {
       const prices = [...xml.matchAll(/<price>([\d.]+)<\/price>/g)].map(m => parseFloat(m[1]));
       if (prices.length > 0) {
         const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-        return avg > 10 ? avg / 100 : avg;
+        const price = avg > 10 ? avg / 100 : avg;
+        console.log(`[prices-sync] Petrol wa (fuelwatch): $${price.toFixed(2)}`);
+        return price;
       }
     }
   } catch (e) {
-    console.log('[prices-sync] FuelWatch failed:', e);
+    console.log('[prices-sync] FuelWatch WA failed:', e);
   }
-  return FALLBACK.petrol;
+  return FALLBACK.petrol.wa;
+}
+
+async function fetchPetrolPriceNSW(firecrawlKey?: string): Promise<number> {
+  if (!firecrawlKey) return FALLBACK.petrol.nsw;
+
+  const extracted = await firecrawlScrape(
+    firecrawlKey,
+    'https://www.fuelcheck.nsw.gov.au/app',
+    'Extract the current average ULP (unleaded petrol) or E10 price per litre in cents or dollars for the Sydney metro area. Look for average prices displayed on the page.',
+    {
+      type: 'object',
+      properties: {
+        pricePerLitre: { type: 'number', description: 'Average ULP/E10 price per litre in AUD (e.g. 1.95 for $1.95/L). If shown in cents (e.g. 195.0), divide by 100.' },
+      },
+    }
+  );
+  if (extracted?.pricePerLitre) {
+    let price = extracted.pricePerLitre;
+    if (price > 10) price = price / 100; // Convert cents to dollars
+    if (price >= 1 && price <= 4) {
+      console.log(`[prices-sync] Petrol nsw (fuelcheck): $${price.toFixed(2)}`);
+      return price;
+    }
+  }
+  return FALLBACK.petrol.nsw;
+}
+
+async function fetchAllPetrolPrices(firecrawlKey?: string): Promise<Record<AUState, number>> {
+  const prices = { ...FALLBACK.petrol };
+
+  const [waResult, nswResult] = await Promise.allSettled([
+    fetchPetrolPriceWA(),
+    fetchPetrolPriceNSW(firecrawlKey),
+  ]);
+
+  if (waResult.status === 'fulfilled') prices.wa = waResult.value;
+  if (nswResult.status === 'fulfilled') prices.nsw = nswResult.value;
+
+  return prices;
 }
 
 async function fetchAvoPrice(firecrawlKey?: string): Promise<number> {
@@ -388,8 +438,7 @@ export default {
     const states: AUState[] = ['nsw', 'vic', 'qld', 'sa', 'wa', 'tas', 'act', 'nt'];
 
     // Fetch common prices in parallel
-    const [petrolResult, avoResult, netflixResult] = await Promise.allSettled([
-      fetchPetrolPrice(),
+    const [avoResult, netflixResult] = await Promise.allSettled([
       fetchAvoPrice(firecrawlKey),
       fetchNetflixPrice(firecrawlKey),
     ]);
@@ -397,16 +446,16 @@ export default {
     const val = (r: PromiseSettledResult<number>, fb: number) =>
       r.status === 'fulfilled' ? r.value : fb;
 
-    const petrol  = val(petrolResult, FALLBACK.petrol);
     const avo     = val(avoResult, FALLBACK.avo);
     const netflix = val(netflixResult, FALLBACK.netflix);
 
-    console.log(`[prices-sync] Petrol: $${petrol.toFixed(2)}, Avo: $${avo.toFixed(2)}, Netflix: $${netflix.toFixed(2)}`);
+    console.log(`[prices-sync] Avo: $${avo.toFixed(2)}, Netflix: $${netflix.toFixed(2)}`);
 
-    // Fetch house + coffee prices in parallel (each is a single Firecrawl call)
-    const [housePrices, coffeePrices] = await Promise.all([
+    // Fetch per-state prices in parallel (house, coffee, petrol)
+    const [housePrices, coffeePrices, petrolPrices] = await Promise.all([
       fetchAllHousePrices(firecrawlKey),
       fetchAllCoffeePrices(firecrawlKey),
+      fetchAllPetrolPrices(firecrawlKey),
     ]);
 
     // Fetch per-state PT fares in parallel
@@ -431,13 +480,36 @@ export default {
       wa: 'SmartRider Trips', tas: 'Greencard Trips', act: 'MyWay Trips', nt: 'Tap and Ride Trips',
     };
 
+    const petrolSources: Record<AUState, { source: string; url: string }> = {
+      wa:  { source: 'FuelWatch WA — average ULP', url: 'https://www.fuelwatch.wa.gov.au/' },
+      nsw: { source: 'NSW FuelCheck — average ULP', url: 'https://www.fuelcheck.nsw.gov.au/app' },
+      vic: { source: `Average ULP in ${STATE_NAMES.vic}`, url: '' },
+      qld: { source: `Average ULP in ${STATE_NAMES.qld}`, url: '' },
+      sa:  { source: `Average ULP in ${STATE_NAMES.sa}`, url: '' },
+      tas: { source: `Average ULP in ${STATE_NAMES.tas}`, url: '' },
+      act: { source: `Average ULP in ${STATE_NAMES.act}`, url: '' },
+      nt:  { source: `Average ULP in ${STATE_NAMES.nt}`, url: '' },
+    };
+
     // Build units
     const units: Record<string, ComparisonUnit> = {
       avo:       { label: 'Avocados',          icon: '🥑', price: avo,     per: 'month', source: 'Woolworths Hass Avocado', sourceUrl: 'https://www.woolworths.com.au/shop/productdetails/120080/hass-avocado' },
       bunnings:  { label: 'Bunnings Snags',    icon: '🌭', price: 3.50,    per: 'month', source: 'Bunnings weekend sausage sizzle', sourceUrl: 'https://www.bunnings.com.au/about-us/in-our-community' },
-      petrol:    { label: 'Litres of Petrol',  icon: '⛽', price: petrol,  per: 'month', source: 'Average ULP price (FuelWatch)', sourceUrl: 'https://www.fuelwatch.wa.gov.au/' },
       netflix:   { label: 'Netflix Months',    icon: '📺', price: netflix, per: 'month', source: 'Netflix Australia Standard plan', sourceUrl: 'https://help.netflix.com/en/node/24926' },
     };
+
+    // Add per-state petrol prices
+    for (const state of states) {
+      units[`petrol_${state}`] = {
+        label: 'Litres of Petrol',
+        icon: '⛽',
+        price: petrolPrices[state],
+        per: 'month',
+        state,
+        source: petrolSources[state].source,
+        sourceUrl: petrolSources[state].url || undefined,
+      };
+    }
 
     // Add per-state flat white prices
     for (const state of states) {
@@ -491,6 +563,7 @@ export default {
       };
     }
 
+    console.log('[prices-sync] Petrol:', Object.entries(petrolPrices).map(([s, p]) => `${s}: $${p.toFixed(2)}`).join(', '));
     console.log('[prices-sync] Coffee:', Object.entries(coffeePrices).map(([s, p]) => `${s}: $${p.toFixed(2)}`).join(', '));
     console.log('[prices-sync] PT fares:', Object.entries(ptPrices).map(([s, p]) => `${s}: $${p.toFixed(2)}`).join(', '));
     console.log('[prices-sync] House 2BR:', Object.entries(housePrices).map(([s, p]) => `${s}: $${Math.round(p / 1000)}k`).join(', '));
