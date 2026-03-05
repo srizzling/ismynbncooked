@@ -8,18 +8,23 @@ export interface ShareData {
   p: number;
   /** Provider name */
   v: string;
-  /** Cheapest price in cents (at time of share) */
+  /** Cheapest effective price in cents (at time of share) */
   c: number;
   /** Cooked level */
   l: CookedLevel;
   /** Cheapest provider name */
   cp: string;
+  /** Horizon in months */
+  h: number;
+  /** User's full price after promo in cents (0 = no promo) */
+  fp: number;
+  /** User's promo months remaining */
+  pd: number;
 }
 
 /** Encode share data into a URL-safe base64 string */
 export function encodeShareData(data: ShareData): string {
-  const json = JSON.stringify([data.s, data.p, data.v, data.c, data.l, data.cp]);
-  // Use base64url encoding (no padding, URL-safe chars)
+  const json = JSON.stringify([data.s, data.p, data.v, data.c, data.l, data.cp, data.h, data.fp, data.pd]);
   return btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
@@ -28,9 +33,10 @@ export function decodeShareData(encoded: string): ShareData | null {
   try {
     const padded = encoded.replace(/-/g, '+').replace(/_/g, '/');
     const json = atob(padded);
-    const [s, p, v, c, l, cp] = JSON.parse(json);
+    const arr = JSON.parse(json);
+    const [s, p, v, c, l, cp, h, fp, pd] = arr;
     if (typeof s !== 'number' || typeof p !== 'number' || typeof c !== 'number') return null;
-    return { s, p, v: v ?? '', c, l: l ?? 'sweet-as', cp: cp ?? '' };
+    return { s, p, v: v ?? '', c, l: l ?? 'sweet-as', cp: cp ?? '', h: h ?? 12, fp: fp ?? 0, pd: pd ?? 0 };
   } catch {
     return null;
   }

@@ -220,6 +220,7 @@ export default function TierDashboard({ speed, label, tierData, history, compari
         cheapestPrice={cheapest}
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
         cheapestProviderName={cheapestAtHorizon?.plan.providerName}
+        horizon={horizon}
         onCookedChange={handleCookedChange}
       />
 

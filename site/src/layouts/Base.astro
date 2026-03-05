@@ -4,6 +4,7 @@ interface Props {
   description?: string;
   canonicalPath?: string;
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  ogImage?: string;
 }
 
 const {
@@ -11,6 +12,7 @@ const {
   description = "Compare every Australian NBN internet plan. See cheapest prices across all ISPs for NBN 25, 50, 100, 250, 1000 and find out if your provider is ripping you off.",
   canonicalPath,
   jsonLd,
+  ogImage,
 } = Astro.props;
 
 const canonicalUrl = canonicalPath
@@ -36,9 +38,11 @@ const canonicalUrl = canonicalPath
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalUrl} />
-    <meta name="twitter:card" content="summary_large_image" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
 
     {jsonLd && (
       <script type="application/ld+json" set:html={JSON.stringify(

@@ -10,6 +10,7 @@ interface Props {
   cheapestPrice: number;
   cheapestEffective?: number;
   cheapestProviderName?: string;
+  horizon?: number;
   onCookedChange?: (result: CookedResult | null) => void;
 }
 
@@ -20,12 +21,12 @@ function getPromoRemaining(plan: { promoMonthsLeft?: number; savedAt: string }):
   return Math.max(0, plan.promoMonthsLeft - monthsSince);
 }
 
-/** Compute the user's effective annual rate considering remaining promo months */
-function computeEffectiveRate(price: number, fullPrice: number | undefined, promoMonthsLeft: number): number {
+/** Compute the user's effective rate considering remaining promo months over a given horizon */
+function computeEffectiveRate(price: number, fullPrice: number | undefined, promoMonthsLeft: number, months: number = 12): number {
   if (!fullPrice || promoMonthsLeft <= 0) return fullPrice ?? price;
-  const promoMonths = Math.min(promoMonthsLeft, 12);
-  const fullMonths = 12 - promoMonths;
-  return (promoMonths * price + fullMonths * fullPrice) / 12;
+  const promoMonths = Math.min(promoMonthsLeft, months);
+  const fullMonths = months - promoMonths;
+  return (promoMonths * price + fullMonths * fullPrice) / months;
 }
 
 function RortScale({ currentLevel }: { currentLevel: string }) {
@@ -97,7 +98,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ speed, cheapestPrice, cheapestEffective, cheapestProviderName, onCookedChange }: Props) {
+export default function CookedRating({ speed, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, onCookedChange }: Props) {
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [result, setResult] = useState<CookedResult | null>(null);
@@ -118,6 +119,9 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
       c: Math.round(baseline * 100),
       l: result.level,
       cp: cheapestProviderName ?? '',
+      h: horizon,
+      fp: userFullPrice ? Math.round(userFullPrice * 100) : 0,
+      pd: userPromoLeft,
     };
     const url = buildShareUrl(window.location.origin, data);
 
@@ -143,7 +147,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
         const remaining = getPromoRemaining(existing);
         setUserFullPrice(existing.fullPrice);
         setUserPromoLeft(remaining);
-        const userEffective = computeEffectiveRate(existing.price, existing.fullPrice, remaining);
+        const userEffective = computeEffectiveRate(existing.price, existing.fullPrice, remaining, horizon);
         const r = calculateCooked(userEffective, baseline);
         setResult(r);
         onCookedChange?.(r);
@@ -153,7 +157,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
         onCookedChange?.(r);
       }
     }
-  }, [speed, cheapestPrice, baseline]);
+  }, [speed, cheapestPrice, baseline, horizon]);
 
   function handleSubmit(e: Event) {
     e.preventDefault();
