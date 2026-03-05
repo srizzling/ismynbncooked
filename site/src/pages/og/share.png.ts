@@ -54,6 +54,13 @@ export const GET: APIRoute = async ({ url }) => {
   const isWinning = data.l === 'winning';
   const isCooked = savings > 0;
 
+  // Comparison units for the savings row
+  const comparisons = [
+    { label: 'flat whites', price: 5.50 },
+    { label: 'Bunnings snags', price: 3.50 },
+    { label: 'Netflix months', price: 20.99 },
+  ];
+
   const svg = await satori(
     {
       type: 'div',
@@ -237,6 +244,45 @@ export const GET: APIRoute = async ({ url }) => {
               ],
             },
           },
+          // Savings comparisons row (only when overpaying)
+          ...(isCooked
+            ? [
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '32px',
+                      marginBottom: '8px',
+                    },
+                    children: comparisons.map((c) => ({
+                      type: 'div',
+                      props: {
+                        style: {
+                          display: 'flex',
+                          alignItems: 'center',
+                          backgroundColor: '#171717',
+                          border: '1px solid #262626',
+                          borderRadius: '12px',
+                          padding: '10px 20px',
+                        },
+                        children: {
+                            type: 'div',
+                            props: {
+                              style: { color: '#a3a3a3', fontSize: '18px', display: 'flex', gap: '4px' },
+                              children: [
+                                { type: 'span', props: { style: { color: '#ffffff', fontWeight: 700 }, children: (savings / c.price).toFixed(1) } },
+                                ` ${c.label}/mo`,
+                              ],
+                            },
+                          },
+                      },
+                    })),
+                  },
+                },
+              ]
+            : []),
           // Footer
           {
             type: 'div',

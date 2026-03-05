@@ -45,8 +45,6 @@ const userFullPrice = data.fp ? data.fp / 100 : 0;
 const userPromoMonths = data.pd || 0;
 const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
 
-// Recalculate from the frozen cheapest price
-const result = calculateCooked(userPrice, cheapestEffective);
 const tierLabel = TIER_LABELS[speed];
 
 // Find the cheapest plan at this horizon from current data
@@ -66,6 +64,9 @@ if (userHasPromo) {
   const fullMonths = horizon - promoMonths;
   userEffective = (promoMonths * userPrice + fullMonths * userFullPrice) / horizon;
 }
+
+// Recalculate from the user's effective price (not raw promo price)
+const result = calculateCooked(userEffective, cheapestEffective);
 
 const title = `${levelInfo.label} — My NBN ${speed} is cooked`;
 const description = provider
