@@ -218,9 +218,33 @@ async function mergeTermsIntoR2(
 }
 
 /**
- * Collect all stale CIS URLs and enqueue them for extraction.
+ * Collect all unique CIS URLs from plan data, optionally filtered by provider name.
  */
-async function enqueueStaleUrls(env: Env): Promise<{ enqueued: number; skipped: number }> {
+async function collectCisUrls(bucket: R2Bucket, provider?: string): Promise<Map<string, string[]>> {
+  const urlToProviders = new Map<string, string[]>();
+  for (const speed of SPEED_TIERS) {
+    try {
+      const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
+      if (!obj) continue;
+      const tierData: TierData = await obj.json();
+      for (const plan of tierData.plans) {
+        if (!plan.cisUrl) continue;
+        if (provider && plan.providerName?.toLowerCase() !== provider.toLowerCase()) continue;
+        const existing = urlToProviders.get(plan.cisUrl) ?? [];
+        if (!existing.includes(plan.providerName ?? '')) existing.push(plan.providerName ?? '');
+        urlToProviders.set(plan.cisUrl, existing);
+      }
+    } catch {}
+  }
+  return urlToProviders;
+}
+
+/**
+ * Collect CIS URLs and enqueue them for extraction.
+ * @param force - if true, ignore staleness and re-extract all URLs
+ * @param provider - if set, only process URLs for this provider (case-insensitive)
+ */
+async function enqueueStaleUrls(env: Env, { force = false, provider }: { force?: boolean; provider?: string } = {}): Promise<{ enqueued: number; skipped: number; cleared: number; providers: string[] }> {
   // Load existing terms
   let terms: Record<string, TermsEntry> = {};
   try {
@@ -228,41 +252,47 @@ async function enqueueStaleUrls(env: Env): Promise<{ enqueued: number; skipped: 
     if (existing) terms = await existing.json();
   } catch {}
 
-  // Collect all unique CIS URLs from plan data
-  const cisUrls = new Set<string>();
-  for (const speed of SPEED_TIERS) {
-    try {
-      const obj = await env.DATA_BUCKET.get(`data/plans/nbn-${speed}.json`);
-      if (!obj) continue;
-      const tierData: TierData = await obj.json();
-      for (const plan of tierData.plans) {
-        if (plan.cisUrl) cisUrls.add(plan.cisUrl);
-      }
-    } catch {}
-  }
+  const cisUrls = await collectCisUrls(env.DATA_BUCKET, provider);
+  const allProviders = [...new Set([...cisUrls.values()].flat())];
 
-  console.log(`[terms-sync] Found ${cisUrls.size} unique CIS URLs`);
+  console.log(`[terms-sync] Found ${cisUrls.size} unique CIS URLs${provider ? ` for "${provider}"` : ''}`);
+
+  // Clear cached terms for matching URLs if force
+  let cleared = 0;
+  if (force || provider) {
+    for (const url of cisUrls.keys()) {
+      if (terms[url]) {
+        delete terms[url];
+        cleared++;
+      }
+    }
+    if (cleared > 0) {
+      await env.DATA_BUCKET.put('data/terms/terms.json', JSON.stringify(terms), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+      console.log(`[terms-sync] Cleared ${cleared} cached terms`);
+    }
+  }
 
   const now = Date.now();
   const staleUrls: string[] = [];
   let skipped = 0;
 
-  for (const url of cisUrls) {
+  for (const url of cisUrls.keys()) {
     const existing = terms[url];
-    if (existing && now - new Date(existing.extractedAt).getTime() < THIRTY_DAYS_MS) {
+    if (!force && !provider && existing && now - new Date(existing.extractedAt).getTime() < THIRTY_DAYS_MS) {
       skipped++;
     } else {
       staleUrls.push(url);
     }
   }
 
-  // Enqueue in batches (Queue.send supports individual messages)
   for (const url of staleUrls) {
     await env.TERMS_QUEUE.send({ cisUrl: url });
   }
 
   console.log(`[terms-sync] Enqueued ${staleUrls.length}, skipped ${skipped} fresh`);
-  return { enqueued: staleUrls.length, skipped };
+  return { enqueued: staleUrls.length, skipped, cleared, providers: allProviders };
 }
 
 export default {
@@ -335,9 +365,11 @@ export default {
       }
     }
 
-    const { enqueued, skipped } = await enqueueStaleUrls(env);
+    const force = url.searchParams.get('force') === 'true';
+    const provider = url.searchParams.get('provider') ?? undefined;
+    const { enqueued, skipped, cleared, providers } = await enqueueStaleUrls(env, { force, provider });
     return new Response(
-      JSON.stringify({ triggered: true, enqueued, skipped }),
+      JSON.stringify({ triggered: true, force, provider: provider ?? null, matchedProviders: providers, enqueued, skipped, cleared }),
       { status: 202, headers: { 'Content-Type': 'application/json' } }
     );
   },
