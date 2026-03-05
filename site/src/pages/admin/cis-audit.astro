@@ -1,0 +1,201 @@
+---
+import Base from '../../layouts/Base.astro';
+import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type TierData, type NBNPlan } from '../../lib/types';
+
+interface AuditPlan {
+  speed: SpeedTier;
+  plan: NBNPlan;
+  issue: 'missing' | 'broken';
+  statusCode?: number;
+}
+
+const allPlans: AuditPlan[] = [];
+
+// Load all tier data
+for (const speed of SPEED_TIERS) {
+  let tierData: TierData | null = null;
+
+  try {
+    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+    const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
+    tierData = obj ? await obj.json() as TierData : null;
+  } catch {}
+
+  if (!tierData) {
+    const base = new URL('/', Astro.url);
+    const res = await fetch(new URL(`data/plans/nbn-${speed}.json`, base));
+    tierData = res.ok ? await res.json() as TierData : null;
+  }
+
+  if (!tierData) continue;
+
+  for (const plan of tierData.plans) {
+    if (!plan.cisUrl || plan.cisUrl.trim() === '') {
+      allPlans.push({ speed, plan, issue: 'missing' });
+    }
+  }
+}
+
+// Check URLs in parallel (with a timeout)
+const urlsToCheck = new Map<string, AuditPlan[]>();
+for (const speed of SPEED_TIERS) {
+  let tierData: TierData | null = null;
+
+  try {
+    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+    const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
+    tierData = obj ? await obj.json() as TierData : null;
+  } catch {}
+
+  if (!tierData) {
+    const base = new URL('/', Astro.url);
+    const res = await fetch(new URL(`data/plans/nbn-${speed}.json`, base));
+    tierData = res.ok ? await res.json() as TierData : null;
+  }
+
+  if (!tierData) continue;
+
+  for (const plan of tierData.plans) {
+    if (plan.cisUrl && plan.cisUrl.trim() !== '') {
+      const existing = urlsToCheck.get(plan.cisUrl) ?? [];
+      existing.push({ speed, plan, issue: 'broken' });
+      urlsToCheck.set(plan.cisUrl, existing);
+    }
+  }
+}
+
+// Check each unique URL
+const brokenUrls: { url: string; statusCode: number; plans: AuditPlan[] }[] = [];
+
+const checks = Array.from(urlsToCheck.entries()).map(async ([url, plans]) => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      return { url, statusCode: res.status, plans };
+    }
+  } catch {
+    return { url, statusCode: 0, plans };
+  }
+  return null;
+});
+
+const results = await Promise.allSettled(checks);
+for (const result of results) {
+  if (result.status === 'fulfilled' && result.value) {
+    brokenUrls.push(result.value);
+  }
+}
+
+brokenUrls.sort((a, b) => a.url.localeCompare(b.url));
+
+const missingCount = allPlans.length;
+const brokenCount = brokenUrls.reduce((sum, b) => sum + b.plans.length, 0);
+---
+
+<Base title="CIS URL Audit" description="" canonicalPath="/admin/cis-audit">
+  <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">
+    &larr; Home
+  </a>
+
+  <h1 class="text-3xl font-display font-bold mb-2">CIS URL Audit</h1>
+  <p class="text-neutral-400 text-sm mb-6">
+    Plans with missing or broken Critical Information Summary URLs.
+    Checked {urlsToCheck.size} unique URLs across {SPEED_TIERS.length} speed tiers.
+  </p>
+
+  <div class="flex gap-4 mb-8">
+    <div class="bg-surface-raised border border-surface-border rounded-xl px-4 py-3">
+      <div class="text-2xl font-display font-bold tabular-nums text-cooked-red">{missingCount}</div>
+      <div class="text-sm text-neutral-500">missing URL</div>
+    </div>
+    <div class="bg-surface-raised border border-surface-border rounded-xl px-4 py-3">
+      <div class="text-2xl font-display font-bold tabular-nums text-accent">{brokenCount}</div>
+      <div class="text-sm text-neutral-500">broken URL</div>
+    </div>
+    <div class="bg-surface-raised border border-surface-border rounded-xl px-4 py-3">
+      <div class="text-2xl font-display font-bold tabular-nums text-cooked-green">{urlsToCheck.size - brokenUrls.length}</div>
+      <div class="text-sm text-neutral-500">URLs OK</div>
+    </div>
+  </div>
+
+  {/* Missing CIS URLs */}
+  {missingCount > 0 && (
+    <section class="mb-8">
+      <h2 class="font-display font-bold text-xl mb-3">Missing CIS URL</h2>
+      <div class="overflow-x-auto rounded-xl border border-surface-border">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-surface-border text-left text-neutral-400">
+              <th class="px-4 py-3 font-medium">Tier</th>
+              <th class="px-4 py-3 font-medium">Provider</th>
+              <th class="px-4 py-3 font-medium">Plan</th>
+              <th class="px-4 py-3 font-medium">Monthly</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allPlans.map(({ speed, plan }) => (
+              <tr class="border-b border-surface-border/50">
+                <td class="px-4 py-3 text-neutral-400">NBN {speed}</td>
+                <td class="px-4 py-3 text-white font-medium">{plan.providerName}</td>
+                <td class="px-4 py-3 text-neutral-300">{plan.planName}</td>
+                <td class="px-4 py-3 tabular-nums text-neutral-300">${plan.monthlyPrice.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  {/* Broken CIS URLs */}
+  {brokenUrls.length > 0 && (
+    <section class="mb-8">
+      <h2 class="font-display font-bold text-xl mb-3">Broken CIS URLs</h2>
+      <div class="space-y-4">
+        {brokenUrls.map(({ url, statusCode, plans }) => (
+          <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+            <div class="flex items-start gap-3 mb-2">
+              <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+                statusCode === 0
+                  ? 'bg-cooked-red/20 text-cooked-red'
+                  : statusCode >= 500
+                    ? 'bg-cooked-red/20 text-cooked-red'
+                    : 'bg-accent/20 text-accent'
+              }`}>
+                {statusCode === 0 ? 'TIMEOUT' : statusCode}
+              </span>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener"
+                class="text-sm text-neutral-300 hover:text-white break-all underline decoration-neutral-600"
+              >
+                {url}
+              </a>
+            </div>
+            <div class="text-xs text-neutral-500 space-y-0.5">
+              {plans.map(({ speed, plan }) => (
+                <div>
+                  NBN {speed} — <span class="text-neutral-400">{plan.providerName}</span> — {plan.planName}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+
+  {missingCount === 0 && brokenUrls.length === 0 && (
+    <div class="bg-cooked-green/10 border border-cooked-green/30 rounded-xl px-4 py-3 text-sm text-cooked-green">
+      All CIS URLs are present and resolving. Nice.
+    </div>
+  )}
+</Base>

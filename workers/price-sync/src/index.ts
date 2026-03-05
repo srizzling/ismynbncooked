@@ -1,6 +1,7 @@
 import type { Env, SpeedTier, NBNPlan, TierData, TierHistory, MetaData, DailySummary } from './types';
 import { SPEED_TIERS } from './types';
 import { fetchPlansForTier } from './api-client';
+import { applyCisOverrides } from './cis-overrides';
 
 const TIER_LABELS: Record<SpeedTier, string> = {
   25: 'NBN 25 (25/5 Mbps)',
@@ -166,6 +167,9 @@ export default {
         console.log(`[price-sync] Fetching NBN ${speed} plans...`);
         const rawPlans = await fetchPlansForTier(env.NETBARGAINS_API_KEY, speed);
         let plans = rawPlans.map(transformPlan);
+
+        // Apply CIS URL overrides for known-bad URLs
+        plans = applyCisOverrides(plans);
 
         // Merge existing terms data
         plans = await mergeTerms(plans, env.DATA_BUCKET);
