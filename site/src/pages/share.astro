@@ -72,8 +72,8 @@ const description = provider
   ? `I'm paying $${userPrice.toFixed(0)}/mo with ${provider} for ${tierLabel}. The cheapest is $${cheapestEffective.toFixed(0)}/mo effective. Am I getting rorted?`
   : `I'm paying $${userPrice.toFixed(0)}/mo for ${tierLabel}. The cheapest is $${cheapestEffective.toFixed(0)}/mo effective. Am I getting rorted?`;
 
-// OG image — dynamic text via URL params for future image gen, static fallback for now
-const ogImageUrl = new URL('/og-share.png', Astro.site ?? Astro.url.origin).href;
+// Dynamic OG image with the actual cooked result
+const ogImageUrl = new URL(`/og/share.png?d=${encoded}`, Astro.site ?? Astro.url.origin).href;
 ---
 
 <Base
