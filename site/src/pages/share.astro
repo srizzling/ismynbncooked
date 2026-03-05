@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import { TIER_LABELS, SPEED_TIERS, type SpeedTier } from '../lib/types';
+import { TIER_LABELS, SPEED_TIERS, type SpeedTier, type ComparisonsData } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { decodeShareData, getLevelInfo } from '../lib/share';
 
@@ -9,6 +9,19 @@ const data = encoded ? decodeShareData(encoded) : null;
 
 if (!data || !SPEED_TIERS.includes(data.s)) {
   return Astro.redirect('/');
+}
+
+// Load comparisons data
+let comparisons: ComparisonsData | null = null;
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const obj = await bucket.get('data/comparisons.json');
+  if (obj) comparisons = await obj.json() as ComparisonsData;
+} catch {}
+if (!comparisons) {
+  const base = new URL('/', Astro.url);
+  const res = await fetch(new URL('data/comparisons.json', base));
+  if (res.ok) comparisons = await res.json() as ComparisonsData;
 }
 
 const speed = data.s;
@@ -69,13 +82,26 @@ const description = provider
         </div>
 
         {result.monthlySavings > 0 && (
-          <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-center">
-            <span class="text-neutral-400 text-sm">Overpaying </span>
-            <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}%</span>
-            <span class="text-neutral-400 text-sm"> — that's </span>
-            <span class="font-bold text-white">${result.monthlySavings.toFixed(2)}/mo</span>
-            <span class="text-neutral-400 text-sm"> or </span>
-            <span class="font-bold text-white">${result.yearlySavings.toFixed(0)}/yr</span>
+          <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-center space-y-2">
+            <div>
+              <span class="text-neutral-400 text-sm">Overpaying </span>
+              <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}%</span>
+              <span class="text-neutral-400 text-sm"> — that's </span>
+              <span class="font-bold text-white">${result.monthlySavings.toFixed(2)}/mo</span>
+              <span class="text-neutral-400 text-sm"> or </span>
+              <span class="font-bold text-white">${result.yearlySavings.toFixed(0)}/yr</span>
+            </div>
+            {comparisons && (() => {
+              const fw = comparisons.units['flatWhite'];
+              const snag = comparisons.units['bunnings'];
+              if (!fw || !snag) return null;
+              return (
+                <div class="text-neutral-500 text-sm">
+                  That's <span class="text-white font-medium">{(result.monthlySavings / fw.price).toFixed(1)}</span> {fw.icon} {fw.label.toLowerCase()}
+                  {' '}or <span class="text-white font-medium">{(result.monthlySavings / snag.price).toFixed(1)}</span> {snag.icon} {snag.label.toLowerCase()} every month
+                </div>
+              );
+            })()}
           </div>
         )}
 
