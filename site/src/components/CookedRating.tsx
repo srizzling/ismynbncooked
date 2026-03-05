@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useCallback } from 'preact/hooks';
 import type { SpeedTier, CookedResult } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { LEVELS } from '../lib/cooked';
 import { getUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
+import { buildShareUrl, type ShareData } from '../lib/share';
 
 interface Props {
   speed: SpeedTier;
@@ -103,9 +104,33 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
   const [hasExisting, setHasExisting] = useState(false);
   const [userFullPrice, setUserFullPrice] = useState<number | null>(null);
   const [userPromoLeft, setUserPromoLeft] = useState<number>(0);
+  const [shareLabel, setShareLabel] = useState('Share');
 
   const baseline = cheapestEffective && cheapestEffective < cheapestPrice
     ? cheapestEffective : cheapestPrice;
+
+  const handleShare = useCallback(async (currentPrice: number) => {
+    if (!result) return;
+    const data: ShareData = {
+      s: speed,
+      p: Math.round(currentPrice * 100),
+      v: provider,
+      c: Math.round(baseline * 100),
+      l: result.level,
+      cp: cheapestProviderName ?? '',
+    };
+    const url = buildShareUrl(window.location.origin, data);
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `My NBN ${speed} is ${result.label}`, url });
+        return;
+      } catch {}
+    }
+    await navigator.clipboard.writeText(url);
+    setShareLabel('Copied!');
+    setTimeout(() => setShareLabel('Share'), 2000);
+  }, [result, speed, provider, baseline, cheapestProviderName]);
 
   useEffect(() => {
     const existing = getUserPlan(speed);
@@ -227,7 +252,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
           </div>
         )}
 
-        <div class="mt-4 flex gap-3 justify-center">
+        <div class="mt-4 flex gap-3 justify-center items-center">
           <span class="text-sm text-neutral-500">
             {provider ? `${provider} @ ` : ''}${currentPrice.toFixed(2)}/mo
           </span>
@@ -236,6 +261,13 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
             class="text-sm text-neutral-500 hover:text-white underline"
           >
             Change
+          </button>
+          <span class="text-neutral-700">|</span>
+          <button
+            onClick={() => handleShare(currentPrice)}
+            class="text-sm text-neutral-500 hover:text-accent underline decoration-dashed underline-offset-2"
+          >
+            {shareLabel}
           </button>
         </div>
       </div>
