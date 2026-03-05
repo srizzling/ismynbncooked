@@ -5,11 +5,11 @@ import TierCard from '../components/TierCard.astro';
 import PlanChecker from '../components/PlanChecker';
 import DataFreshness from '../components/DataFreshness';
 import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type MetaData } from '../lib/types';
-import { getFixtureTierSummaries } from '../lib/data';
+import { getFixtureTierSummaries, type TierSummary } from '../lib/data';
 
 import type { TierData } from '../lib/types';
 
-let tierSummaries: Record<SpeedTier, { cheapest: number; cheapestEffective: number; average: number; planCount: number }>;
+let tierSummaries: Record<SpeedTier, TierSummary>;
 let meta: MetaData | null = null;
 
 try {
@@ -23,9 +23,13 @@ try {
       const cheapestEffective = data.plans.length
         ? Math.min(...data.plans.map(p => p.effectiveMonthly))
         : data.cheapest;
+      const cheapestPlan = data.plans.length
+        ? data.plans.reduce((best, p) => p.monthlyPrice < best.monthlyPrice ? p : best)
+        : null;
       return [speed, {
         cheapest: data.cheapest,
         cheapestEffective: Math.min(data.cheapest, cheapestEffective),
+        cheapestProvider: cheapestPlan?.providerName ?? '',
         average: data.average,
         planCount: data.planCount,
       }] as const;
@@ -123,6 +127,7 @@ try {
           speed={speed}
           cheapest={tierSummaries[speed].cheapest}
           cheapestEffective={tierSummaries[speed].cheapestEffective}
+          cheapestProvider={tierSummaries[speed].cheapestProvider}
           average={tierSummaries[speed].average}
           planCount={tierSummaries[speed].planCount}
         />

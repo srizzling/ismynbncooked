@@ -5,11 +5,12 @@ interface Props {
   speed: SpeedTier;
   cheapest: number;
   cheapestEffective?: number;
+  cheapestProvider?: string;
   average: number;
   planCount: number;
 }
 
-const { speed, cheapest, cheapestEffective, average, planCount } = Astro.props;
+const { speed, cheapest, cheapestEffective, cheapestProvider, average, planCount } = Astro.props;
 const displayPrice = cheapestEffective && cheapestEffective < cheapest ? cheapestEffective : cheapest;
 const hasPromo = cheapestEffective != null && cheapestEffective < cheapest;
 
@@ -48,10 +49,15 @@ const speedDesc: Record<SpeedTier, string> = {
   <div class="mt-4 space-y-2">
     <div class="flex justify-between items-baseline">
       <span class="text-neutral-400 text-sm">From</span>
-      <span class="text-2xl font-display font-bold tabular-nums">
-        ${displayPrice.toFixed(0)}<span class="text-sm text-neutral-500">/mo</span>
-        {hasPromo && <span class="text-xs text-accent ml-1">promo</span>}
-      </span>
+      <div class="text-right">
+        <span class="text-2xl font-display font-bold tabular-nums">
+          ${displayPrice.toFixed(0)}<span class="text-sm text-neutral-500">/mo</span>
+          {hasPromo && <span class="text-xs text-accent ml-1">promo</span>}
+        </span>
+        {cheapestProvider && (
+          <div class="text-xs text-neutral-500">{cheapestProvider}</div>
+        )}
+      </div>
     </div>
     <div class="flex justify-between items-baseline">
       <span class="text-neutral-400 text-sm">Average</span>

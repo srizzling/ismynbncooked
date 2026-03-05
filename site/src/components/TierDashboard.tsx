@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useMemo } from 'preact/hooks';
 import type { SpeedTier, TierData, TierHistory, ComparisonsData, CookedResult, UserPlan } from '../lib/types';
 import { SPEED_TIERS } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit } from '../lib/storage';
+import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHorizon, HORIZONS, type Horizon } from '../lib/costs';
 import CookedRating from './CookedRating';
 import SavingsComparison from './SavingsComparison';
 import PlanTable from './PlanTable';
@@ -34,11 +35,18 @@ export default function TierDashboard({ speed, label, tierData, history, compari
   const [cookedResult, setCookedResult] = useState<CookedResult | null>(null);
   const [otherTierPlan, setOtherTierPlan] = useState<{ speed: SpeedTier; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
+  const [horizon, setHorizon] = useState<Horizon>(12);
 
-  const cheapestEffective = tierData.plans.length
-    ? Math.min(...tierData.plans.map(p => p.effectiveMonthly))
-    : tierData.cheapest;
+  // Compute cheapest effective at the current horizon
+  const cheapestEffective = useMemo(
+    () => cheapestEffectiveForHorizon(tierData.plans, horizon),
+    [tierData.plans, horizon]
+  );
   const baseline = cheapestEffective < tierData.cheapest ? cheapestEffective : tierData.cheapest;
+
+  // Find the best horizon (shortest commitment with cheapest effective price)
+  const best = useMemo(() => bestHorizon(tierData.plans), [tierData.plans]);
+  const showBestHorizonNudge = best.horizon !== horizon && best.effectiveCost < cheapestEffective - 0.5;
 
   useEffect(() => {
     // Check for existing user plan on this tier
@@ -72,6 +80,20 @@ export default function TierDashboard({ speed, label, tierData, history, compari
 
   const cheapest = tierData.cheapest;
   const userPlan = getUserPlan(speed);
+  const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
+
+  // Find the plan with the cheapest monthly price (no promo consideration)
+  const cheapestMonthlyPlan = useMemo(() => {
+    if (tierData.plans.length === 0) return null;
+    return tierData.plans.reduce((best, plan) =>
+      plan.monthlyPrice < best.monthlyPrice ? plan : best
+    );
+  }, [tierData.plans]);
+
+  const cheapestAtHorizon = useMemo(
+    () => cheapestPlanForHorizon(tierData.plans, horizon),
+    [tierData.plans, horizon]
+  );
 
   return (
     <div class="space-y-8">
@@ -80,20 +102,75 @@ export default function TierDashboard({ speed, label, tierData, history, compari
         <div>
           <div class="text-3xl font-display font-bold tabular-nums">${cheapest.toFixed(0)}</div>
           <div class="text-sm text-neutral-500">cheapest/mo</div>
+          {cheapestMonthlyPlan && (
+            <div class="text-xs text-neutral-500 mt-0.5">{cheapestMonthlyPlan.providerName}</div>
+          )}
         </div>
-        {cheapestEffective < cheapest && (
-          <div>
-            <div class="text-3xl font-display font-bold tabular-nums text-accent">${cheapestEffective.toFixed(0)}</div>
-            <div class="text-sm text-neutral-500">with promos (1st yr)</div>
-          </div>
-        )}
         <div>
           <div class="text-3xl font-display font-bold tabular-nums text-neutral-300">${tierData.average.toFixed(0)}</div>
           <div class="text-sm text-neutral-500">average/mo</div>
         </div>
-        <div>
-          <div class="text-3xl font-display font-bold tabular-nums text-neutral-300">{tierData.planCount}</div>
-          <div class="text-sm text-neutral-500">plans</div>
+      </div>
+
+      {/* Global horizon selector — shows cheapest effective at each period */}
+      <div>
+        <div class="flex items-start justify-between mb-2">
+          <div>
+            <div class="text-sm text-neutral-400">Cheapest effective monthly by commitment period</div>
+            <div class="text-xs text-neutral-600 mt-0.5">
+              Effective price = total cost (promos + full price + fees) ÷ months
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {HORIZONS.map((h) => {
+            const result = cheapestPlanForHorizon(tierData.plans, h);
+            if (!result) return null;
+            const { plan: cheapPlan, effectiveCost: effPrice, totalCost } = result;
+            const isBest = h === best.horizon;
+            const isActive = h === horizon;
+            const hLabel = h === 12 ? '1 year' : h === 24 ? '2 years' : `${h} months`;
+            const hasPromo = cheapPlan.promoValue && cheapPlan.promoValue > 0 && cheapPlan.promoDuration;
+            const promoMonths = hasPromo ? Math.min(cheapPlan.promoDuration!, h) : 0;
+            const promoPrice = hasPromo ? cheapPlan.monthlyPrice - cheapPlan.promoValue! : 0;
+            return (
+              <button
+                key={h}
+                onClick={() => setHorizon(h)}
+                class={`relative text-left rounded-xl px-4 py-3 transition-colors border ${
+                  isActive
+                    ? 'bg-accent/10 border-accent'
+                    : 'bg-surface border-surface-border hover:border-neutral-600'
+                }`}
+              >
+                {isBest && (
+                  <span class="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-cooked-green/20 text-cooked-green">
+                    CHEAPEST
+                  </span>
+                )}
+                <div class={`text-xs ${isActive ? 'text-accent' : 'text-neutral-500'}`}>
+                  {hLabel}
+                </div>
+                <div class={`text-lg font-display font-bold tabular-nums ${isActive ? 'text-white' : 'text-neutral-300'}`}>
+                  ${effPrice.toFixed(0)}<span class="text-xs font-normal text-neutral-500">/mo</span>
+                </div>
+                <div class={`text-[11px] mt-1 ${isActive ? 'text-neutral-400' : 'text-neutral-600'}`}>
+                  {cheapPlan.providerName}
+                </div>
+                <div class={`text-[10px] mt-0.5 tabular-nums ${isActive ? 'text-neutral-500' : 'text-neutral-700'}`}>
+                  {hasPromo && promoMonths > 0 ? (
+                    promoMonths >= h ? (
+                      <>${promoPrice.toFixed(0)} × {h}mo = ${totalCost.toFixed(0)}</>
+                    ) : (
+                      <>${promoPrice.toFixed(0)} × {promoMonths}mo + ${cheapPlan.monthlyPrice.toFixed(0)} × {h - promoMonths}mo</>
+                    )
+                  ) : (
+                    <>${cheapPlan.monthlyPrice.toFixed(0)} × {h}mo = ${totalCost.toFixed(0)}</>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -142,6 +219,7 @@ export default function TierDashboard({ speed, label, tierData, history, compari
         speed={speed}
         cheapestPrice={cheapest}
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
+        cheapestProviderName={cheapestAtHorizon?.plan.providerName}
         onCookedChange={handleCookedChange}
       />
 
@@ -189,6 +267,8 @@ export default function TierDashboard({ speed, label, tierData, history, compari
             return Math.max(0, userPlan.promoMonthsLeft - monthsSince);
           })() : undefined}
           providerHistory={history?.providers}
+          horizon={horizon}
+          onHorizonChange={setHorizon}
         />
       </div>
 

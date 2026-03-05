@@ -8,6 +8,7 @@ interface Props {
   speed: SpeedTier;
   cheapestPrice: number;
   cheapestEffective?: number;
+  cheapestProviderName?: string;
   onCookedChange?: (result: CookedResult | null) => void;
 }
 
@@ -95,7 +96,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ speed, cheapestPrice, cheapestEffective, onCookedChange }: Props) {
+export default function CookedRating({ speed, cheapestPrice, cheapestEffective, cheapestProviderName, onCookedChange }: Props) {
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [result, setResult] = useState<CookedResult | null>(null);

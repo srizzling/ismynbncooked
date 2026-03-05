@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks';
 import type { NBNPlan, ProviderHistory } from '../lib/types';
+import { calcCosts, type Horizon, HORIZONS } from '../lib/costs';
 
 type SortKey = 'monthlyPrice' | 'totalCost' | 'effectiveCost' | 'typicalEveningSpeed';
 type SortDir = 'asc' | 'desc';
-type Horizon = 3 | 6 | 12 | 24;
 
 interface ColumnDef {
   key: string;
@@ -32,22 +32,8 @@ interface Props {
   userFullPrice?: number;
   userPromoMonthsLeft?: number;
   providerHistory?: Record<string, ProviderHistory>;
-}
-
-/** Calculate total cost and effective monthly for a plan over a given horizon */
-function calcCosts(plan: NBNPlan, months: Horizon) {
-  const promoMonths = Math.min(plan.promoDuration ?? 0, months);
-  const fullMonths = months - promoMonths;
-  const promoDiscount = plan.promoValue ?? 0;
-  const totalCost =
-    promoMonths * (plan.monthlyPrice - promoDiscount) +
-    fullMonths * plan.monthlyPrice +
-    plan.setupFee;
-  const effectiveCost = totalCost / months;
-  return {
-    totalCost: Math.round(totalCost * 100) / 100,
-    effectiveCost: Math.round(effectiveCost * 100) / 100,
-  };
+  horizon: Horizon;
+  onHorizonChange: (h: Horizon) => void;
 }
 
 function isNoNotice(val: string | null | undefined): boolean {
@@ -178,7 +164,7 @@ function ProviderSparkline({ history }: { history: { date: string; monthlyPrice:
   );
 }
 
-export default function PlanTable({ plans, highlightProvider, userPrice, userFullPrice, userPromoMonthsLeft, providerHistory }: Props) {
+export default function PlanTable({ plans, highlightProvider, userPrice, userFullPrice, userPromoMonthsLeft, providerHistory, horizon, onHorizonChange }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('effectiveCost');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterNoLockin, setFilterNoLockin] = useState(false);
@@ -186,7 +172,6 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
   const [filterNoNotice, setFilterNoNotice] = useState(false);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [horizon, setHorizon] = useState<Horizon>(12);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
     // SSR-safe default: mobile set. Will update on mount via useEffect.
     return new Set(['monthlyPrice', 'promo']);
@@ -456,24 +441,6 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
         <span class="text-sm text-neutral-500 self-center">
           {sorted.length} plan{sorted.length !== 1 ? 's' : ''}
         </span>
-      </div>
-
-      {/* Time horizon selector */}
-      <div class="flex items-center gap-2 mb-3">
-        <span class="text-sm text-neutral-400">Compare over:</span>
-        {([3, 6, 12, 24] as Horizon[]).map((h) => (
-          <button
-            key={h}
-            onClick={() => setHorizon(h)}
-            class={`text-xs px-3 py-1.5 rounded-full transition-colors ${
-              horizon === h
-                ? 'bg-accent text-white'
-                : 'bg-surface border border-surface-border text-neutral-400 hover:text-white'
-            }`}
-          >
-            {h === 12 ? '1 year' : h === 24 ? '2 years' : `${h} months`}
-          </button>
-        ))}
       </div>
 
       {/* Table */}
