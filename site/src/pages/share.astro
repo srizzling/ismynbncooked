@@ -160,7 +160,7 @@ const ogImageUrl = new URL(`/og/share.png?d=${encoded}`, Astro.site ?? Astro.url
         </div>
 
         {result.monthlySavings > 0 && (
-          <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-center space-y-2">
+          <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-center space-y-3">
             <div>
               <span class="text-neutral-400 text-sm">Overpaying </span>
               <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}%</span>
@@ -170,13 +170,25 @@ const ogImageUrl = new URL(`/og/share.png?d=${encoded}`, Astro.site ?? Astro.url
               <span class="font-bold text-white">${result.yearlySavings.toFixed(0)}/yr</span>
             </div>
             {comparisons && (() => {
-              const fw = comparisons.units['flatWhite'];
-              const snag = comparisons.units['bunnings'];
-              if (!fw || !snag) return null;
+              const items = [
+                comparisons.units['flatWhite'],
+                comparisons.units['bunnings'],
+                comparisons.units['petrol'],
+                comparisons.units['netflix'],
+                comparisons.units['avo'],
+              ].filter(Boolean);
+              if (items.length === 0) return null;
               return (
-                <div class="text-neutral-500 text-sm">
-                  That's <span class="text-white font-medium">{(result.monthlySavings / fw.price).toFixed(1)}</span> {fw.icon} {fw.label.toLowerCase()}
-                  {' '}or <span class="text-white font-medium">{(result.monthlySavings / snag.price).toFixed(1)}</span> {snag.icon} {snag.label.toLowerCase()} every month
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                  {items.map((unit) => (
+                    <div class="text-center">
+                      <div class="text-2xl mb-0.5">{unit.icon}</div>
+                      <div class="text-lg font-display font-bold tabular-nums text-white">
+                        {(result.monthlySavings / unit.price).toFixed(1)}
+                      </div>
+                      <div class="text-xs text-neutral-500">{unit.label}/mo</div>
+                    </div>
+                  ))}
                 </div>
               );
             })()}
