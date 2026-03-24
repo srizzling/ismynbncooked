@@ -1,0 +1,217 @@
+---
+import Base from '../layouts/Base.astro';
+import { buildTierKey, buildTierLabel, parseTierKey, type TierData, type TierManifest, type NetworkType } from '../lib/types';
+import { getFixtureManifest } from '../lib/data';
+import { readLocalJson } from '../lib/local-data';
+import { getUserPlan } from '../lib/storage';
+import { calcCosts, type Horizon } from '../lib/costs';
+
+// Parse query params
+const network = (Astro.url.searchParams.get('network') ?? 'nbn') as NetworkType;
+const download = parseInt(Astro.url.searchParams.get('download') ?? '100');
+const upload = parseInt(Astro.url.searchParams.get('upload') ?? '20');
+const acrossParam = Astro.url.searchParams.get('across') ?? '';
+const acrossSet = new Set(acrossParam.split(',').filter(Boolean));
+
+const baseTierKey = buildTierKey(network, download, upload);
+const baseLabel = buildTierLabel(network, download, upload);
+
+// Load manifest
+let manifest: TierManifest;
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const manifestObj = await bucket.get('data/manifest.json');
+  manifest = manifestObj ? await manifestObj.json() as TierManifest : getFixtureManifest();
+} catch {
+  manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
+}
+
+// Determine which tiers to compare
+const tierKeys = new Set<string>();
+tierKeys.add(baseTierKey); // always include the base
+
+for (const tier of manifest.tiers) {
+  let include = false;
+
+  // Same tier — always included
+  if (tier.key === baseTierKey) {
+    include = true;
+  }
+  // Across download speeds: same network, same upload (or all uploads if that's also checked)
+  else if (acrossSet.has('download') && tier.network === network) {
+    if (acrossSet.has('upload')) {
+      include = true; // all speeds on this network
+    } else if (tier.uploadSpeed === upload) {
+      include = true;
+    }
+  }
+  // Across upload speeds: same network, same download
+  else if (acrossSet.has('upload') && tier.network === network && tier.downloadSpeed === download) {
+    include = true;
+  }
+  // Include opticomm: mirror the same criteria for opticomm
+  if (acrossSet.has('opticomm') && tier.network === 'opticomm') {
+    if (acrossSet.has('download') && acrossSet.has('upload')) {
+      include = true;
+    } else if (acrossSet.has('download') && tier.uploadSpeed === upload) {
+      include = true;
+    } else if (acrossSet.has('upload') && tier.downloadSpeed === download) {
+      include = true;
+    } else if (tier.downloadSpeed === download && tier.uploadSpeed === upload) {
+      include = true;
+    }
+  }
+
+  if (include) tierKeys.add(tier.key);
+}
+
+// Load tier data for all comparison tiers
+interface ComparisonRow {
+  tierKey: string;
+  label: string;
+  network: NetworkType;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  planCount: number;
+  cheapest: number;
+  cheapestProvider: string;
+  average: number;
+  isBase: boolean;
+}
+
+const rows: ComparisonRow[] = [];
+
+for (const tierKey of tierKeys) {
+  let tierData: TierData | null = null;
+  try {
+    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+    const obj = await bucket.get(`data/plans/${tierKey}.json`);
+    if (obj) tierData = await obj.json() as TierData;
+  } catch {}
+  if (!tierData) tierData = await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
+  if (!tierData) continue;
+
+  const parsed = parseTierKey(tierKey);
+  if (!parsed) continue;
+
+  const cheapestPlan = tierData.plans.length
+    ? tierData.plans.reduce((best, p) => p.monthlyPrice < best.monthlyPrice ? p : best)
+    : null;
+
+  rows.push({
+    tierKey,
+    label: buildTierLabel(parsed.network, parsed.download, parsed.upload),
+    network: parsed.network,
+    downloadSpeed: parsed.download,
+    uploadSpeed: parsed.upload,
+    planCount: tierData.planCount,
+    cheapest: tierData.cheapest,
+    cheapestProvider: cheapestPlan?.providerName ?? '',
+    average: tierData.average,
+    isBase: tierKey === baseTierKey,
+  });
+}
+
+// Sort: base tier first, then by network (nbn first), download, upload
+rows.sort((a, b) => {
+  if (a.isBase !== b.isBase) return a.isBase ? -1 : 1;
+  if (a.network !== b.network) return a.network === 'nbn' ? -1 : 1;
+  if (a.downloadSpeed !== b.downloadSpeed) return a.downloadSpeed - b.downloadSpeed;
+  return a.uploadSpeed - b.uploadSpeed;
+});
+
+// Get the user's saved plan price for context
+const userPlan = getUserPlan(baseTierKey);
+const userPrice = userPlan?.price ?? null;
+
+const title = `Compare ${baseLabel} across ${rows.length} tiers`;
+---
+
+<Base
+  title={title}
+  description={`Cross-tier comparison for ${baseLabel}. Compare prices across ${rows.length} speed tiers.`}
+  canonicalPath={`/compare?${Astro.url.searchParams}`}
+>
+  <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">
+    &larr; Home
+  </a>
+
+  <section class="mb-8">
+    <h1 class="text-4xl sm:text-5xl font-display font-bold">
+      Cross-tier comparison
+    </h1>
+    <p class="text-neutral-400 mt-2">
+      Comparing {rows.length} speed tiers based on {baseLabel}.
+      {userPrice && (
+        <span> Your current plan: <span class="text-white font-medium">${userPrice.toFixed(2)}/mo</span>.</span>
+      )}
+    </p>
+  </section>
+
+  <div class="overflow-x-auto rounded-xl border border-surface-border">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-surface-border text-left text-neutral-400 bg-surface">
+          <th class="px-4 py-3 font-medium">Tier</th>
+          <th class="px-4 py-3 font-medium">Network</th>
+          <th class="px-4 py-3 font-medium text-right">Plans</th>
+          <th class="px-4 py-3 font-medium text-right">Cheapest</th>
+          <th class="px-4 py-3 font-medium text-right">Average</th>
+          <th class="px-4 py-3 font-medium">Cheapest provider</th>
+          {userPrice && <th class="px-4 py-3 font-medium text-right">vs your plan</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => {
+          const diff = userPrice ? userPrice - row.cheapest : null;
+          return (
+            <tr class={`border-b border-surface-border/50 ${row.isBase ? 'bg-accent/5' : ''}`}>
+              <td class="px-4 py-3">
+                <a href={`/${row.tierKey}`} class="text-accent hover:text-white underline font-medium">
+                  {row.label}
+                </a>
+                {row.isBase && (
+                  <span class="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent/20 text-accent">
+                    YOUR TIER
+                  </span>
+                )}
+              </td>
+              <td class="px-4 py-3 text-neutral-400">
+                <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+                  row.network === 'nbn' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                }`}>
+                  {row.network === 'nbn' ? 'NBN' : 'Opticomm'}
+                </span>
+              </td>
+              <td class="px-4 py-3 tabular-nums text-neutral-300 text-right">{row.planCount}</td>
+              <td class="px-4 py-3 tabular-nums text-white font-bold text-right">
+                ${row.cheapest.toFixed(0)}
+              </td>
+              <td class="px-4 py-3 tabular-nums text-neutral-300 text-right">
+                ${row.average.toFixed(0)}
+              </td>
+              <td class="px-4 py-3 text-neutral-300">{row.cheapestProvider}</td>
+              {diff !== null && (
+                <td class="px-4 py-3 tabular-nums text-right font-medium">
+                  {diff > 0 ? (
+                    <span class="text-cooked-green">Save ${diff.toFixed(0)}/mo</span>
+                  ) : diff < 0 ? (
+                    <span class="text-cooked-red">+${Math.abs(diff).toFixed(0)}/mo</span>
+                  ) : (
+                    <span class="text-neutral-400">Same</span>
+                  )}
+                </td>
+              )}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-6 text-center">
+    <a href="/" class="text-sm text-neutral-500 hover:text-white underline">
+      &larr; Back to plan checker
+    </a>
+  </div>
+</Base>

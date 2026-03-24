@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'preact/hooks';
-import { SPEED_TIERS, TIER_LABELS, AU_STATES, STATE_LABELS, type SpeedTier, type AUState, type UserPlan } from '../lib/types';
+import { useState, useEffect, useMemo } from 'preact/hooks';
+import { AU_STATES, STATE_LABELS, buildTierKey, parseTierKey, type AUState, type UserPlan, type TierManifest, type NetworkType } from '../lib/types';
 import { saveUserPlan, getUserPlans, saveUserState, getUserState } from '../lib/storage';
 
-export default function PlanChecker() {
-  const [speed, setSpeed] = useState<SpeedTier>(100);
+interface Props {
+  manifest: TierManifest;
+}
+
+export default function PlanChecker({ manifest }: Props) {
+  const [network, setNetwork] = useState<NetworkType>('nbn');
+  const [downloadSpeed, setDownloadSpeed] = useState(100);
+  const [uploadSpeed, setUploadSpeed] = useState(20);
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [state, setState] = useState<AUState>('nsw');
@@ -12,24 +18,69 @@ export default function PlanChecker() {
   const [fullPrice, setFullPrice] = useState('');
   const [promoMonthsLeft, setPromoMonthsLeft] = useState('');
 
+  // Cross-tier comparison checkboxes
+  const [acrossDownload, setAcrossDownload] = useState(false);
+  const [acrossUpload, setAcrossUpload] = useState(false);
+  const [includeOpticomm, setIncludeOpticomm] = useState(false);
+
+  // Derive available options from manifest
+  const networks = useMemo(() => {
+    const set = new Set(manifest.tiers.map(t => t.network));
+    return ['nbn' as NetworkType, 'opticomm' as NetworkType].filter(n => set.has(n));
+  }, [manifest]);
+
+  const downloads = useMemo(() => {
+    return [...new Set(manifest.tiers
+      .filter(t => t.network === network)
+      .map(t => t.downloadSpeed)
+    )].sort((a, b) => a - b);
+  }, [manifest, network]);
+
+  const uploads = useMemo(() => {
+    return [...new Set(manifest.tiers
+      .filter(t => t.network === network && t.downloadSpeed === downloadSpeed)
+      .map(t => t.uploadSpeed)
+    )].sort((a, b) => a - b);
+  }, [manifest, network, downloadSpeed]);
+
+  // Has Opticomm tiers for the current download speed?
+  const hasOpticomm = useMemo(() => {
+    return manifest.tiers.some(t => t.network === 'opticomm' && t.downloadSpeed === downloadSpeed);
+  }, [manifest, downloadSpeed]);
+
+  // Reset download when network changes
+  useEffect(() => {
+    if (!downloads.includes(downloadSpeed)) {
+      setDownloadSpeed(downloads.includes(100) ? 100 : downloads[0] ?? 100);
+    }
+  }, [downloads]);
+
+  // Reset upload when download changes
+  useEffect(() => {
+    if (!uploads.includes(uploadSpeed)) {
+      setUploadSpeed(uploads[0] ?? 20);
+    }
+  }, [uploads]);
+
+  // Load existing plan
   useEffect(() => {
     const plans = getUserPlans();
-    // Find the most recently saved plan to pre-populate the form
     const entries = Object.entries(plans).filter(([_, v]) => v) as [string, UserPlan][];
     if (entries.length > 0) {
       setHasExisting(true);
-      // Pick the most recent plan
       entries.sort((a, b) => b[1].savedAt.localeCompare(a[1].savedAt));
       const [key, plan] = entries[0];
-      // key is like "nbn100" — extract the speed number
-      const tierSpeed = parseInt(key.replace('nbn', '')) as SpeedTier;
-      if (SPEED_TIERS.includes(tierSpeed)) setSpeed(tierSpeed);
+      const parsed = parseTierKey(key);
+      if (parsed && manifest.tiers.some(t => t.key === key)) {
+        setNetwork(parsed.network);
+        setDownloadSpeed(parsed.download);
+        setUploadSpeed(parsed.upload);
+      }
       setPrice(plan.price.toString());
       setProvider(plan.provider);
       if (plan.fullPrice && plan.promoMonthsLeft) {
         setOnPromo(true);
         setFullPrice(plan.fullPrice.toString());
-        // Calculate remaining months since savedAt
         const monthsSinceSaved = Math.floor(
           (Date.now() - new Date(plan.savedAt).getTime()) / (30 * 24 * 60 * 60 * 1000)
         );
@@ -41,6 +92,9 @@ export default function PlanChecker() {
     if (savedState) setState(savedState);
   }, []);
 
+  const tierKey = buildTierKey(network, downloadSpeed, uploadSpeed);
+  const isCompareMode = acrossDownload || acrossUpload || includeOpticomm;
+
   function handleSubmit(e: Event) {
     e.preventDefault();
     const p = parseFloat(price);
@@ -51,10 +105,28 @@ export default function PlanChecker() {
       promoMonthsLeft: parseInt(promoMonthsLeft) || undefined,
     } : undefined;
 
-    saveUserPlan(speed, p, provider, promoOpts);
+    saveUserPlan(tierKey, p, provider, promoOpts);
     saveUserState(state);
-    window.location.href = `/nbn-${speed}`;
+
+    if (isCompareMode) {
+      const across: string[] = [];
+      if (acrossDownload) across.push('download');
+      if (acrossUpload) across.push('upload');
+      if (includeOpticomm) across.push('opticomm');
+      const params = new URLSearchParams({
+        network,
+        download: downloadSpeed.toString(),
+        upload: uploadSpeed.toString(),
+        across: across.join(','),
+      });
+      window.location.href = `/compare?${params}`;
+    } else {
+      window.location.href = `/${tierKey}`;
+    }
   }
+
+  const selectClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-accent appearance-none";
+  const inputClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent";
 
   return (
     <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8">
@@ -68,24 +140,61 @@ export default function PlanChecker() {
       </p>
 
       <form onSubmit={handleSubmit} class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Speed tier */}
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">Speed tier</label>
-            <select
-              value={speed}
-              onChange={(e) => setSpeed(parseInt((e.target as HTMLSelectElement).value) as SpeedTier)}
-              class="w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-accent appearance-none"
-            >
-              {SPEED_TIERS.map((s) => (
-                <option key={s} value={s}>
-                  {TIER_LABELS[s]}
-                </option>
-              ))}
-            </select>
+        {/* Speed tier — cascading selectors */}
+        <div>
+          <label class="block text-sm text-neutral-400 mb-2">Speed tier</label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Network */}
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Network</label>
+              <select
+                value={network}
+                onChange={(e) => setNetwork((e.target as HTMLSelectElement).value as NetworkType)}
+                class={selectClass}
+              >
+                {networks.map(n => (
+                  <option key={n} value={n}>{n === 'nbn' ? 'NBN' : 'Opticomm'}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Download */}
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Download</label>
+              <select
+                value={downloadSpeed}
+                onChange={(e) => setDownloadSpeed(parseInt((e.target as HTMLSelectElement).value))}
+                class={selectClass}
+              >
+                {downloads.map(d => (
+                  <option key={d} value={d}>{d} Mbps</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Upload */}
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Upload</label>
+              <select
+                value={uploadSpeed}
+                onChange={(e) => setUploadSpeed(parseInt((e.target as HTMLSelectElement).value))}
+                class={selectClass}
+              >
+                {uploads.map(u => (
+                  <option key={u} value={u}>{u} Mbps</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Monthly price */}
+          {/* Tier confirmation */}
+          <div class="mt-2 text-xs text-neutral-500">
+            Selected: <span class="text-white font-medium">{network === 'nbn' ? 'NBN' : 'Opticomm'} {downloadSpeed}/{uploadSpeed} Mbps</span>
+          </div>
+        </div>
+
+        {/* Price + Provider + State */}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-sm text-neutral-400 mb-1">Monthly price</label>
             <input
@@ -96,11 +205,9 @@ export default function PlanChecker() {
               value={price}
               onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
               required
-              class="w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+              class={inputClass}
             />
           </div>
-
-          {/* Provider */}
           <div>
             <label class="block text-sm text-neutral-400 mb-1">Provider (optional)</label>
             <input
@@ -108,22 +215,18 @@ export default function PlanChecker() {
               placeholder="e.g. Telstra"
               value={provider}
               onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
-              class="w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+              class={inputClass}
             />
           </div>
-
-          {/* State */}
           <div>
             <label class="block text-sm text-neutral-400 mb-1">Your state</label>
             <select
               value={state}
               onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
-              class="w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-accent appearance-none"
+              class={selectClass}
             >
               {AU_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {STATE_LABELS[s]}
-                </option>
+                <option key={s} value={s}>{STATE_LABELS[s]}</option>
               ))}
             </select>
           </div>
@@ -154,7 +257,7 @@ export default function PlanChecker() {
                 placeholder="$99.00"
                 value={fullPrice}
                 onInput={(e) => setFullPrice((e.target as HTMLInputElement).value)}
-                class="w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                class={inputClass}
               />
             </div>
             <div>
@@ -167,7 +270,7 @@ export default function PlanChecker() {
                 placeholder="e.g. 4"
                 value={promoMonthsLeft}
                 onInput={(e) => setPromoMonthsLeft((e.target as HTMLInputElement).value)}
-                class="w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                class={inputClass}
               />
             </div>
             {fullPrice && promoMonthsLeft && price && (
@@ -197,11 +300,47 @@ export default function PlanChecker() {
           </div>
         )}
 
+        {/* Cross-tier comparison options */}
+        <div class="space-y-2">
+          <div class="text-sm text-neutral-400">Compare across</div>
+          <div class="flex flex-wrap gap-x-6 gap-y-2">
+            <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acrossDownload}
+                onChange={() => setAcrossDownload(!acrossDownload)}
+                class="accent-accent"
+              />
+              All download speeds
+            </label>
+            <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acrossUpload}
+                onChange={() => setAcrossUpload(!acrossUpload)}
+                class="accent-accent"
+              />
+              All upload speeds
+            </label>
+            {network === 'nbn' && hasOpticomm && (
+              <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeOpticomm}
+                  onChange={() => setIncludeOpticomm(!includeOpticomm)}
+                  class="accent-accent"
+                />
+                Include Opticomm
+              </label>
+            )}
+          </div>
+        </div>
+
         <button
           type="submit"
           class="w-full sm:w-auto bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
         >
-          Am I getting rorted?
+          {isCompareMode ? 'Compare plans' : 'Am I getting rorted?'}
         </button>
       </form>
     </div>
