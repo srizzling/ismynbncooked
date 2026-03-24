@@ -1,4 +1,4 @@
-import type { SpeedTier } from './types';
+import type { TierManifest, TierInfo } from './types';
 
 export interface TierSummary {
   cheapest: number;
@@ -8,16 +8,33 @@ export interface TierSummary {
   planCount: number;
 }
 
-// Fixture data for development / when R2 is not available
-export function getFixtureTierSummaries(): Record<SpeedTier, TierSummary> {
+// Fixture manifest for development / when R2 is not available
+export function getFixtureManifest(): TierManifest {
   return {
-    25:   { cheapest: 39.90,  cheapestEffective: 39.90,  cheapestProvider: 'Tangerine', average: 51,  planCount: 17 },
-    50:   { cheapest: 49.90,  cheapestEffective: 49.90,  cheapestProvider: 'Tangerine', average: 63,  planCount: 24 },
-    100:  { cheapest: 59.90,  cheapestEffective: 59.90,  cheapestProvider: 'Tangerine', average: 77,  planCount: 29 },
-    250:  { cheapest: 79,     cheapestEffective: 79,     cheapestProvider: 'Superloop', average: 97,  planCount: 20 },
-    500:  { cheapest: 89,     cheapestEffective: 89,     cheapestProvider: 'Superloop', average: 109, planCount: 15 },
-    750:  { cheapest: 99,     cheapestEffective: 99,     cheapestProvider: 'Superloop', average: 125, planCount: 10 },
-    1000: { cheapest: 99,     cheapestEffective: 99,     cheapestProvider: 'Superloop', average: 135, planCount: 13 },
-    2000: { cheapest: 149,    cheapestEffective: 149,    cheapestProvider: 'Superloop', average: 179, planCount: 6 },
+    updatedAt: '2026-01-01T00:00:00Z',
+    tiers: [
+      { key: 'nbn-25-5', network: 'nbn', downloadSpeed: 25, uploadSpeed: 5, label: 'NBN 25/5' },
+      { key: 'nbn-50-20', network: 'nbn', downloadSpeed: 50, uploadSpeed: 20, label: 'NBN 50/20' },
+      { key: 'nbn-100-20', network: 'nbn', downloadSpeed: 100, uploadSpeed: 20, label: 'NBN 100/20' },
+      { key: 'nbn-250-25', network: 'nbn', downloadSpeed: 250, uploadSpeed: 25, label: 'NBN 250/25' },
+      { key: 'nbn-500-50', network: 'nbn', downloadSpeed: 500, uploadSpeed: 50, label: 'NBN 500/50' },
+      { key: 'nbn-750-50', network: 'nbn', downloadSpeed: 750, uploadSpeed: 50, label: 'NBN 750/50' },
+      { key: 'nbn-1000-50', network: 'nbn', downloadSpeed: 1000, uploadSpeed: 50, label: 'NBN 1000/50' },
+      { key: 'nbn-2000-200', network: 'nbn', downloadSpeed: 2000, uploadSpeed: 200, label: 'NBN 2000/200' },
+    ],
+  };
+}
+
+// Fixture data for development / when R2 is not available
+export function getFixtureTierSummaries(): Record<string, TierSummary> {
+  return {
+    'nbn-25-5':     { cheapest: 39.90,  cheapestEffective: 39.90,  cheapestProvider: 'Tangerine', average: 51,  planCount: 17 },
+    'nbn-50-20':    { cheapest: 49.90,  cheapestEffective: 49.90,  cheapestProvider: 'Tangerine', average: 63,  planCount: 24 },
+    'nbn-100-20':   { cheapest: 59.90,  cheapestEffective: 59.90,  cheapestProvider: 'Tangerine', average: 77,  planCount: 29 },
+    'nbn-250-25':   { cheapest: 79,     cheapestEffective: 79,     cheapestProvider: 'Superloop', average: 97,  planCount: 20 },
+    'nbn-500-50':   { cheapest: 89,     cheapestEffective: 89,     cheapestProvider: 'Superloop', average: 109, planCount: 15 },
+    'nbn-750-50':   { cheapest: 99,     cheapestEffective: 99,     cheapestProvider: 'Superloop', average: 125, planCount: 10 },
+    'nbn-1000-50':  { cheapest: 99,     cheapestEffective: 99,     cheapestProvider: 'Superloop', average: 135, planCount: 13 },
+    'nbn-2000-200': { cheapest: 149,    cheapestEffective: 149,    cheapestProvider: 'Superloop', average: 179, planCount: 6 },
   };
 }

@@ -1,6 +1,57 @@
-export const SPEED_TIERS = [25, 50, 100, 250, 500, 750, 1000, 2000] as const;
-export type SpeedTier = (typeof SPEED_TIERS)[number];
+// --- Tier key system ---
 
+export type NetworkType = 'nbn' | 'opticomm';
+
+export interface TierInfo {
+  key: string;
+  network: NetworkType;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  label: string;
+}
+
+export interface TierManifest {
+  updatedAt: string;
+  tiers: TierInfo[];
+}
+
+export function buildTierKey(network: NetworkType, download: number, upload: number): string {
+  return `${network}-${download}-${upload}`;
+}
+
+export function parseTierKey(key: string): { network: NetworkType; download: number; upload: number } | null {
+  const match = key.match(/^(nbn|opticomm)-(\d+)-(\d+)$/);
+  if (!match) return null;
+  return {
+    network: match[1] as NetworkType,
+    download: parseInt(match[2], 10),
+    upload: parseInt(match[3], 10),
+  };
+}
+
+export function buildTierLabel(network: NetworkType, download: number, upload: number): string {
+  const prefix = network === 'nbn' ? 'NBN' : 'Opticomm';
+  return `${prefix} ${download}/${upload}`;
+}
+
+// Default upload speed for each download speed (used for backward compat migration)
+export const DEFAULT_UPLOAD_MAP: Record<number, string> = {
+  25: 'nbn-25-5',
+  50: 'nbn-50-20',
+  100: 'nbn-100-20',
+  250: 'nbn-250-25',
+  500: 'nbn-500-50',
+  750: 'nbn-750-50',
+  1000: 'nbn-1000-50',
+  2000: 'nbn-2000-200',
+};
+
+// --- Legacy aliases (for gradual migration) ---
+/** @deprecated Use DOWNLOAD_SPEEDS or TierManifest instead */
+export const SPEED_TIERS = [25, 50, 100, 250, 500, 750, 1000, 2000] as const;
+/** @deprecated Use string tier keys instead */
+export type SpeedTier = (typeof SPEED_TIERS)[number];
+/** @deprecated Labels are now computed from tier info */
 export const TIER_LABELS: Record<SpeedTier, string> = {
   25: 'NBN 25 (25/5 Mbps)',
   50: 'NBN 50 (50/20 Mbps)',
@@ -11,6 +62,8 @@ export const TIER_LABELS: Record<SpeedTier, string> = {
   1000: 'NBN 1000 (1000/50 Mbps)',
   2000: 'NBN 2000 (2000/200 Mbps)',
 };
+
+// --- Plan and tier data ---
 
 export interface NBNPlan {
   id: string;
@@ -28,10 +81,16 @@ export interface NBNPlan {
   minimumTerm: string | null;
   cancellationFees: string | null;
   noticePeriod: string | null;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  networkType: NetworkType;
 }
 
 export interface TierData {
-  speed: SpeedTier;
+  tierKey: string;
+  network: NetworkType;
+  downloadSpeed: number;
+  uploadSpeed: number;
   label: string;
   updatedAt: string;
   planCount: number;
@@ -73,9 +132,9 @@ export interface ComparisonUnit {
   price: number;
   per: 'month' | 'total';
   note?: string;
-  source?: string;     // Where the price data came from (shown on hover)
-  sourceUrl?: string;  // Link to the data source
-  state?: string;      // Only shown when user's state matches (e.g. 'nsw', 'vic')
+  source?: string;
+  sourceUrl?: string;
+  state?: string;
 }
 
 export interface ComparisonsData {
@@ -87,11 +146,11 @@ export interface UserPlan {
   price: number;
   provider: string;
   savedAt: string;
-  fullPrice?: number;         // Price after promo ends (if on a promo)
-  promoMonthsLeft?: number;   // Months left on promo from when plan was saved
+  fullPrice?: number;
+  promoMonthsLeft?: number;
 }
 
-export type UserPlans = Partial<Record<`nbn${SpeedTier}`, UserPlan>>;
+export type UserPlans = Record<string, UserPlan>;
 
 export type CookedLevel = 'winning' | 'sweet-as' | 'bit-shit' | 'taking-the-piss' | 'absolute-rort';
 

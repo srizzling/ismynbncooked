@@ -1,64 +1,60 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type TierData, type NBNPlan } from '../../lib/types';
+import { type TierData, type TierManifest, type NBNPlan } from '../../lib/types';
+import { getFixtureManifest } from '../../lib/data';
+import { readLocalJson } from '../../lib/local-data';
 
 interface AuditPlan {
-  speed: SpeedTier;
+  tierKey: string;
   plan: NBNPlan;
   issue: 'missing' | 'broken';
   statusCode?: number;
 }
 
+// Load manifest
+let manifest: TierManifest;
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const manifestObj = await bucket.get('data/manifest.json');
+  manifest = manifestObj ? await manifestObj.json() as TierManifest : getFixtureManifest();
+} catch {
+  manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
+}
+
+// Helper to load tier data from R2 or local disk
+async function loadTierData(tierKey: string): Promise<TierData | null> {
+  try {
+    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+    const obj = await bucket.get(`data/plans/${tierKey}.json`);
+    return obj ? await obj.json() as TierData : null;
+  } catch {}
+  return await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
+}
+
 const allPlans: AuditPlan[] = [];
 
 // Load all tier data
-for (const speed of SPEED_TIERS) {
-  let tierData: TierData | null = null;
-
-  try {
-    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
-    const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
-    tierData = obj ? await obj.json() as TierData : null;
-  } catch {}
-
-  if (!tierData) {
-    const base = new URL('/', Astro.url);
-    const res = await fetch(new URL(`data/plans/nbn-${speed}.json`, base));
-    tierData = res.ok ? await res.json() as TierData : null;
-  }
-
+for (const tier of manifest.tiers) {
+  const tierData = await loadTierData(tier.key);
   if (!tierData) continue;
 
   for (const plan of tierData.plans) {
     if (!plan.cisUrl || plan.cisUrl.trim() === '') {
-      allPlans.push({ speed, plan, issue: 'missing' });
+      allPlans.push({ tierKey: tier.key, plan, issue: 'missing' });
     }
   }
 }
 
 // Check URLs in parallel (with a timeout)
 const urlsToCheck = new Map<string, AuditPlan[]>();
-for (const speed of SPEED_TIERS) {
-  let tierData: TierData | null = null;
-
-  try {
-    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
-    const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
-    tierData = obj ? await obj.json() as TierData : null;
-  } catch {}
-
-  if (!tierData) {
-    const base = new URL('/', Astro.url);
-    const res = await fetch(new URL(`data/plans/nbn-${speed}.json`, base));
-    tierData = res.ok ? await res.json() as TierData : null;
-  }
-
+for (const tier of manifest.tiers) {
+  const tierData = await loadTierData(tier.key);
   if (!tierData) continue;
 
   for (const plan of tierData.plans) {
     if (plan.cisUrl && plan.cisUrl.trim() !== '') {
       const existing = urlsToCheck.get(plan.cisUrl) ?? [];
-      existing.push({ speed, plan, issue: 'broken' });
+      existing.push({ tierKey: tier.key, plan, issue: 'broken' });
       urlsToCheck.set(plan.cisUrl, existing);
     }
   }
@@ -107,7 +103,7 @@ const brokenCount = brokenUrls.reduce((sum, b) => sum + b.plans.length, 0);
   <h1 class="text-3xl font-display font-bold mb-2">CIS URL Audit</h1>
   <p class="text-neutral-400 text-sm mb-6">
     Plans with missing or broken Critical Information Summary URLs.
-    Checked {urlsToCheck.size} unique URLs across {SPEED_TIERS.length} speed tiers.
+    Checked {urlsToCheck.size} unique URLs across {manifest.tiers.length} speed tiers.
   </p>
 
   <div class="flex gap-4 mb-8">
@@ -140,9 +136,9 @@ const brokenCount = brokenUrls.reduce((sum, b) => sum + b.plans.length, 0);
             </tr>
           </thead>
           <tbody>
-            {allPlans.map(({ speed, plan }) => (
+            {allPlans.map(({ tierKey, plan }) => (
               <tr class="border-b border-surface-border/50">
-                <td class="px-4 py-3 text-neutral-400">NBN {speed}</td>
+                <td class="px-4 py-3 text-neutral-400">{tierKey}</td>
                 <td class="px-4 py-3 text-white font-medium">{plan.providerName}</td>
                 <td class="px-4 py-3 text-neutral-300">{plan.planName}</td>
                 <td class="px-4 py-3 tabular-nums text-neutral-300">${plan.monthlyPrice.toFixed(2)}</td>
@@ -181,9 +177,9 @@ const brokenCount = brokenUrls.reduce((sum, b) => sum + b.plans.length, 0);
               </a>
             </div>
             <div class="text-xs text-neutral-500 space-y-0.5">
-              {plans.map(({ speed, plan }) => (
+              {plans.map(({ tierKey, plan }) => (
                 <div>
-                  NBN {speed} — <span class="text-neutral-400">{plan.providerName}</span> — {plan.planName}
+                  {tierKey} — <span class="text-neutral-400">{plan.providerName}</span> — {plan.planName}
                 </div>
               ))}
             </div>

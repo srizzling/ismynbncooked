@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import satori from 'satori';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
 import { decodeShareData, getLevelInfo } from '../../lib/share';
-import { TIER_LABELS, SPEED_TIERS } from '../../lib/types';
+import { parseTierKey, buildTierLabel } from '../../lib/types';
 
 let wasmInitialized = false;
 
@@ -20,7 +20,8 @@ export const GET: APIRoute = async ({ url }) => {
   const encoded = url.searchParams.get('d');
   const data = encoded ? decodeShareData(encoded) : null;
 
-  if (!data || !SPEED_TIERS.includes(data.s)) {
+  const parsed = data ? parseTierKey(data.s) : null;
+  if (!data || !parsed) {
     return new Response('Missing or invalid share data', { status: 400 });
   }
 
@@ -28,7 +29,7 @@ export const GET: APIRoute = async ({ url }) => {
   const userPrice = data.p / 100;
   const cheapestEffective = data.c / 100;
   const provider = data.v;
-  const tierLabel = TIER_LABELS[data.s];
+  const tierLabel = buildTierLabel(parsed.network, parsed.download, parsed.upload);
   const horizon = data.h || 12;
   const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
   // Compute user effective price for promo scenarios

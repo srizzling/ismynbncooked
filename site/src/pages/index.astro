@@ -4,55 +4,77 @@ import Hero from '../components/Hero.astro';
 import TierCard from '../components/TierCard.astro';
 import PlanChecker from '../components/PlanChecker';
 import DataFreshness from '../components/DataFreshness';
-import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type MetaData } from '../lib/types';
-import { getFixtureTierSummaries, type TierSummary } from '../lib/data';
+import { type MetaData, type TierData, type TierManifest, type TierInfo } from '../lib/types';
+import { getFixtureTierSummaries, getFixtureManifest, type TierSummary } from '../lib/data';
+import { readLocalJson } from '../lib/local-data';
 
-import type { TierData } from '../lib/types';
-
-let tierSummaries: Record<SpeedTier, TierSummary>;
+let tierSummaries: Record<string, TierSummary>;
+let manifest: TierManifest | null = null;
 let meta: MetaData | null = null;
+let r2Loaded = false;
 
+// Try R2 first
 try {
   const bucket = Astro.locals.runtime.env.DATA_BUCKET;
-
-  const results = await Promise.allSettled(
-    SPEED_TIERS.map(async (speed) => {
-      const obj = await bucket.get(`data/plans/nbn-${speed}.json`);
-      if (!obj) throw new Error(`No data for nbn-${speed}`);
-      const data = await obj.json() as TierData;
-      const cheapestEffective = data.plans.length
-        ? Math.min(...data.plans.map(p => p.effectiveMonthly))
-        : data.cheapest;
-      const cheapestPlan = data.plans.length
-        ? data.plans.reduce((best, p) => p.monthlyPrice < best.monthlyPrice ? p : best)
-        : null;
-      return [speed, {
-        cheapest: data.cheapest,
-        cheapestEffective: Math.min(data.cheapest, cheapestEffective),
-        cheapestProvider: cheapestPlan?.providerName ?? '',
-        average: data.average,
-        planCount: data.planCount,
-      }] as const;
-    })
-  );
-
-  const fixture = getFixtureTierSummaries();
-  tierSummaries = { ...fixture };
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      const [speed, summary] = result.value;
-      tierSummaries[speed] = summary;
-    }
+  const manifestObj = await bucket.get('data/manifest.json');
+  if (manifestObj) {
+    manifest = await manifestObj.json() as TierManifest;
+    r2Loaded = true;
   }
+  const metaObj = await bucket.get('data/meta.json');
+  if (metaObj) meta = await metaObj.json() as MetaData;
+} catch {}
 
-  // Read meta for freshness display
-  try {
-    const metaObj = await bucket.get('data/meta.json');
-    if (metaObj) meta = await metaObj.json() as MetaData;
-  } catch {}
-} catch {
-  tierSummaries = getFixtureTierSummaries();
+// If R2 didn't have the manifest, try local files
+if (!manifest) {
+  manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
 }
+
+// Load plan data for each tier
+const fixture = getFixtureTierSummaries();
+tierSummaries = { ...fixture };
+
+async function loadTierSummary(tierKey: string): Promise<TierData | null> {
+  if (r2Loaded) {
+    try {
+      const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+      const obj = await bucket.get(`data/plans/${tierKey}.json`);
+      if (obj) return await obj.json() as TierData;
+    } catch {}
+  }
+  return await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
+}
+
+for (const tier of manifest.tiers) {
+  const data = await loadTierSummary(tier.key);
+  if (!data) continue;
+  const cheapestEffective = data.plans.length
+    ? Math.min(...data.plans.map(p => p.effectiveMonthly))
+    : data.cheapest;
+  const cheapestPlan = data.plans.length
+    ? data.plans.reduce((best, p) => p.monthlyPrice < best.monthlyPrice ? p : best)
+    : null;
+  tierSummaries[tier.key] = {
+    cheapest: data.cheapest,
+    cheapestEffective: Math.min(data.cheapest, cheapestEffective),
+    cheapestProvider: cheapestPlan?.providerName ?? '',
+    average: data.average,
+    planCount: data.planCount,
+  };
+}
+
+// Group tiers by network for display
+const nbnTiers = manifest.tiers.filter(t => t.network === 'nbn');
+const opticommTiers = manifest.tiers.filter(t => t.network === 'opticomm');
+
+// Total plan count across all tiers
+const totalPlans = Object.values(tierSummaries).reduce((sum, s) => sum + s.planCount, 0);
+
+// Cheapest across all tiers
+const cheapestOverall = Object.values(tierSummaries).reduce(
+  (min, s) => Math.min(min, s.cheapest),
+  Infinity
+);
 ---
 
 <Base
@@ -77,7 +99,7 @@ try {
           "name": "What is the cheapest NBN plan in Australia?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `The cheapest NBN plan currently starts from $${Math.min(...SPEED_TIERS.map(s => tierSummaries[s].cheapest)).toFixed(0)}/month for an NBN 25 plan. Prices vary by speed tier and provider. Use our comparison tool to find the cheapest plan for your speed tier.`,
+            "text": `The cheapest NBN plan currently starts from $${cheapestOverall === Infinity ? '40' : cheapestOverall.toFixed(0)}/month for an NBN 25 plan. Prices vary by speed tier and provider. Use our comparison tool to find the cheapest plan for your speed tier.`,
           },
         },
         {
@@ -93,7 +115,7 @@ try {
           "name": "How many NBN providers are there in Australia?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `We track plans from dozens of Australian ISPs (retail service providers) across all NBN speed tiers from NBN 25 to NBN 1000. Currently comparing ${SPEED_TIERS.reduce((sum, s) => sum + tierSummaries[s].planCount, 0)} plans total.`,
+            "text": `We track plans from dozens of Australian ISPs (retail service providers) across all NBN speed tiers. Currently comparing ${totalPlans} plans total.`,
           },
         },
         {
@@ -101,7 +123,7 @@ try {
           "name": "What NBN speed tiers are available?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "NBN speed tiers in Australia are: NBN 25 (25/5 Mbps), NBN 50 (50/20 Mbps), NBN 100 (100/20 Mbps), NBN 250 (250/25 Mbps), NBN 500 (500/50 Mbps), NBN 750 (750/50 Mbps), NBN 1000 (1000/50 Mbps), and NBN 2000 (2000/200 Mbps). Not all tiers are available on all connection types.",
+            "text": "NBN speed tiers in Australia include: NBN 25/5, NBN 50/20, NBN 100/20, NBN 250/25, NBN 500/50, NBN 750/50, NBN 1000/50, and NBN 2000/200 Mbps. Some tiers have higher upload options (e.g., 100/40, 250/100, 1000/400). Not all tiers are available on all connection types.",
           },
         },
       ],
@@ -116,24 +138,50 @@ try {
   <Hero tagline="Prices updated daily across all Australian ISPs. No ads, no affiliate links." />
 
   <section class="mb-12">
-    <PlanChecker client:load />
+    <PlanChecker client:load manifest={manifest} />
   </section>
 
   <section>
     <h2 class="font-display font-bold text-2xl mb-4">Compare NBN plans by speed tier</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {SPEED_TIERS.map((speed) => (
-        <TierCard
-          speed={speed}
-          cheapest={tierSummaries[speed].cheapest}
-          cheapestEffective={tierSummaries[speed].cheapestEffective}
-          cheapestProvider={tierSummaries[speed].cheapestProvider}
-          average={tierSummaries[speed].average}
-          planCount={tierSummaries[speed].planCount}
-        />
-      ))}
+      {nbnTiers.map((tier) => {
+        const summary = tierSummaries[tier.key];
+        return summary ? (
+          <TierCard
+            tierKey={tier.key}
+            tierInfo={tier}
+            cheapest={summary.cheapest}
+            cheapestEffective={summary.cheapestEffective}
+            cheapestProvider={summary.cheapestProvider}
+            average={summary.average}
+            planCount={summary.planCount}
+          />
+        ) : null;
+      })}
     </div>
   </section>
+
+  {opticommTiers.length > 0 && (
+    <section class="mt-12">
+      <h2 class="font-display font-bold text-2xl mb-4">Opticomm plans</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {opticommTiers.map((tier) => {
+          const summary = tierSummaries[tier.key];
+          return summary ? (
+            <TierCard
+              tierKey={tier.key}
+              tierInfo={tier}
+              cheapest={summary.cheapest}
+              cheapestEffective={summary.cheapestEffective}
+              cheapestProvider={summary.cheapestProvider}
+              average={summary.average}
+              planCount={summary.planCount}
+            />
+          ) : null;
+        })}
+      </div>
+    </section>
+  )}
 
   <!-- SEO FAQ section — visible to users, crawlers, and AI -->
   <section class="mt-16 max-w-3xl mx-auto">
@@ -145,9 +193,7 @@ try {
         </summary>
         <div class="px-5 pb-4 text-neutral-400 text-sm">
           <p>
-            The cheapest NBN plan starts from <span class="text-white font-medium">${Math.min(...SPEED_TIERS.map(s => tierSummaries[s].cheapest)).toFixed(0)}/month</span> on the NBN 25 tier.
-            Cheapest prices vary by speed tier — for example, NBN 100 plans start
-            from <span class="text-white">${tierSummaries[100].cheapest.toFixed(0)}/month</span>.
+            The cheapest NBN plan starts from <span class="text-white font-medium">${cheapestOverall === Infinity ? '40' : cheapestOverall.toFixed(0)}/month</span> on the NBN 25 tier.
             We compare plans from every Australian ISP and update prices daily.
           </p>
         </div>
@@ -200,7 +246,7 @@ try {
 
   <section class="mt-12 text-center">
     <p class="text-neutral-500 text-sm">
-      Prices updated daily. All plans are month-to-month unless noted. Comparing {SPEED_TIERS.reduce((sum, s) => sum + tierSummaries[s].planCount, 0)} NBN plans across Australia.
+      Prices updated daily. All plans are month-to-month unless noted. Comparing {totalPlans} plans across Australia.
     </p>
   </section>
 </Base>

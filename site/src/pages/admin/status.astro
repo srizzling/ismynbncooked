@@ -1,0 +1,176 @@
+---
+import Base from '../../layouts/Base.astro';
+import { type TierData, type TierManifest, type MetaData } from '../../lib/types';
+import { getFixtureManifest } from '../../lib/data';
+import { readLocalJson } from '../../lib/local-data';
+
+let dataSource: 'r2' | 'static' | 'fixture' = 'fixture';
+let manifest: TierManifest = getFixtureManifest();
+let meta: MetaData | null = null;
+let tierDetails: { key: string; label: string; planCount: number; cheapest: number; updatedAt: string; source: string }[] = [];
+
+// Try R2 first
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const manifestObj = await bucket.get('data/manifest.json');
+  if (manifestObj) {
+    manifest = await manifestObj.json() as TierManifest;
+    dataSource = 'r2';
+  }
+  const metaObj = await bucket.get('data/meta.json');
+  if (metaObj) meta = await metaObj.json() as MetaData;
+
+  if (dataSource === 'r2') {
+    for (const tier of manifest.tiers) {
+      try {
+        const obj = await bucket.get(`data/plans/${tier.key}.json`);
+        if (obj) {
+          const data = await obj.json() as TierData;
+          tierDetails.push({
+            key: tier.key,
+            label: tier.label,
+            planCount: data.planCount,
+            cheapest: data.cheapest,
+            updatedAt: data.updatedAt,
+            source: 'r2',
+          });
+        }
+      } catch {}
+    }
+  }
+} catch {}
+
+// If R2 didn't have the manifest, fall back to local files
+if (dataSource !== 'r2') {
+  const localManifest = await readLocalJson<TierManifest>('data/manifest.json');
+  if (localManifest) {
+    manifest = localManifest;
+    dataSource = 'static';
+  }
+
+  for (const tier of manifest.tiers) {
+    const data = await readLocalJson<TierData>(`data/plans/${tier.key}.json`);
+    if (data) {
+      tierDetails.push({
+        key: tier.key,
+        label: tier.label,
+        planCount: data.planCount,
+        cheapest: data.cheapest,
+        updatedAt: data.updatedAt,
+        source: 'static',
+      });
+    }
+  }
+}
+
+// Check which tiers in manifest have no data loaded
+const loadedKeys = new Set(tierDetails.map(t => t.key));
+const missingTiers = manifest.tiers.filter(t => !loadedKeys.has(t.key));
+
+const sourceColors = { r2: 'text-cooked-green', static: 'text-accent', fixture: 'text-cooked-red' };
+const sourceLabels = { r2: 'R2 Bucket', static: 'Static Files (public/data/)', fixture: 'Fixture (hardcoded)' };
+---
+
+<Base title="Status" description="" canonicalPath="/admin/status">
+  <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">
+    &larr; Home
+  </a>
+
+  <h1 class="text-3xl font-display font-bold mb-6">Status</h1>
+
+  {/* Data source */}
+  <div class="bg-surface-raised border border-surface-border rounded-xl p-5 mb-6">
+    <div class="text-sm text-neutral-400 mb-1">Data source</div>
+    <div class={`text-2xl font-display font-bold ${sourceColors[dataSource]}`}>
+      {sourceLabels[dataSource]}
+    </div>
+    {meta && (
+      <div class="mt-3 text-sm text-neutral-400 space-y-1">
+        {meta.lastPriceSync && (
+          <div>Last price sync: <span class="text-white">{new Date(meta.lastPriceSync).toLocaleString()}</span></div>
+        )}
+        {meta.lastTermsSync && (
+          <div>Last terms sync: <span class="text-white">{new Date(meta.lastTermsSync).toLocaleString()}</span></div>
+        )}
+        {meta.lastComparisonSync && (
+          <div>Last comparison sync: <span class="text-white">{new Date(meta.lastComparisonSync).toLocaleString()}</span></div>
+        )}
+      </div>
+    )}
+    {!meta && (
+      <div class="mt-2 text-sm text-neutral-500">No meta.json found</div>
+    )}
+  </div>
+
+  {/* Manifest */}
+  <div class="bg-surface-raised border border-surface-border rounded-xl p-5 mb-6">
+    <div class="text-sm text-neutral-400 mb-1">Manifest</div>
+    <div class="text-lg font-display font-bold text-white">{manifest.tiers.length} tiers discovered</div>
+    <div class="text-xs text-neutral-500 mt-1">
+      Updated: {manifest.updatedAt ? new Date(manifest.updatedAt).toLocaleString() : 'unknown'}
+    </div>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {manifest.tiers.map(t => (
+        <a
+          href={`/${t.key}`}
+          class="text-xs bg-surface border border-surface-border rounded-lg px-2 py-1 text-neutral-300 hover:text-white hover:border-accent transition-colors"
+        >
+          {t.label}
+        </a>
+      ))}
+    </div>
+  </div>
+
+  {/* Tier data */}
+  <div class="bg-surface-raised border border-surface-border rounded-xl overflow-hidden mb-6">
+    <div class="px-5 py-3 border-b border-surface-border">
+      <div class="text-sm text-neutral-400">Tier data ({tierDetails.length} loaded)</div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-surface-border text-left text-neutral-400">
+            <th class="px-4 py-3 font-medium">Tier</th>
+            <th class="px-4 py-3 font-medium">Label</th>
+            <th class="px-4 py-3 font-medium">Plans</th>
+            <th class="px-4 py-3 font-medium">Cheapest</th>
+            <th class="px-4 py-3 font-medium">Updated</th>
+            <th class="px-4 py-3 font-medium">Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tierDetails.map(t => (
+            <tr class="border-b border-surface-border/50">
+              <td class="px-4 py-3">
+                <a href={`/${t.key}`} class="text-accent hover:text-white underline">{t.key}</a>
+              </td>
+              <td class="px-4 py-3 text-neutral-300">{t.label}</td>
+              <td class="px-4 py-3 tabular-nums text-white">{t.planCount}</td>
+              <td class="px-4 py-3 tabular-nums text-white">${t.cheapest.toFixed(2)}</td>
+              <td class="px-4 py-3 text-neutral-400 text-xs">{new Date(t.updatedAt).toLocaleString()}</td>
+              <td class="px-4 py-3">
+                <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+                  t.source === 'r2' ? 'bg-cooked-green/20 text-cooked-green' : 'bg-accent/20 text-accent'
+                }`}>
+                  {t.source.toUpperCase()}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {/* Missing tiers */}
+  {missingTiers.length > 0 && (
+    <div class="bg-cooked-red/10 border border-cooked-red/30 rounded-xl p-5">
+      <div class="text-sm text-cooked-red font-bold mb-2">Missing data for {missingTiers.length} tier(s)</div>
+      <div class="text-sm text-neutral-400 space-y-1">
+        {missingTiers.map(t => (
+          <div>{t.key} ({t.label})</div>
+        ))}
+      </div>
+    </div>
+  )}
+</Base>

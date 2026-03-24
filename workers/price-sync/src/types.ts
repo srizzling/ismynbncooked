@@ -3,8 +3,47 @@ export interface Env {
   NETBARGAINS_API_KEY: string;
 }
 
-export const SPEED_TIERS = [25, 50, 100, 250, 500, 750, 1000, 2000] as const;
-export type SpeedTier = (typeof SPEED_TIERS)[number];
+// Download speeds we query from the NetBargains API
+export const DOWNLOAD_SPEEDS = [25, 50, 100, 250, 500, 750, 1000, 2000] as const;
+export type DownloadSpeed = (typeof DOWNLOAD_SPEEDS)[number];
+
+// Legacy type alias — kept for dual-write transition
+export const SPEED_TIERS = DOWNLOAD_SPEEDS;
+export type SpeedTier = DownloadSpeed;
+
+export type NetworkType = 'nbn' | 'opticomm';
+
+export interface TierInfo {
+  key: string;
+  network: NetworkType;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  label: string;
+}
+
+export interface TierManifest {
+  updatedAt: string;
+  tiers: TierInfo[];
+}
+
+export function buildTierKey(network: NetworkType, download: number, upload: number): string {
+  return `${network}-${download}-${upload}`;
+}
+
+export function parseTierKey(key: string): { network: NetworkType; download: number; upload: number } | null {
+  const match = key.match(/^(nbn|opticomm)-(\d+)-(\d+)$/);
+  if (!match) return null;
+  return {
+    network: match[1] as NetworkType,
+    download: parseInt(match[2], 10),
+    upload: parseInt(match[3], 10),
+  };
+}
+
+export function buildTierLabel(network: NetworkType, download: number, upload: number): string {
+  const prefix = network === 'nbn' ? 'NBN' : 'Opticomm';
+  return `${prefix} ${download}/${upload}`;
+}
 
 export interface NetBargainsPlan {
   id: string;
@@ -47,10 +86,16 @@ export interface NBNPlan {
   minimumTerm: string | null;
   cancellationFees: string | null;
   noticePeriod: string | null;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  networkType: NetworkType;
 }
 
 export interface TierData {
-  speed: SpeedTier;
+  tierKey: string;
+  network: NetworkType;
+  downloadSpeed: number;
+  uploadSpeed: number;
   label: string;
   updatedAt: string;
   planCount: number;

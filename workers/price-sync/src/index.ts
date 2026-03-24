@@ -1,18 +1,13 @@
-import type { Env, SpeedTier, NBNPlan, TierData, TierHistory, MetaData, DailySummary } from './types';
-import { SPEED_TIERS } from './types';
+import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, NetworkType, TierInfo, TierManifest } from './types';
+import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
 
-const TIER_LABELS: Record<SpeedTier, string> = {
-  25: 'NBN 25 (25/5 Mbps)',
-  50: 'NBN 50 (50/20 Mbps)',
-  100: 'NBN 100 (100/20 Mbps)',
-  250: 'NBN 250 (250/25 Mbps)',
-  500: 'NBN 500 (500/50 Mbps)',
-  750: 'NBN 750 (750/50 Mbps)',
-  1000: 'NBN 1000 (1000/50 Mbps)',
-  2000: 'NBN 2000 (2000/200 Mbps)',
-};
+function normalizeNetworkType(raw: string): NetworkType {
+  const lower = raw.toLowerCase();
+  if (lower === 'opticomm') return 'opticomm';
+  return 'nbn';
+}
 
 function transformPlan(raw: import('./types').NetBargainsPlan): NBNPlan {
   const monthlyPrice = raw.monthly_price;
@@ -41,6 +36,9 @@ function transformPlan(raw: import('./types').NetBargainsPlan): NBNPlan {
     minimumTerm: null,
     cancellationFees: null,
     noticePeriod: null,
+    downloadSpeed: raw.download_speed,
+    uploadSpeed: raw.upload_speed,
+    networkType: normalizeNetworkType(raw.network_type),
   };
 }
 
@@ -68,14 +66,14 @@ async function mergeTerms(plans: NBNPlan[], bucket: R2Bucket): Promise<NBNPlan[]
 
 async function updateHistory(
   bucket: R2Bucket,
-  speed: SpeedTier,
+  tierKey: string,
   plans: NBNPlan[],
   today: string
 ): Promise<void> {
   let history: TierHistory = { providers: {}, daily: [] };
 
   try {
-    const existing = await bucket.get(`data/history/nbn-${speed}.json`);
+    const existing = await bucket.get(`data/history/${tierKey}.json`);
     if (existing) history = await existing.json();
   } catch {
     // Start fresh
@@ -152,9 +150,24 @@ async function updateHistory(
     }
   }
 
-  await bucket.put(`data/history/nbn-${speed}.json`, JSON.stringify(history), {
+  await bucket.put(`data/history/${tierKey}.json`, JSON.stringify(history), {
     httpMetadata: { contentType: 'application/json' },
   });
+}
+
+/** Group plans by (network, download, upload) and return a map of tierKey -> plans */
+function groupPlansByTier(plans: NBNPlan[]): Map<string, NBNPlan[]> {
+  const groups = new Map<string, NBNPlan[]>();
+  for (const plan of plans) {
+    const key = buildTierKey(plan.networkType, plan.downloadSpeed, plan.uploadSpeed);
+    const group = groups.get(key);
+    if (group) {
+      group.push(plan);
+    } else {
+      groups.set(key, [plan]);
+    }
+  }
+  return groups;
 }
 
 export default {
@@ -162,10 +175,13 @@ export default {
     const today = new Date().toISOString().split('T')[0];
     console.log(`[price-sync] Starting sync for ${today}`);
 
-    for (const speed of SPEED_TIERS) {
+    const allTierGroups = new Map<string, NBNPlan[]>();
+
+    // Fetch plans for each download speed and group by (network, download, upload)
+    for (const downloadSpeed of DOWNLOAD_SPEEDS) {
       try {
-        console.log(`[price-sync] Fetching NBN ${speed} plans...`);
-        const rawPlans = await fetchPlansForTier(env.NETBARGAINS_API_KEY, speed);
+        console.log(`[price-sync] Fetching ${downloadSpeed} Mbps plans...`);
+        const rawPlans = await fetchPlansForTier(env.NETBARGAINS_API_KEY, downloadSpeed);
         let plans = rawPlans.map(transformPlan);
 
         // Apply CIS URL overrides for known-bad URLs
@@ -174,36 +190,87 @@ export default {
         // Merge existing terms data
         plans = await mergeTerms(plans, env.DATA_BUCKET);
 
-        // Sort by monthly price
-        plans.sort((a, b) => a.monthlyPrice - b.monthlyPrice);
+        // Group by tier key
+        const groups = groupPlansByTier(plans);
+        for (const [tierKey, tierPlans] of groups) {
+          const existing = allTierGroups.get(tierKey);
+          if (existing) {
+            existing.push(...tierPlans);
+          } else {
+            allTierGroups.set(tierKey, tierPlans);
+          }
+        }
 
-        const cheapest = plans.length ? plans[0].monthlyPrice : 0;
-        const average = plans.length
-          ? Math.round((plans.reduce((s, p) => s + p.monthlyPrice, 0) / plans.length) * 100) / 100
-          : 0;
-
-        const tierData: TierData = {
-          speed,
-          label: TIER_LABELS[speed],
-          updatedAt: new Date().toISOString(),
-          planCount: plans.length,
-          cheapest,
-          average,
-          plans,
-        };
-
-        await env.DATA_BUCKET.put(`data/plans/nbn-${speed}.json`, JSON.stringify(tierData), {
-          httpMetadata: { contentType: 'application/json' },
-        });
-
-        // Update history
-        await updateHistory(env.DATA_BUCKET, speed, plans, today);
-
-        console.log(`[price-sync] NBN ${speed}: ${plans.length} plans, cheapest $${cheapest}`);
+        console.log(`[price-sync] ${downloadSpeed} Mbps: ${plans.length} plans across ${groups.size} tier(s)`);
       } catch (err) {
-        console.error(`[price-sync] Failed for NBN ${speed}:`, err);
+        console.error(`[price-sync] Failed for ${downloadSpeed} Mbps:`, err);
       }
     }
+
+    // Store each discovered tier
+    const manifestTiers: TierInfo[] = [];
+
+    for (const [tierKey, plans] of allTierGroups) {
+      // Sort by monthly price
+      plans.sort((a, b) => a.monthlyPrice - b.monthlyPrice);
+
+      const firstPlan = plans[0];
+      const network = firstPlan.networkType;
+      const downloadSpeed = firstPlan.downloadSpeed;
+      const uploadSpeed = firstPlan.uploadSpeed;
+      const label = buildTierLabel(network, downloadSpeed, uploadSpeed);
+
+      const cheapest = plans[0].monthlyPrice;
+      const average = Math.round((plans.reduce((s, p) => s + p.monthlyPrice, 0) / plans.length) * 100) / 100;
+
+      const tierData: TierData = {
+        tierKey,
+        network,
+        downloadSpeed,
+        uploadSpeed,
+        label,
+        updatedAt: new Date().toISOString(),
+        planCount: plans.length,
+        cheapest,
+        average,
+        plans,
+      };
+
+      await env.DATA_BUCKET.put(`data/plans/${tierKey}.json`, JSON.stringify(tierData), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+
+      // Update history
+      await updateHistory(env.DATA_BUCKET, tierKey, plans, today);
+
+      manifestTiers.push({
+        key: tierKey,
+        network,
+        downloadSpeed,
+        uploadSpeed,
+        label,
+      });
+
+      console.log(`[price-sync] ${tierKey}: ${plans.length} plans, cheapest $${cheapest}`);
+    }
+
+    // Sort manifest: NBN first, then by download speed, then upload speed
+    manifestTiers.sort((a, b) => {
+      if (a.network !== b.network) return a.network === 'nbn' ? -1 : 1;
+      if (a.downloadSpeed !== b.downloadSpeed) return a.downloadSpeed - b.downloadSpeed;
+      return a.uploadSpeed - b.uploadSpeed;
+    });
+
+    // Write manifest
+    const manifest: TierManifest = {
+      updatedAt: new Date().toISOString(),
+      tiers: manifestTiers,
+    };
+    await env.DATA_BUCKET.put('data/manifest.json', JSON.stringify(manifest), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+
+    console.log(`[price-sync] Manifest: ${manifestTiers.length} tiers discovered`);
 
     // Update meta
     let meta: MetaData = { lastPriceSync: '', lastTermsSync: '', lastComparisonSync: '' };
@@ -227,19 +294,25 @@ export default {
       try {
         const metaObj = await env.DATA_BUCKET.get('data/meta.json');
         const meta = metaObj ? await metaObj.json() as MetaData : null;
+
+        const manifestObj = await env.DATA_BUCKET.get('data/manifest.json');
+        const manifest = manifestObj ? await manifestObj.json() as TierManifest : null;
+
         const tierChecks: Record<string, { planCount: number; cheapest: number; updatedAt: string }> = {};
 
-        for (const speed of SPEED_TIERS) {
-          try {
-            const obj = await env.DATA_BUCKET.get(`data/plans/nbn-${speed}.json`);
-            if (obj) {
-              const data = await obj.json() as TierData;
-              tierChecks[`nbn-${speed}`] = { planCount: data.planCount, cheapest: data.cheapest, updatedAt: data.updatedAt };
-            }
-          } catch {}
+        if (manifest) {
+          for (const tier of manifest.tiers) {
+            try {
+              const obj = await env.DATA_BUCKET.get(`data/plans/${tier.key}.json`);
+              if (obj) {
+                const data = await obj.json() as TierData;
+                tierChecks[tier.key] = { planCount: data.planCount, cheapest: data.cheapest, updatedAt: data.updatedAt };
+              }
+            } catch {}
+          }
         }
 
-        return new Response(JSON.stringify({ ok: true, meta, tiers: tierChecks }, null, 2), {
+        return new Response(JSON.stringify({ ok: true, meta, tierCount: manifest?.tiers.length ?? 0, tiers: tierChecks }, null, 2), {
           headers: { 'Content-Type': 'application/json' },
         });
       } catch (err) {

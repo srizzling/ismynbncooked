@@ -1,16 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
-import { TIER_LABELS, SPEED_TIERS, type SpeedTier, type TierData, type ComparisonsData } from '../lib/types';
+import { parseTierKey, buildTierLabel, type TierData, type ComparisonsData } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { calcCosts, type Horizon } from '../lib/costs';
 import { decodeShareData, getLevelInfo } from '../lib/share';
+import { readLocalJson } from '../lib/local-data';
 
 const encoded = Astro.url.searchParams.get('d');
 const data = encoded ? decodeShareData(encoded) : null;
 
-if (!data || !SPEED_TIERS.includes(data.s)) {
+if (!data) {
   return Astro.redirect('/');
 }
+
+// Validate tier key
+const parsed = parseTierKey(data.s);
+if (!parsed) {
+  return Astro.redirect('/');
+}
+
+const tierKey = data.s;
 
 // Load comparisons + plan data
 let comparisons: ComparisonsData | null = null;
@@ -19,22 +28,16 @@ try {
   const bucket = Astro.locals.runtime.env.DATA_BUCKET;
   const [compObj, tierObj] = await Promise.all([
     bucket.get('data/comparisons.json'),
-    bucket.get(`data/plans/nbn-${data.s}.json`),
+    bucket.get(`data/plans/${tierKey}.json`),
   ]);
   if (compObj) comparisons = await compObj.json() as ComparisonsData;
   if (tierObj) tierData = await tierObj.json() as TierData;
 } catch {}
 if (!comparisons || !tierData) {
-  const base = new URL('/', Astro.url);
-  const [compRes, tierRes] = await Promise.all([
-    comparisons ? null : fetch(new URL('data/comparisons.json', base)),
-    tierData ? null : fetch(new URL(`data/plans/nbn-${data.s}.json`, base)),
-  ]);
-  if (compRes?.ok) comparisons = await compRes.json() as ComparisonsData;
-  if (tierRes?.ok) tierData = await tierRes.json() as TierData;
+  if (!comparisons) comparisons = await readLocalJson<ComparisonsData>('data/comparisons.json');
+  if (!tierData) tierData = await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
 }
 
-const speed = data.s;
 const userPrice = data.p / 100;
 const cheapestEffective = data.c / 100;
 const provider = data.v;
@@ -45,7 +48,9 @@ const userFullPrice = data.fp ? data.fp / 100 : 0;
 const userPromoMonths = data.pd || 0;
 const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
 
-const tierLabel = TIER_LABELS[speed];
+const tierLabel = buildTierLabel(parsed.network, parsed.download, parsed.upload);
+const networkLabel = parsed.network === 'nbn' ? 'NBN' : 'Opticomm';
+const speedDesc = `${parsed.download}/${parsed.upload}`;
 
 // Find the cheapest plan at this horizon from current data
 const cheapestPlan = tierData?.plans.length
@@ -68,7 +73,7 @@ if (userHasPromo) {
 // Recalculate from the user's effective price (not raw promo price)
 const result = calculateCooked(userEffective, cheapestEffective);
 
-const title = `${levelInfo.label} — My NBN ${speed} is cooked`;
+const title = `${levelInfo.label} — My ${tierLabel} is cooked`;
 const description = provider
   ? `I'm paying $${userPrice.toFixed(0)}/mo with ${provider} for ${tierLabel}. The cheapest is $${cheapestEffective.toFixed(0)}/mo effective. Am I getting rorted?`
   : `I'm paying $${userPrice.toFixed(0)}/mo for ${tierLabel}. The cheapest is $${cheapestEffective.toFixed(0)}/mo effective. Am I getting rorted?`;
@@ -86,7 +91,7 @@ const ogImageUrl = new URL(`/og/share.png?d=${encoded}`, Astro.site ?? Astro.url
   <div class="max-w-xl mx-auto">
     {/* Shared result card */}
     <div class="bg-surface-raised border border-surface-border rounded-2xl p-8 text-center mb-8">
-      <div class="text-sm text-neutral-500 mb-1">Someone's NBN {speed} is...</div>
+      <div class="text-sm text-neutral-500 mb-1">Someone's {tierLabel} is...</div>
       <div class="text-4xl sm:text-5xl font-display font-bold" style={`color: ${levelInfo.color}`}>
         {levelInfo.label}
       </div>
@@ -212,10 +217,10 @@ const ogImageUrl = new URL(`/og/share.png?d=${encoded}`, Astro.site ?? Astro.url
     {/* CTA */}
     <div class="text-center space-y-4">
       <a
-        href={`/nbn-${speed}`}
+        href={`/${tierKey}`}
         class="inline-block bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
       >
-        Check NBN {speed} plans
+        Check {tierLabel} plans
       </a>
       <p class="text-neutral-500 text-sm">
         <a href="/" class="hover:text-white underline">Or check your own plan &rarr;</a>

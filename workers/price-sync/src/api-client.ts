@@ -1,4 +1,4 @@
-import type { NetBargainsPlan, SpeedTier } from './types';
+import type { NetBargainsPlan, DownloadSpeed } from './types';
 
 const API_BASE = 'https://api.netbargains.com.au/v1';
 const PAGE_SIZE = 50;
@@ -15,7 +15,7 @@ interface NetBargainsResponse {
 
 async function fetchPage(
   apiKey: string,
-  speed: SpeedTier,
+  speed: DownloadSpeed,
   skip: number
 ): Promise<NetBargainsResponse> {
   const url = new URL(`${API_BASE}/plans/latest`);
@@ -45,7 +45,7 @@ async function fetchPage(
 
 export async function fetchPlansForTier(
   apiKey: string,
-  speed: SpeedTier
+  speed: DownloadSpeed
 ): Promise<NetBargainsPlan[]> {
   const allPlans: NetBargainsPlan[] = [];
   let skip = 0;

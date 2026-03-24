@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
-import type { SpeedTier, CookedResult } from '../lib/types';
+import type { CookedResult } from '../lib/types';
+import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { LEVELS } from '../lib/cooked';
 import { getUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
 import { buildShareUrl, type ShareData } from '../lib/share';
 
 interface Props {
-  speed: SpeedTier;
+  tierKey: string;
   cheapestPrice: number;
   cheapestEffective?: number;
   cheapestProviderName?: string;
@@ -98,7 +99,9 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ speed, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, onCookedChange }: Props) {
+export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, onCookedChange }: Props) {
+  const parsed = parseTierKey(tierKey);
+  const tierLabel = parsed ? buildTierLabel(parsed.network, parsed.download, parsed.upload) : tierKey;
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [result, setResult] = useState<CookedResult | null>(null);
@@ -113,7 +116,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
   const handleShare = useCallback(async (currentPrice: number) => {
     if (!result) return;
     const data: ShareData = {
-      s: speed,
+      s: tierKey,
       p: Math.round(currentPrice * 100),
       v: provider,
       c: Math.round(baseline * 100),
@@ -127,17 +130,17 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: `My NBN ${speed} is ${result.label}`, url });
+        await navigator.share({ title: `My ${tierLabel} is ${result.label}`, url });
         return;
       } catch {}
     }
     await navigator.clipboard.writeText(url);
     setShareLabel('Copied!');
     setTimeout(() => setShareLabel('Share'), 2000);
-  }, [result, speed, provider, baseline, cheapestProviderName]);
+  }, [result, tierKey, provider, baseline, cheapestProviderName]);
 
   useEffect(() => {
-    const existing = getUserPlan(speed);
+    const existing = getUserPlan(tierKey);
     if (existing) {
       setPrice(existing.price.toString());
       setProvider(existing.provider);
@@ -157,13 +160,13 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
         onCookedChange?.(r);
       }
     }
-  }, [speed, cheapestPrice, baseline, horizon]);
+  }, [tierKey, cheapestPrice, baseline, horizon]);
 
   function handleSubmit(e: Event) {
     e.preventDefault();
     const p = parseFloat(price);
     if (isNaN(p) || p <= 0) return;
-    saveUserPlan(speed, p, provider);
+    saveUserPlan(tierKey, p, provider);
     const r = calculateCooked(p, baseline);
     setResult(r);
     onCookedChange?.(r);
@@ -171,7 +174,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
   }
 
   function handleClear() {
-    clearUserPlan(speed);
+    clearUserPlan(tierKey);
     setPrice('');
     setProvider('');
     setResult(null);
@@ -187,7 +190,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
 
     return (
       <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center">
-        <div class="text-sm text-neutral-400 mb-2">Your NBN {speed} is...</div>
+        <div class="text-sm text-neutral-400 mb-2">Your {tierLabel} is...</div>
         <div class="text-4xl sm:text-5xl font-display font-bold" style={{ color: result.color }}>
           {result.label}
         </div>
@@ -282,7 +285,7 @@ export default function CookedRating({ speed, cheapestPrice, cheapestEffective, 
     <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8">
       <h3 class="font-display font-bold text-xl mb-1">Are you getting rorted?</h3>
       <p class="text-neutral-400 text-sm mb-4">
-        Enter what you pay for NBN {speed} and we'll tell you the truth
+        Enter what you pay for {tierLabel} and we'll tell you the truth
       </p>
       <form onSubmit={handleSubmit} class="flex flex-wrap gap-3">
         <input

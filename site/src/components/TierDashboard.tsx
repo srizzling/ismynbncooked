@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
-import type { SpeedTier, TierData, TierHistory, ComparisonsData, CookedResult, UserPlan } from '../lib/types';
-import { SPEED_TIERS } from '../lib/types';
+import type { TierData, TierHistory, ComparisonsData, CookedResult, UserPlan } from '../lib/types';
+import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit } from '../lib/storage';
 import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHorizon, HORIZONS, type Horizon } from '../lib/costs';
@@ -10,7 +10,7 @@ import PlanTable from './PlanTable';
 import PriceChart from './PriceChart';
 
 interface Props {
-  speed: SpeedTier;
+  tierKey: string;
   label: string;
   tierData: TierData;
   history: TierHistory | null;
@@ -18,22 +18,22 @@ interface Props {
 }
 
 // Find the user's most recently saved plan from another tier
-function findOtherTierPlan(currentSpeed: SpeedTier): { speed: SpeedTier; plan: UserPlan } | null {
+function findOtherTierPlan(currentTierKey: string): { tierKey: string; label: string; plan: UserPlan } | null {
   const plans = getUserPlans();
-  let best: { speed: SpeedTier; plan: UserPlan } | null = null;
-  for (const tier of SPEED_TIERS) {
-    if (tier === currentSpeed) continue;
-    const plan = plans[`nbn${tier}`];
-    if (plan && (!best || plan.savedAt > best.plan.savedAt)) {
-      best = { speed: tier, plan };
+  let best: { tierKey: string; label: string; plan: UserPlan } | null = null;
+  for (const [key, plan] of Object.entries(plans)) {
+    if (key === currentTierKey || !plan) continue;
+    const parsed = parseTierKey(key);
+    if (parsed && (!best || plan.savedAt > best.plan.savedAt)) {
+      best = { tierKey: key, label: buildTierLabel(parsed.network, parsed.download, parsed.upload), plan };
     }
   }
   return best;
 }
 
-export default function TierDashboard({ speed, label, tierData, history, comparisons }: Props) {
+export default function TierDashboard({ tierKey, label, tierData, history, comparisons }: Props) {
   const [cookedResult, setCookedResult] = useState<CookedResult | null>(null);
-  const [otherTierPlan, setOtherTierPlan] = useState<{ speed: SpeedTier; plan: UserPlan } | null>(null);
+  const [otherTierPlan, setOtherTierPlan] = useState<{ tierKey: string; label: string; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
   const [horizon, setHorizon] = useState<Horizon>(12);
 
@@ -50,16 +50,16 @@ export default function TierDashboard({ speed, label, tierData, history, compari
 
   useEffect(() => {
     // Check for existing user plan on this tier
-    const existing = getUserPlan(speed);
+    const existing = getUserPlan(tierKey);
     if (existing) {
       setCookedResult(calculateCooked(existing.price, baseline));
     } else {
       // Check for plans on other tiers (for cross-tier context)
-      setOtherTierPlan(findOtherTierPlan(speed));
+      setOtherTierPlan(findOtherTierPlan(tierKey));
     }
 
     // Price change detection
-    const lastVisit = getTierVisit(speed);
+    const lastVisit = getTierVisit(tierKey);
     if (lastVisit) {
       const diff = lastVisit.cheapest - tierData.cheapest;
       if (Math.abs(diff) >= 1) {
@@ -71,15 +71,15 @@ export default function TierDashboard({ speed, label, tierData, history, compari
       }
     }
     // Save this visit
-    saveTierVisit(speed, tierData.cheapest);
-  }, [speed, baseline]);
+    saveTierVisit(tierKey, tierData.cheapest);
+  }, [tierKey, baseline]);
 
   function handleCookedChange(result: CookedResult | null) {
     setCookedResult(result);
   }
 
   const cheapest = tierData.cheapest;
-  const userPlan = getUserPlan(speed);
+  const userPlan = getUserPlan(tierKey);
   const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
 
   // Find the plan with the cheapest monthly price (no promo consideration)
@@ -197,17 +197,17 @@ export default function TierDashboard({ speed, label, tierData, history, compari
           <div class="bg-surface-raised border border-accent/30 rounded-2xl p-6">
             <p class="text-neutral-300">
               You're currently on{' '}
-              <span class="font-bold text-white">NBN {otherTierPlan.speed}</span> at{' '}
+              <span class="font-bold text-white">{otherTierPlan.label}</span> at{' '}
               <span class="font-bold text-white">${otherTierPlan.plan.price.toFixed(2)}/mo</span>
               {otherTierPlan.plan.provider ? ` with ${otherTierPlan.plan.provider}` : ''}.
             </p>
             <p class="text-neutral-400 text-sm mt-1">
               {diff > 0 ? (
-                <>The cheapest NBN {speed} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — that's <span class="text-white font-medium">${absDiff}/mo more</span> than you're paying now.</>
+                <>The cheapest {label} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — that's <span class="text-white font-medium">${absDiff}/mo more</span> than you're paying now.</>
               ) : diff < 0 ? (
-                <>The cheapest NBN {speed} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — you could save <span class="text-accent font-medium">${absDiff}/mo</span>.</>
+                <>The cheapest {label} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — you could save <span class="text-accent font-medium">${absDiff}/mo</span>.</>
               ) : (
-                <>The cheapest NBN {speed} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — same as what you're paying now.</>
+                <>The cheapest {label} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — same as what you're paying now.</>
               )}
             </p>
           </div>
@@ -216,7 +216,7 @@ export default function TierDashboard({ speed, label, tierData, history, compari
 
       {/* Cooked Rating */}
       <CookedRating
-        speed={speed}
+        tierKey={tierKey}
         cheapestPrice={cheapest}
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
         cheapestProviderName={cheapestAtHorizon?.plan.providerName}

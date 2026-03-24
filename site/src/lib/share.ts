@@ -1,9 +1,10 @@
-import type { SpeedTier, CookedLevel } from './types';
+import type { CookedLevel } from './types';
+import { DEFAULT_UPLOAD_MAP } from './types';
 import { LEVELS } from './cooked';
 
 export interface ShareData {
-  /** Speed tier */
-  s: SpeedTier;
+  /** Tier key (e.g. "nbn-100-20") */
+  s: string;
   /** User's monthly price in cents */
   p: number;
   /** Provider name */
@@ -35,8 +36,19 @@ export function decodeShareData(encoded: string): ShareData | null {
     const json = atob(padded);
     const arr = JSON.parse(json);
     const [s, p, v, c, l, cp, h, fp, pd] = arr;
-    if (typeof s !== 'number' || typeof p !== 'number' || typeof c !== 'number') return null;
-    return { s, p, v: v ?? '', c, l: l ?? 'sweet-as', cp: cp ?? '', h: h ?? 12, fp: fp ?? 0, pd: pd ?? 0 };
+
+    // Backward compat: old format had s as a number (download speed)
+    let tierKey: string;
+    if (typeof s === 'number') {
+      tierKey = DEFAULT_UPLOAD_MAP[s] ?? `nbn-${s}-20`;
+    } else if (typeof s === 'string') {
+      tierKey = s;
+    } else {
+      return null;
+    }
+
+    if (typeof p !== 'number' || typeof c !== 'number') return null;
+    return { s: tierKey, p, v: v ?? '', c, l: l ?? 'sweet-as', cp: cp ?? '', h: h ?? 12, fp: fp ?? 0, pd: pd ?? 0 };
   } catch {
     return null;
   }

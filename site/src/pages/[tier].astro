@@ -1,16 +1,40 @@
 ---
 import Base from '../layouts/Base.astro';
 import TierDashboard from '../components/TierDashboard';
-import { SPEED_TIERS, TIER_LABELS, type SpeedTier, type TierData, type TierHistory, type ComparisonsData } from '../lib/types';
+import { parseTierKey, DEFAULT_UPLOAD_MAP, type TierData, type TierHistory, type ComparisonsData, type TierManifest } from '../lib/types';
+import { readLocalJson } from '../lib/local-data';
 
-// Extract speed from the tier param (e.g. "nbn-100" → 100)
+// Extract tier key from the param (e.g. "nbn-1000-50" or legacy "nbn-100")
 const { tier } = Astro.params;
-const speedMatch = tier?.match(/^nbn-(\d+)$/);
-if (!speedMatch) return Astro.redirect('/');
-const speed = Number(speedMatch[1]) as SpeedTier;
-if (!SPEED_TIERS.includes(speed)) return Astro.redirect('/');
 
-const label = TIER_LABELS[speed];
+// Try new format first: nbn-1000-50 or opticomm-100-20
+const parsed = tier ? parseTierKey(tier) : null;
+
+if (!parsed) {
+  // Try legacy format: nbn-100 → redirect to nbn-100-20
+  const legacyMatch = tier?.match(/^nbn-(\d+)$/);
+  if (legacyMatch) {
+    const speed = Number(legacyMatch[1]);
+    const newTierKey = DEFAULT_UPLOAD_MAP[speed];
+    if (newTierKey) {
+      return Astro.redirect(`/${newTierKey}`, 301);
+    }
+    // If not in default map, try loading manifest to find best match
+    try {
+      const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+      const manifestObj = await bucket.get('data/manifest.json');
+      if (manifestObj) {
+        const manifest = await manifestObj.json() as TierManifest;
+        const match = manifest.tiers.find(t => t.network === 'nbn' && t.downloadSpeed === speed);
+        if (match) return Astro.redirect(`/${match.key}`, 301);
+      }
+    } catch {}
+  }
+  return Astro.redirect('/');
+}
+
+const tierKey = tier!;
+const label = `${parsed.network === 'nbn' ? 'NBN' : 'Opticomm'} ${parsed.download}/${parsed.upload}`;
 
 let tierData: TierData | null = null;
 let history: TierHistory | null = null;
@@ -19,40 +43,34 @@ let comparisons: ComparisonsData | null = null;
 try {
   const bucket = Astro.locals.runtime.env.DATA_BUCKET;
   const [tierObj, historyObj, comparisonsObj] = await Promise.all([
-    bucket.get(`data/plans/nbn-${speed}.json`),
-    bucket.get(`data/history/nbn-${speed}.json`),
+    bucket.get(`data/plans/${tierKey}.json`),
+    bucket.get(`data/history/${tierKey}.json`),
     bucket.get('data/comparisons.json'),
   ]);
   tierData = tierObj ? await tierObj.json() as TierData : null;
   history = historyObj ? await historyObj.json() as TierHistory : null;
   comparisons = comparisonsObj ? await comparisonsObj.json() as ComparisonsData : null;
-} catch {
-  // R2 unavailable (local dev) — fall back to static JSON in public/data/
-}
+} catch {}
 
-if (!tierData) {
-  const base = new URL('/', Astro.url);
-  const [tierRes, historyRes, comparisonsRes] = await Promise.all([
-    fetch(new URL(`data/plans/nbn-${speed}.json`, base)),
-    fetch(new URL(`data/history/nbn-${speed}.json`, base)),
-    fetch(new URL('data/comparisons.json', base)),
-  ]);
-  tierData = tierRes.ok ? await tierRes.json() as TierData : null;
-  history = historyRes.ok ? await historyRes.json() as TierHistory : null;
-  comparisons = comparisonsRes.ok ? await comparisonsRes.json() as ComparisonsData : null;
-}
+// If R2 didn't have the data, fall back to local files
+if (!tierData) tierData = await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
+if (!history) history = await readLocalJson<TierHistory>(`data/history/${tierKey}.json`);
+if (!comparisons) comparisons = await readLocalJson<ComparisonsData>('data/comparisons.json');
 
 if (!tierData) return Astro.redirect('/');
+
+const networkLabel = parsed.network === 'nbn' ? 'NBN' : 'Opticomm';
+const speedDesc = `${parsed.download}/${parsed.upload} Mbps`;
 ---
 
 <Base
-  title={`Cheapest ${label} Plans Australia — Compare ${tierData.planCount} NBN ${speed} Plans`}
+  title={`Cheapest ${label} Plans Australia — Compare ${tierData.planCount} ${networkLabel} ${parsed.download}/${parsed.upload} Plans`}
   description={`Compare ${tierData.planCount} Australian ${label} internet plans. Cheapest from $${tierData.cheapest.toFixed(0)}/mo. See prices, promos, evening speeds, and contract terms across all ISPs.`}
-  canonicalPath={`/nbn-${speed}`}
+  canonicalPath={`/${tierKey}`}
   jsonLd={{
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": `${label} Plans — Australian NBN Price Comparison`,
+    "name": `${label} Plans — Australian ${networkLabel} Price Comparison`,
     "description": `Compare ${tierData.planCount} Australian ${label} internet plans from $${tierData.cheapest.toFixed(0)}/month.`,
     "breadcrumb": {
       "@type": "BreadcrumbList",
@@ -72,13 +90,13 @@ if (!tierData) return Astro.redirect('/');
       {label} Plans
     </h1>
     <p class="text-neutral-400 mt-2">
-      Comparing {tierData.planCount} Australian NBN {speed} plans from ${tierData.cheapest.toFixed(0)}/mo. Prices updated daily.
+      Comparing {tierData.planCount} Australian {networkLabel} {speedDesc} plans from ${tierData.cheapest.toFixed(0)}/mo. Prices updated daily.
     </p>
   </section>
 
   <TierDashboard
     client:load
-    speed={speed}
+    tierKey={tierKey}
     label={label}
     tierData={tierData}
     history={history}
