@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
-import type { TierData, TierHistory, ComparisonsData, CookedResult, UserPlan } from '../lib/types';
+import type { TierData, TierHistory, ComparisonsData, CookedResult, UserPlan, TierManifest } from '../lib/types';
 import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit } from '../lib/storage';
@@ -15,6 +15,7 @@ interface Props {
   tierData: TierData;
   history: TierHistory | null;
   comparisons: ComparisonsData | null;
+  manifest?: TierManifest;
 }
 
 // Find the user's most recently saved plan from another tier
@@ -31,7 +32,7 @@ function findOtherTierPlan(currentTierKey: string): { tierKey: string; label: st
   return best;
 }
 
-export default function TierDashboard({ tierKey, label, tierData, history, comparisons }: Props) {
+export default function TierDashboard({ tierKey, label, tierData, history, comparisons, manifest }: Props) {
   const [cookedResult, setCookedResult] = useState<CookedResult | null>(null);
   const [otherTierPlan, setOtherTierPlan] = useState<{ tierKey: string; label: string; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
@@ -221,6 +222,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
         cheapestProviderName={cheapestAtHorizon?.plan.providerName}
         horizon={horizon}
+        manifest={manifest}
         onCookedChange={handleCookedChange}
       />
 

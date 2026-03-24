@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import TierDashboard from '../components/TierDashboard';
 import { parseTierKey, DEFAULT_UPLOAD_MAP, type TierData, type TierHistory, type ComparisonsData, type TierManifest } from '../lib/types';
+import { getFixtureManifest } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
 
 // Extract tier key from the param (e.g. "nbn-1000-50" or legacy "nbn-100")
@@ -39,23 +40,27 @@ const label = `${parsed.network === 'nbn' ? 'NBN' : 'Opticomm'} ${parsed.downloa
 let tierData: TierData | null = null;
 let history: TierHistory | null = null;
 let comparisons: ComparisonsData | null = null;
+let manifest: TierManifest | null = null;
 
 try {
   const bucket = Astro.locals.runtime.env.DATA_BUCKET;
-  const [tierObj, historyObj, comparisonsObj] = await Promise.all([
+  const [tierObj, historyObj, comparisonsObj, manifestObj] = await Promise.all([
     bucket.get(`data/plans/${tierKey}.json`),
     bucket.get(`data/history/${tierKey}.json`),
     bucket.get('data/comparisons.json'),
+    bucket.get('data/manifest.json'),
   ]);
   tierData = tierObj ? await tierObj.json() as TierData : null;
   history = historyObj ? await historyObj.json() as TierHistory : null;
   comparisons = comparisonsObj ? await comparisonsObj.json() as ComparisonsData : null;
+  manifest = manifestObj ? await manifestObj.json() as TierManifest : null;
 } catch {}
 
 // If R2 didn't have the data, fall back to local files
 if (!tierData) tierData = await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
 if (!history) history = await readLocalJson<TierHistory>(`data/history/${tierKey}.json`);
 if (!comparisons) comparisons = await readLocalJson<ComparisonsData>('data/comparisons.json');
+if (!manifest) manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
 
 if (!tierData) return Astro.redirect('/');
 
@@ -101,5 +106,6 @@ const speedDesc = `${parsed.download}/${parsed.upload} Mbps`;
     tierData={tierData}
     history={history}
     comparisons={comparisons}
+    manifest={manifest}
   />
 </Base>

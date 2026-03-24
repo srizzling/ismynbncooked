@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
-import type { CookedResult } from '../lib/types';
+import type { CookedResult, TierManifest } from '../lib/types';
 import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { LEVELS } from '../lib/cooked';
 import { getUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
-import { buildShareUrl, type ShareData } from '../lib/share';
+import { buildShareUrl, type ShareData, type ShareManifests } from '../lib/share';
 
 interface Props {
   tierKey: string;
@@ -12,6 +12,7 @@ interface Props {
   cheapestEffective?: number;
   cheapestProviderName?: string;
   horizon?: number;
+  manifest?: TierManifest;
   onCookedChange?: (result: CookedResult | null) => void;
 }
 
@@ -99,7 +100,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, onCookedChange }: Props) {
+export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, manifest, onCookedChange }: Props) {
   const parsed = parseTierKey(tierKey);
   const tierLabel = parsed ? buildTierLabel(parsed.network, parsed.download, parsed.upload) : tierKey;
   const [price, setPrice] = useState('');
@@ -126,7 +127,11 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
       fp: userFullPrice ? Math.round(userFullPrice * 100) : 0,
       pd: userPromoLeft,
     };
-    const url = buildShareUrl(window.location.origin, data);
+    const shareManifests: ShareManifests | undefined = manifest ? {
+      tiers: manifest,
+      providers: manifest.providers ?? [],
+    } : undefined;
+    const url = buildShareUrl(window.location.origin, data, shareManifests);
 
     if (navigator.share) {
       try {
@@ -137,7 +142,7 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
     await navigator.clipboard.writeText(url);
     setShareLabel('Copied!');
     setTimeout(() => setShareLabel('Share'), 2000);
-  }, [result, tierKey, provider, baseline, cheapestProviderName]);
+  }, [result, tierKey, provider, baseline, cheapestProviderName, manifest]);
 
   useEffect(() => {
     const existing = getUserPlan(tierKey);

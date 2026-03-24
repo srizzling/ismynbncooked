@@ -1,0 +1,232 @@
+---
+import Base from '../../layouts/Base.astro';
+import { parseTierKey, buildTierLabel, type TierData, type TierManifest, type ComparisonsData } from '../../lib/types';
+import { getFixtureManifest } from '../../lib/data';
+import { readLocalJson } from '../../lib/local-data';
+import { calculateCooked } from '../../lib/cooked';
+import { calcCosts, type Horizon } from '../../lib/costs';
+import { decodeShareWords, getLevelInfo, type ShareManifests } from '../../lib/share';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/');
+
+// Load manifest (needed to decode the word URL)
+let manifest: TierManifest;
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const manifestObj = await bucket.get('data/manifest.json');
+  manifest = manifestObj ? await manifestObj.json() as TierManifest : getFixtureManifest();
+} catch {
+  manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
+}
+
+const shareManifests: ShareManifests = {
+  tiers: manifest,
+  providers: manifest.providers ?? [],
+};
+
+// Decode the word-based share ID
+const data = decodeShareWords(id, shareManifests);
+if (!data) return Astro.redirect('/');
+
+const parsed = parseTierKey(data.s);
+if (!parsed) return Astro.redirect('/');
+
+const tierKey = data.s;
+
+// Load comparisons + plan data
+let comparisons: ComparisonsData | null = null;
+let tierData: TierData | null = null;
+try {
+  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const [compObj, tierObj] = await Promise.all([
+    bucket.get('data/comparisons.json'),
+    bucket.get(`data/plans/${tierKey}.json`),
+  ]);
+  if (compObj) comparisons = await compObj.json() as ComparisonsData;
+  if (tierObj) tierData = await tierObj.json() as TierData;
+} catch {}
+if (!comparisons) comparisons = await readLocalJson<ComparisonsData>('data/comparisons.json');
+if (!tierData) tierData = await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
+
+const userPrice = data.p / 100;
+const cheapestEffective = data.c / 100;
+const provider = data.v;
+const cheapestProvider = data.cp;
+const levelInfo = getLevelInfo(data.l);
+const horizon = (data.h || 12) as Horizon;
+const userFullPrice = data.fp ? data.fp / 100 : 0;
+const userPromoMonths = data.pd || 0;
+const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
+
+const tierLabel = buildTierLabel(parsed.network, parsed.download, parsed.upload);
+
+const cheapestPlan = tierData?.plans.length
+  ? tierData.plans.reduce((best, plan) => {
+      const bestCost = calcCosts(best, horizon).effectiveCost;
+      const planCost = calcCosts(plan, horizon).effectiveCost;
+      return planCost < bestCost ? plan : best;
+    })
+  : null;
+
+let userEffective = userPrice;
+let userHasPromo = userFullPrice > 0 && userPromoMonths > 0;
+if (userHasPromo) {
+  const promoMonths = Math.min(userPromoMonths, horizon);
+  const fullMonths = horizon - promoMonths;
+  userEffective = (promoMonths * userPrice + fullMonths * userFullPrice) / horizon;
+}
+
+const result = calculateCooked(userEffective, cheapestEffective);
+
+const title = `${levelInfo.label} — My ${tierLabel} is cooked`;
+const description = provider
+  ? `I'm paying $${userPrice.toFixed(0)}/mo with ${provider} for ${tierLabel}. The cheapest is $${cheapestEffective.toFixed(0)}/mo effective. Am I getting rorted?`
+  : `I'm paying $${userPrice.toFixed(0)}/mo for ${tierLabel}. The cheapest is $${cheapestEffective.toFixed(0)}/mo effective. Am I getting rorted?`;
+
+// OG image — fall back to legacy encoding for the OG endpoint
+const ogImageUrl = new URL(`/og/share.png?d=${encodeURIComponent(id)}&w=1`, Astro.site ?? Astro.url.origin).href;
+---
+
+<Base
+  title={title}
+  description={description}
+  canonicalPath={`/share/${id}`}
+  ogImage={ogImageUrl}
+>
+  <div class="max-w-xl mx-auto">
+    <div class="bg-surface-raised border border-surface-border rounded-2xl p-8 text-center mb-8">
+      <div class="text-sm text-neutral-500 mb-1">Someone's {tierLabel} is...</div>
+      <div class="text-4xl sm:text-5xl font-display font-bold" style={`color: ${levelInfo.color}`}>
+        {levelInfo.label}
+      </div>
+      <p class="text-neutral-400 mt-2 text-sm">{levelInfo.description}</p>
+
+      <div class="mt-6 space-y-3">
+        <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-left">
+          <div class="flex justify-between items-baseline">
+            <div>
+              <span class="text-neutral-400 text-sm">Current Provider</span>
+              {provider && (
+                <span class="text-neutral-600 text-xs ml-1">({provider})</span>
+              )}
+            </div>
+            <span class="text-xl font-display font-bold text-white tabular-nums">
+              ${userEffective.toFixed(2)}<span class="text-sm text-neutral-500">/mo</span>
+            </span>
+          </div>
+          {userHasPromo && (
+            <div class="text-xs text-neutral-500 mt-1.5 tabular-nums">
+              ${userPrice.toFixed(2)} &times; {Math.min(userPromoMonths, horizon)}mo
+              {userPromoMonths < horizon && (
+                <> + ${userFullPrice.toFixed(2)} &times; {horizon - userPromoMonths}mo</>
+              )}
+              {' '}= ${(userEffective * horizon).toFixed(0)} over {horizonLabel}
+            </div>
+          )}
+          {!userHasPromo && (
+            <div class="text-xs text-neutral-500 mt-1.5 tabular-nums">
+              ${userPrice.toFixed(2)} &times; {horizon}mo = ${(userPrice * horizon).toFixed(0)} over {horizonLabel}
+            </div>
+          )}
+        </div>
+
+        <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-left">
+          <div class="flex justify-between items-baseline">
+            <div>
+              <span class="text-neutral-400 text-sm">Cheapest available</span>
+              <span class="text-neutral-600 text-xs ml-1">
+                ({cheapestPlan ? cheapestPlan.providerName : cheapestProvider})
+              </span>
+            </div>
+            <span class="text-xl font-display font-bold tabular-nums text-cooked-green">
+              {cheapestPlan
+                ? `$${calcCosts(cheapestPlan, horizon).effectiveCost.toFixed(2)}`
+                : `$${cheapestEffective.toFixed(2)}`
+              }<span class="text-sm text-neutral-500">/mo</span>
+            </span>
+          </div>
+          {cheapestPlan && (() => {
+            const hasPromo = cheapestPlan.promoValue && cheapestPlan.promoValue > 0 && cheapestPlan.promoDuration;
+            const promoMonths = hasPromo ? Math.min(cheapestPlan.promoDuration!, horizon) : 0;
+            const promoPrice = hasPromo ? cheapestPlan.monthlyPrice - cheapestPlan.promoValue! : 0;
+            const { totalCost } = calcCosts(cheapestPlan, horizon);
+            return (
+              <div class="text-xs text-neutral-500 mt-1.5 tabular-nums">
+                {hasPromo && promoMonths > 0 ? (
+                  promoMonths >= horizon ? (
+                    <>${promoPrice.toFixed(2)} &times; {horizon}mo = ${totalCost.toFixed(0)} over {horizonLabel}</>
+                  ) : (
+                    <>${promoPrice.toFixed(2)} &times; {promoMonths}mo + ${cheapestPlan.monthlyPrice.toFixed(2)} &times; {horizon - promoMonths}mo = ${totalCost.toFixed(0)} over {horizonLabel}</>
+                  )
+                ) : (
+                  <>${cheapestPlan.monthlyPrice.toFixed(2)} &times; {horizon}mo = ${totalCost.toFixed(0)} over {horizonLabel}</>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
+        {result.monthlySavings > 0 && (
+          <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-center space-y-3">
+            <div>
+              <span class="text-neutral-400 text-sm">Overpaying </span>
+              <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}%</span>
+              <span class="text-neutral-400 text-sm"> — that's </span>
+              <span class="font-bold text-white">${result.monthlySavings.toFixed(2)}/mo</span>
+              <span class="text-neutral-400 text-sm"> or </span>
+              <span class="font-bold text-white">${result.yearlySavings.toFixed(0)}/yr</span>
+            </div>
+            {comparisons && (() => {
+              const items = [
+                comparisons.units['flatWhite'],
+                comparisons.units['bunnings'],
+                comparisons.units['petrol'],
+                comparisons.units['netflix'],
+                comparisons.units['avo'],
+              ].filter(Boolean);
+              if (items.length === 0) return null;
+              return (
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                  {items.map((unit) => (
+                    <div class="text-center">
+                      <div class="text-2xl mb-0.5">{unit.icon}</div>
+                      <div class="text-lg font-display font-bold tabular-nums text-white">
+                        {(result.monthlySavings / unit.price).toFixed(1)}
+                      </div>
+                      <div class="text-xs text-neutral-500">{unit.label}/mo</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {result.level === 'winning' && (
+          <div class="bg-surface border border-surface-border rounded-xl px-5 py-3 text-center">
+            <span class="text-sm" style={`color: ${levelInfo.color}`}>
+              Paying <span class="font-bold">${Math.abs(userEffective - cheapestEffective).toFixed(2)}/mo less</span> than the cheapest plan. Legend.
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div class="mt-6 text-xs text-neutral-600">
+        {tierLabel} &middot; Compared over {horizonLabel} &middot; Prices at time of share
+      </div>
+    </div>
+
+    <div class="text-center space-y-4">
+      <a
+        href={`/${tierKey}`}
+        class="inline-block bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
+      >
+        Check {tierLabel} plans
+      </a>
+      <p class="text-neutral-500 text-sm">
+        <a href="/" class="hover:text-white underline">Or check your own plan &rarr;</a>
+      </p>
+    </div>
+  </div>
+</Base>

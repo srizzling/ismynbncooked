@@ -270,16 +270,26 @@ export default {
       return a.uploadSpeed - b.uploadSpeed;
     });
 
+    // Collect all unique provider names (sorted alphabetically for stable indices)
+    const providerSet = new Set<string>();
+    for (const plans of allTierGroups.values()) {
+      for (const plan of plans) {
+        providerSet.add(plan.providerName);
+      }
+    }
+    const providers = [...providerSet].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+
     // Write manifest
     const manifest: TierManifest = {
       updatedAt: new Date().toISOString(),
       tiers: manifestTiers,
+      providers,
     };
     await env.DATA_BUCKET.put('data/manifest.json', JSON.stringify(manifest), {
       httpMetadata: { contentType: 'application/json' },
     });
 
-    console.log(`[price-sync] Manifest: ${manifestTiers.length} tiers discovered`);
+    console.log(`[price-sync] Manifest: ${manifestTiers.length} tiers, ${providers.length} providers discovered`);
 
     // Update meta
     let meta: MetaData = { lastPriceSync: '', lastTermsSync: '', lastComparisonSync: '' };
@@ -330,6 +340,45 @@ export default {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    // Migrate old history files: nbn-{speed}.json → nbn-{speed}-{upload}.json
+    if (url.pathname === '/migrate-history') {
+      const oldSpeeds: Record<number, number> = {
+        25: 5, 50: 20, 100: 20, 250: 25, 500: 50, 750: 50, 1000: 50, 2000: 200,
+      };
+      const results: Record<string, string> = {};
+
+      for (const [dl, ul] of Object.entries(oldSpeeds)) {
+        const oldKey = `data/history/nbn-${dl}.json`;
+        const newKey = `data/history/nbn-${dl}-${ul}.json`;
+
+        try {
+          const existing = await env.DATA_BUCKET.get(newKey);
+          if (existing) {
+            results[oldKey] = `skipped (${newKey} already exists)`;
+            continue;
+          }
+
+          const old = await env.DATA_BUCKET.get(oldKey);
+          if (!old) {
+            results[oldKey] = 'not found';
+            continue;
+          }
+
+          const data = await old.text();
+          await env.DATA_BUCKET.put(newKey, data, {
+            httpMetadata: { contentType: 'application/json' },
+          });
+          results[oldKey] = `migrated → ${newKey}`;
+        } catch (err) {
+          results[oldKey] = `error: ${err}`;
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true, results }, null, 2), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     await this.scheduled({} as ScheduledEvent, env, ctx);

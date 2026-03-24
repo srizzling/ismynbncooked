@@ -22,6 +22,7 @@ export function getFixtureManifest(): TierManifest {
       { key: 'nbn-1000-50', network: 'nbn', downloadSpeed: 1000, uploadSpeed: 50, label: 'NBN 1000/50', planCount: 13, cheapest: 99, cheapestEffective: 99, cheapestProvider: 'Superloop', average: 135 },
       { key: 'nbn-2000-200', network: 'nbn', downloadSpeed: 2000, uploadSpeed: 200, label: 'NBN 2000/200', planCount: 6, cheapest: 149, cheapestEffective: 149, cheapestProvider: 'Superloop', average: 179 },
     ],
+    providers: ['Aussie Broadband', 'Exetel', 'Launtel', 'Leaptel', 'Superloop', 'Tangerine', 'Telstra', 'TPG'],
   };
 }
 

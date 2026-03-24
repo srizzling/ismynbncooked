@@ -29,6 +29,7 @@ export interface TierInfo {
 export interface TierManifest {
   updatedAt: string;
   tiers: TierInfo[];
+  providers: string[];
 }
 
 export function buildTierKey(network: NetworkType, download: number, upload: number): string {
