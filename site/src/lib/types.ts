@@ -8,6 +8,11 @@ export interface TierInfo {
   downloadSpeed: number;
   uploadSpeed: number;
   label: string;
+  planCount?: number;
+  cheapest?: number;
+  cheapestEffective?: number;
+  cheapestProvider?: string;
+  average?: number;
 }
 
 export interface TierManifest {

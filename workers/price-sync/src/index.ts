@@ -243,12 +243,21 @@ export default {
       // Update history
       await updateHistory(env.DATA_BUCKET, tierKey, plans, today);
 
+      const cheapestEffective = plans.length
+        ? Math.min(...plans.map(p => p.effectiveMonthly))
+        : cheapest;
+
       manifestTiers.push({
         key: tierKey,
         network,
         downloadSpeed,
         uploadSpeed,
         label,
+        planCount: plans.length,
+        cheapest,
+        cheapestEffective: Math.min(cheapest, cheapestEffective),
+        cheapestProvider: plans[0].providerName,
+        average,
       });
 
       console.log(`[price-sync] ${tierKey}: ${plans.length} plans, cheapest $${cheapest}`);

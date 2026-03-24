@@ -178,7 +178,7 @@ async function main() {
   }
 
   // Write per-tier files
-  const manifestTiers: { key: string; network: NetworkType; downloadSpeed: number; uploadSpeed: number; label: string }[] = [];
+  const manifestTiers: { key: string; network: NetworkType; downloadSpeed: number; uploadSpeed: number; label: string; planCount: number; cheapest: number; cheapestEffective: number; cheapestProvider: string; average: number }[] = [];
 
   for (const [tierKey, plans] of allTierGroups) {
     plans.sort((a, b) => a.monthlyPrice - b.monthlyPrice);
@@ -203,12 +203,19 @@ async function main() {
     writeFileSync(filePath, JSON.stringify(tierData));
     console.log(`  ${tierKey}: ${plans.length} plans, cheapest $${cheapest} → ${filePath}`);
 
+    const cheapestEffective = Math.min(...plans.map(p => p.effectiveMonthly));
+
     manifestTiers.push({
       key: tierKey,
       network: first.networkType,
       downloadSpeed: first.downloadSpeed,
       uploadSpeed: first.uploadSpeed,
       label: buildTierLabel(first.networkType, first.downloadSpeed, first.uploadSpeed),
+      planCount: plans.length,
+      cheapest,
+      cheapestEffective: Math.min(cheapest, cheapestEffective),
+      cheapestProvider: plans[0].providerName,
+      average,
     });
   }
 

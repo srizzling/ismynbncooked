@@ -4,23 +4,19 @@ import Hero from '../components/Hero.astro';
 import TierCard from '../components/TierCard.astro';
 import PlanChecker from '../components/PlanChecker';
 import DataFreshness from '../components/DataFreshness';
-import { type MetaData, type TierData, type TierManifest, type TierInfo } from '../lib/types';
+import { type MetaData, type TierManifest } from '../lib/types';
 import { getFixtureTierSummaries, getFixtureManifest, type TierSummary } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
 
 let tierSummaries: Record<string, TierSummary>;
 let manifest: TierManifest | null = null;
 let meta: MetaData | null = null;
-let r2Loaded = false;
 
 // Try R2 first
 try {
   const bucket = Astro.locals.runtime.env.DATA_BUCKET;
   const manifestObj = await bucket.get('data/manifest.json');
-  if (manifestObj) {
-    manifest = await manifestObj.json() as TierManifest;
-    r2Loaded = true;
-  }
+  if (manifestObj) manifest = await manifestObj.json() as TierManifest;
   const metaObj = await bucket.get('data/meta.json');
   if (metaObj) meta = await metaObj.json() as MetaData;
 } catch {}
@@ -30,37 +26,21 @@ if (!manifest) {
   manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
 }
 
-// Load plan data for each tier
+// Build tier summaries from manifest (no extra R2 calls needed)
 const fixture = getFixtureTierSummaries();
 tierSummaries = { ...fixture };
 
-async function loadTierSummary(tierKey: string): Promise<TierData | null> {
-  if (r2Loaded) {
-    try {
-      const bucket = Astro.locals.runtime.env.DATA_BUCKET;
-      const obj = await bucket.get(`data/plans/${tierKey}.json`);
-      if (obj) return await obj.json() as TierData;
-    } catch {}
-  }
-  return await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
-}
-
 for (const tier of manifest.tiers) {
-  const data = await loadTierSummary(tier.key);
-  if (!data) continue;
-  const cheapestEffective = data.plans.length
-    ? Math.min(...data.plans.map(p => p.effectiveMonthly))
-    : data.cheapest;
-  const cheapestPlan = data.plans.length
-    ? data.plans.reduce((best, p) => p.monthlyPrice < best.monthlyPrice ? p : best)
-    : null;
-  tierSummaries[tier.key] = {
-    cheapest: data.cheapest,
-    cheapestEffective: Math.min(data.cheapest, cheapestEffective),
-    cheapestProvider: cheapestPlan?.providerName ?? '',
-    average: data.average,
-    planCount: data.planCount,
-  };
+  if (tier.planCount != null && tier.cheapest != null && tier.average != null) {
+    // Use summary data embedded in the manifest — no extra R2 calls
+    tierSummaries[tier.key] = {
+      cheapest: tier.cheapest,
+      cheapestEffective: tier.cheapestEffective ?? tier.cheapest,
+      cheapestProvider: tier.cheapestProvider ?? '',
+      average: tier.average,
+      planCount: tier.planCount,
+    };
+  }
 }
 
 // Group tiers by network for display
