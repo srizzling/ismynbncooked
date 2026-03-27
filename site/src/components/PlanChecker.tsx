@@ -295,52 +295,60 @@ export default function PlanChecker({ manifest }: Props) {
                   ))}
                 </select>
               </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs text-neutral-500">Promo?</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="After $/mo"
-                  value={fullPrice}
-                  onInput={(e) => {
-                    setFullPrice((e.target as HTMLInputElement).value);
-                    if ((e.target as HTMLInputElement).value) setOnPromo(true);
-                  }}
-                  class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-                />
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="36"
-                  placeholder="Mo left"
-                  value={promoMonthsLeft}
-                  onInput={(e) => {
-                    setPromoMonthsLeft((e.target as HTMLInputElement).value);
-                    if ((e.target as HTMLInputElement).value) setOnPromo(true);
-                  }}
-                  class="w-20 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-                />
-              </div>
-              {onPromo && fullPrice && promoMonthsLeft && price && (
-                <div class="text-xs text-neutral-400">
-                  ${parseFloat(price).toFixed(2)}/mo × {promoMonthsLeft}mo, then ${parseFloat(fullPrice).toFixed(2)}/mo
-                  {(() => {
-                    const promoLeft = parseInt(promoMonthsLeft) || 0;
-                    const promoP = parseFloat(price) || 0;
-                    const fullP = parseFloat(fullPrice) || 0;
-                    if (promoLeft > 0 && promoP > 0 && fullP > 0) {
-                      const totalCost12 = promoLeft <= 12
-                        ? promoLeft * promoP + (12 - promoLeft) * fullP
-                        : 12 * promoP;
-                      const effective12 = totalCost12 / 12;
-                      return <> — eff. <span class="text-accent font-medium">${effective12.toFixed(2)}/mo</span></>;
-                    }
-                    return null;
-                  })()}
+              <div class="mt-2 p-3 bg-surface border border-surface-border rounded-lg space-y-2">
+                <h4 class="text-xs font-medium text-neutral-400 uppercase tracking-wider">On a promo or intro rate?</h4>
+                <div class="flex flex-wrap items-center gap-2">
+                  <div>
+                    <label class="block text-xs text-neutral-500 mb-1">Price after promo</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="$99.00"
+                      value={fullPrice}
+                      onInput={(e) => {
+                        setFullPrice((e.target as HTMLInputElement).value);
+                        if ((e.target as HTMLInputElement).value) setOnPromo(true);
+                      }}
+                      class="w-28 bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-neutral-500 mb-1">Months left</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max="36"
+                      placeholder="e.g. 4"
+                      value={promoMonthsLeft}
+                      onInput={(e) => {
+                        setPromoMonthsLeft((e.target as HTMLInputElement).value);
+                        if ((e.target as HTMLInputElement).value) setOnPromo(true);
+                      }}
+                      class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                    />
+                  </div>
                 </div>
-              )}
+                {onPromo && fullPrice && promoMonthsLeft && price && (
+                  <div class="text-sm text-neutral-300">
+                    ${parseFloat(price).toFixed(2)}/mo for {promoMonthsLeft}mo, then ${parseFloat(fullPrice).toFixed(2)}/mo
+                    {(() => {
+                      const promoLeft = parseInt(promoMonthsLeft) || 0;
+                      const promoP = parseFloat(price) || 0;
+                      const fullP = parseFloat(fullPrice) || 0;
+                      if (promoLeft > 0 && promoP > 0 && fullP > 0) {
+                        const totalCost12 = promoLeft <= 12
+                          ? promoLeft * promoP + (12 - promoLeft) * fullP
+                          : 12 * promoP;
+                        const effective12 = totalCost12 / 12;
+                        return <> — effective <span class="text-accent font-bold">${effective12.toFixed(2)}/mo</span> over 1yr</>;
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
