@@ -7,8 +7,8 @@ interface Props {
 }
 
 export default function PlanChecker({ manifest }: Props) {
-  const [network, setNetwork] = useState<NetworkType>('nbn');
-  const [downloadSpeed, setDownloadSpeed] = useState(100);
+  const [selectedNetworks, setSelectedNetworks] = useState<Set<NetworkType>>(new Set(['nbn']));
+  const [downloadSpeed, setDownloadSpeed] = useState<number | 'all'>(100);
   const [selectedUploads, setSelectedUploads] = useState<Set<number>>(new Set([20]));
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
@@ -18,10 +18,10 @@ export default function PlanChecker({ manifest }: Props) {
   const [fullPrice, setFullPrice] = useState('');
   const [promoMonthsLeft, setPromoMonthsLeft] = useState('');
 
-  // Cross-tier comparison checkboxes
-  const [acrossDownload, setAcrossDownload] = useState(false);
-  const [acrossUpload, setAcrossUpload] = useState(false);
-  const [includeOpticomm, setIncludeOpticomm] = useState(false);
+  // Derived: primary network for tier key building
+  const network: NetworkType = selectedNetworks.size === 1 ? [...selectedNetworks][0] : 'nbn';
+  const allNetworksSelected = selectedNetworks.size === networks.length && networks.length > 1;
+  const allDownloadsSelected = downloadSpeed === 'all';
 
   // Derive available options from manifest
   const networks = useMemo(() => {
@@ -31,29 +31,25 @@ export default function PlanChecker({ manifest }: Props) {
 
   const downloads = useMemo(() => {
     return [...new Set(manifest.tiers
-      .filter(t => t.network === network)
+      .filter(t => selectedNetworks.has(t.network))
       .map(t => t.downloadSpeed)
     )].sort((a, b) => a - b);
-  }, [manifest, network]);
+  }, [manifest, selectedNetworks]);
 
   const uploads = useMemo(() => {
+    if (downloadSpeed === 'all') return [];
     return [...new Set(manifest.tiers
-      .filter(t => t.network === network && t.downloadSpeed === downloadSpeed)
+      .filter(t => selectedNetworks.has(t.network) && t.downloadSpeed === downloadSpeed)
       .map(t => t.uploadSpeed)
     )].sort((a, b) => a - b);
-  }, [manifest, network, downloadSpeed]);
+  }, [manifest, selectedNetworks, downloadSpeed]);
 
   const hasMultipleUploads = uploads.length > 1;
-  const allSelected = selectedUploads.size === uploads.length;
-
-  // Has Opticomm tiers for the current download speed?
-  const hasOpticomm = useMemo(() => {
-    return manifest.tiers.some(t => t.network === 'opticomm' && t.downloadSpeed === downloadSpeed);
-  }, [manifest, downloadSpeed]);
+  const allUploadsSelected = uploads.length > 0 && selectedUploads.size === uploads.length;
 
   // Reset download when network changes
   useEffect(() => {
-    if (!downloads.includes(downloadSpeed)) {
+    if (downloadSpeed !== 'all' && !downloads.includes(downloadSpeed)) {
       setDownloadSpeed(downloads.includes(100) ? 100 : downloads[0] ?? 100);
     }
   }, [downloads]);
@@ -80,8 +76,20 @@ export default function PlanChecker({ manifest }: Props) {
     });
   }
 
+  function toggleNetwork(n: NetworkType) {
+    setSelectedNetworks(prev => {
+      const next = new Set(prev);
+      if (next.has(n)) {
+        if (next.size > 1) next.delete(n);
+      } else {
+        next.add(n);
+      }
+      return next;
+    });
+  }
+
   function toggleAllUploads() {
-    if (allSelected) {
+    if (allUploadsSelected) {
       // Select just the first one
       setSelectedUploads(new Set([uploads[0]]));
     } else {
@@ -100,13 +108,12 @@ export default function PlanChecker({ manifest }: Props) {
       const parsed = parseTierKey(key);
       const parsedGrouped = !parsed ? parseGroupedTierKey(key) : null;
       if (parsed && manifest.tiers.some(t => t.key === key)) {
-        setNetwork(parsed.network);
+        setSelectedNetworks(new Set([parsed.network]));
         setDownloadSpeed(parsed.download);
         setSelectedUploads(new Set([parsed.upload]));
       } else if (parsedGrouped) {
-        setNetwork(parsedGrouped.network);
+        setSelectedNetworks(new Set([parsedGrouped.network]));
         setDownloadSpeed(parsedGrouped.download);
-        // Select all uploads for this download speed
         const allUploads = manifest.tiers
           .filter(t => t.network === parsedGrouped.network && t.downloadSpeed === parsedGrouped.download)
           .map(t => t.uploadSpeed);
@@ -128,12 +135,12 @@ export default function PlanChecker({ manifest }: Props) {
     if (savedState) setState(savedState);
   }, []);
 
-  const tierKey = allSelected
-    ? buildGroupedTierKey(network, downloadSpeed)
-    : selectedUploads.size === 1
-      ? buildTierKey(network, downloadSpeed, [...selectedUploads][0])
-      : buildGroupedTierKey(network, downloadSpeed);
-  const isCompareMode = acrossDownload || acrossUpload || includeOpticomm;
+  const isCompareMode = allDownloadsSelected || allNetworksSelected;
+  const tierKey = allDownloadsSelected
+    ? 'compare'
+    : allUploadsSelected || selectedUploads.size > 1
+      ? buildGroupedTierKey(network, typeof downloadSpeed === 'number' ? downloadSpeed : 100)
+      : buildTierKey(network, typeof downloadSpeed === 'number' ? downloadSpeed : 100, [...selectedUploads][0]);
 
   function handleSubmit(e: Event) {
     e.preventDefault();
@@ -148,23 +155,19 @@ export default function PlanChecker({ manifest }: Props) {
     saveUserPlan(tierKey, p, provider, promoOpts);
     saveUserState(state);
 
-    if (isCompareMode) {
-      const across: string[] = [];
-      if (acrossDownload) across.push('download');
-      if (acrossUpload) across.push('upload');
-      if (includeOpticomm) across.push('opticomm');
-      const uploadsParam = allSelected ? 'all' : [...selectedUploads].sort((a, b) => a - b).join(',');
+    if (allDownloadsSelected) {
+      // Compare across all download speeds
+      const networksParam = [...selectedNetworks].join(',');
       const params = new URLSearchParams({
-        network,
-        download: downloadSpeed.toString(),
-        upload: uploadsParam,
-        across: across.join(','),
+        networks: networksParam,
+        download: 'all',
+        upload: 'all',
       });
       window.location.href = `/compare?${params}`;
-    } else if (!allSelected && selectedUploads.size > 1) {
-      // Multiple but not all uploads — use grouped page with filter param
+    } else if (!allUploadsSelected && selectedUploads.size > 1) {
       const uploadsParam = [...selectedUploads].sort((a, b) => a - b).join(',');
-      const groupKey = buildGroupedTierKey(network, downloadSpeed);
+      const dl = typeof downloadSpeed === 'number' ? downloadSpeed : 100;
+      const groupKey = buildGroupedTierKey(network, dl);
       window.location.href = `/${groupKey}?uploads=${uploadsParam}`;
     } else {
       window.location.href = `/${tierKey}`;
@@ -202,8 +205,8 @@ export default function PlanChecker({ manifest }: Props) {
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setNetwork(n)}
-                  class={pillClass(network === n)}
+                  onClick={() => toggleNetwork(n)}
+                  class={pillClass(selectedNetworks.has(n))}
                 >
                   {n === 'nbn' ? 'NBN' : 'Opticomm'}
                 </button>
@@ -215,7 +218,14 @@ export default function PlanChecker({ manifest }: Props) {
           <div>
             <label class="block text-xs text-neutral-500 mb-1.5">Download</label>
             <div class="flex flex-wrap gap-1.5">
-              {downloads.map(d => (
+              <button
+                type="button"
+                onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
+                class={pillClass(allDownloadsSelected)}
+              >
+                All
+              </button>
+              {!allDownloadsSelected && downloads.map(d => (
                 <button
                   key={d}
                   type="button"
@@ -228,40 +238,48 @@ export default function PlanChecker({ manifest }: Props) {
             </div>
           </div>
 
-          {/* Upload */}
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1.5">Upload</label>
-            <div class="flex flex-wrap gap-1.5">
-              {hasMultipleUploads && (
-                <button
-                  type="button"
-                  onClick={toggleAllUploads}
-                  class={pillClass(allSelected)}
-                >
-                  All
-                </button>
-              )}
-              {!allSelected && uploads.map(u => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => toggleUpload(u)}
-                  class={pillClass(selectedUploads.has(u))}
-                >
-                  {u}
-                </button>
-              ))}
+          {/* Upload — only show when a specific download is selected */}
+          {!allDownloadsSelected && uploads.length > 0 && (
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1.5">Upload</label>
+              <div class="flex flex-wrap gap-1.5">
+                {hasMultipleUploads && (
+                  <button
+                    type="button"
+                    onClick={toggleAllUploads}
+                    class={pillClass(allUploadsSelected)}
+                  >
+                    All
+                  </button>
+                )}
+                {!allUploadsSelected && uploads.map(u => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => toggleUpload(u)}
+                    class={pillClass(selectedUploads.has(u))}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Tier confirmation */}
           <div class="text-xs text-neutral-500">
             Selected: <span class="text-white font-medium">
-              {network === 'nbn' ? 'NBN' : 'Opticomm'} {downloadSpeed}
-              {allSelected
-                ? <span class="text-neutral-400"> (all upload speeds)</span>
-                : `/${[...selectedUploads].sort((a, b) => a - b).join(', ')}`
-              } Mbps
+              {allNetworksSelected ? 'NBN + Opticomm' : network === 'nbn' ? 'NBN' : 'Opticomm'}
+              {allDownloadsSelected
+                ? <span class="text-neutral-400"> (all speeds)</span>
+                : <>
+                    {' '}{downloadSpeed}
+                    {allUploadsSelected
+                      ? <span class="text-neutral-400"> (all uploads)</span>
+                      : `/${[...selectedUploads].sort((a, b) => a - b).join(', ')}`
+                    } Mbps
+                  </>
+              }
             </span>
           </div>
         </div>
@@ -372,42 +390,6 @@ export default function PlanChecker({ manifest }: Props) {
             )}
           </div>
         )}
-
-        {/* Cross-tier comparison options */}
-        <div class="space-y-2">
-          <div class="text-sm text-neutral-400">Compare across</div>
-          <div class="flex flex-wrap gap-x-6 gap-y-2">
-            <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={acrossDownload}
-                onChange={() => setAcrossDownload(!acrossDownload)}
-                class="accent-accent"
-              />
-              All download speeds
-            </label>
-            <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={acrossUpload}
-                onChange={() => setAcrossUpload(!acrossUpload)}
-                class="accent-accent"
-              />
-              All upload speeds
-            </label>
-            {network === 'nbn' && hasOpticomm && (
-              <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeOpticomm}
-                  onChange={() => setIncludeOpticomm(!includeOpticomm)}
-                  class="accent-accent"
-                />
-                Include Opticomm
-              </label>
-            )}
-          </div>
-        </div>
 
         <button
           type="submit"
