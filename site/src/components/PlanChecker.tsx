@@ -9,7 +9,7 @@ interface Props {
 export default function PlanChecker({ manifest }: Props) {
   const [network, setNetwork] = useState<NetworkType>('nbn');
   const [downloadSpeed, setDownloadSpeed] = useState(100);
-  const [uploadSpeed, setUploadSpeed] = useState<number | 'all'>(20);
+  const [selectedUploads, setSelectedUploads] = useState<Set<number>>(new Set([20]));
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [state, setState] = useState<AUState>('nsw');
@@ -44,6 +44,7 @@ export default function PlanChecker({ manifest }: Props) {
   }, [manifest, network, downloadSpeed]);
 
   const hasMultipleUploads = uploads.length > 1;
+  const allSelected = selectedUploads.size === uploads.length;
 
   // Has Opticomm tiers for the current download speed?
   const hasOpticomm = useMemo(() => {
@@ -59,11 +60,34 @@ export default function PlanChecker({ manifest }: Props) {
 
   // Reset upload when download changes
   useEffect(() => {
-    if (uploadSpeed !== 'all' && !uploads.includes(uploadSpeed)) {
-      // Default to "all" when there are multiple upload variants
-      setUploadSpeed(hasMultipleUploads ? 'all' : (uploads[0] ?? 20));
+    const validUploads = uploads.filter(u => selectedUploads.has(u));
+    if (validUploads.length === 0) {
+      // Default to all uploads when there are multiple, or the first one
+      setSelectedUploads(new Set(hasMultipleUploads ? uploads : [uploads[0] ?? 20]));
     }
   }, [uploads, hasMultipleUploads]);
+
+  function toggleUpload(speed: number) {
+    setSelectedUploads(prev => {
+      const next = new Set(prev);
+      if (next.has(speed)) {
+        // Don't allow deselecting all
+        if (next.size > 1) next.delete(speed);
+      } else {
+        next.add(speed);
+      }
+      return next;
+    });
+  }
+
+  function toggleAllUploads() {
+    if (allSelected) {
+      // Select just the first one
+      setSelectedUploads(new Set([uploads[0]]));
+    } else {
+      setSelectedUploads(new Set(uploads));
+    }
+  }
 
   // Load existing plan
   useEffect(() => {
@@ -78,11 +102,15 @@ export default function PlanChecker({ manifest }: Props) {
       if (parsed && manifest.tiers.some(t => t.key === key)) {
         setNetwork(parsed.network);
         setDownloadSpeed(parsed.download);
-        setUploadSpeed(parsed.upload);
+        setSelectedUploads(new Set([parsed.upload]));
       } else if (parsedGrouped) {
         setNetwork(parsedGrouped.network);
         setDownloadSpeed(parsedGrouped.download);
-        setUploadSpeed('all');
+        // Select all uploads for this download speed
+        const allUploads = manifest.tiers
+          .filter(t => t.network === parsedGrouped.network && t.downloadSpeed === parsedGrouped.download)
+          .map(t => t.uploadSpeed);
+        setSelectedUploads(new Set(allUploads));
       }
       setPrice(plan.price.toString());
       setProvider(plan.provider);
@@ -100,9 +128,11 @@ export default function PlanChecker({ manifest }: Props) {
     if (savedState) setState(savedState);
   }, []);
 
-  const tierKey = uploadSpeed === 'all'
+  const tierKey = allSelected
     ? buildGroupedTierKey(network, downloadSpeed)
-    : buildTierKey(network, downloadSpeed, uploadSpeed);
+    : selectedUploads.size === 1
+      ? buildTierKey(network, downloadSpeed, [...selectedUploads][0])
+      : buildGroupedTierKey(network, downloadSpeed);
   const isCompareMode = acrossDownload || acrossUpload || includeOpticomm;
 
   function handleSubmit(e: Event) {
@@ -123,13 +153,19 @@ export default function PlanChecker({ manifest }: Props) {
       if (acrossDownload) across.push('download');
       if (acrossUpload) across.push('upload');
       if (includeOpticomm) across.push('opticomm');
+      const uploadsParam = allSelected ? 'all' : [...selectedUploads].sort((a, b) => a - b).join(',');
       const params = new URLSearchParams({
         network,
         download: downloadSpeed.toString(),
-        upload: uploadSpeed === 'all' ? 'all' : uploadSpeed.toString(),
+        upload: uploadsParam,
         across: across.join(','),
       });
       window.location.href = `/compare?${params}`;
+    } else if (!allSelected && selectedUploads.size > 1) {
+      // Multiple but not all uploads — use grouped page with filter param
+      const uploadsParam = [...selectedUploads].sort((a, b) => a - b).join(',');
+      const groupKey = buildGroupedTierKey(network, downloadSpeed);
+      window.location.href = `/${groupKey}?uploads=${uploadsParam}`;
     } else {
       window.location.href = `/${tierKey}`;
     }
@@ -185,29 +221,46 @@ export default function PlanChecker({ manifest }: Props) {
             {/* Upload */}
             <div>
               <label class="block text-xs text-neutral-500 mb-1">Upload</label>
-              <select
-                value={uploadSpeed}
-                onChange={(e) => {
-                  const val = (e.target as HTMLSelectElement).value;
-                  setUploadSpeed(val === 'all' ? 'all' : parseInt(val));
-                }}
-                class={selectClass}
-              >
+              <div class="flex flex-wrap gap-1.5 mt-1">
                 {hasMultipleUploads && (
-                  <option value="all">All uploads</option>
+                  <button
+                    type="button"
+                    onClick={toggleAllUploads}
+                    class={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+                      allSelected
+                        ? 'bg-accent/10 border-accent text-accent'
+                        : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600'
+                    }`}
+                  >
+                    All
+                  </button>
                 )}
                 {uploads.map(u => (
-                  <option key={u} value={u}>{u} Mbps</option>
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => toggleUpload(u)}
+                    class={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+                      selectedUploads.has(u)
+                        ? 'bg-accent/10 border-accent text-accent'
+                        : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600'
+                    }`}
+                  >
+                    {u}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 
           {/* Tier confirmation */}
           <div class="mt-2 text-xs text-neutral-500">
             Selected: <span class="text-white font-medium">
-              {network === 'nbn' ? 'NBN' : 'Opticomm'} {downloadSpeed}{uploadSpeed === 'all' ? '' : `/${uploadSpeed}`} Mbps
-              {uploadSpeed === 'all' && <span class="text-neutral-400"> (all upload speeds)</span>}
+              {network === 'nbn' ? 'NBN' : 'Opticomm'} {downloadSpeed}
+              {allSelected
+                ? <span class="text-neutral-400"> (all upload speeds)</span>
+                : `/${[...selectedUploads].sort((a, b) => a - b).join(', ')}`
+              } Mbps
             </span>
           </div>
         </div>

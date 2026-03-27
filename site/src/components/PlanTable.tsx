@@ -19,6 +19,7 @@ const BASE_COLUMNS: ColumnDef[] = [
   { key: 'uploadSpeed', label: 'Upload', mobileDefault: true },
   { key: 'monthlyPrice', label: 'Monthly', mobileDefault: true, sortKey: 'monthlyPrice' },
   { key: 'promo', label: 'Promo', mobileDefault: true },
+  { key: 'eff3mo', label: '3mo $/mo' },
   { key: 'eff6mo', label: '6mo $/mo' },
   { key: 'eff12mo', label: '1yr $/mo' },
   { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
@@ -344,10 +345,22 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
           </td>
         );
       }
+      case 'eff3mo': {
+        const eff3 = calcCosts(plan, 3).effectiveCost;
+        const isActive3 = horizon === 3;
+        return (
+          <td class={`px-4 py-3 tabular-nums ${isActive3 ? 'bg-accent/5' : ''}`} key={col.key}>
+            <span class={eff3 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
+              ${eff3.toFixed(2)}
+            </span>
+          </td>
+        );
+      }
       case 'eff6mo': {
         const eff6 = calcCosts(plan, 6).effectiveCost;
+        const isActive6 = horizon === 6;
         return (
-          <td class="px-4 py-3 tabular-nums" key={col.key}>
+          <td class={`px-4 py-3 tabular-nums ${isActive6 ? 'bg-accent/5' : ''}`} key={col.key}>
             <span class={eff6 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
               ${eff6.toFixed(2)}
             </span>
@@ -356,8 +369,9 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
       }
       case 'eff12mo': {
         const eff12 = calcCosts(plan, 12).effectiveCost;
+        const isActive12 = horizon === 12;
         return (
-          <td class="px-4 py-3 tabular-nums" key={col.key}>
+          <td class={`px-4 py-3 tabular-nums ${isActive12 ? 'bg-accent/5' : ''}`} key={col.key}>
             <span class={eff12 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
               ${eff12.toFixed(2)}
             </span>
@@ -488,11 +502,16 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
             <tr class="border-b border-surface-border text-left text-neutral-400">
               {activeColumns.map((col) => {
                 const label = getColumnLabel(col);
+                const isActiveHorizonCol =
+                  (col.key === 'eff3mo' && horizon === 3) ||
+                  (col.key === 'eff6mo' && horizon === 6) ||
+                  (col.key === 'eff12mo' && horizon === 12);
+                const thClass = `px-4 py-3 font-medium whitespace-nowrap ${isActiveHorizonCol ? 'bg-accent/5 text-accent' : ''}`;
                 if (col.sortKey) {
                   return (
                     <th
                       key={col.key}
-                      class="px-4 py-3 font-medium cursor-pointer hover:text-white whitespace-nowrap"
+                      class={`${thClass} cursor-pointer hover:text-white`}
                       onClick={() => toggleSort(col.sortKey!)}
                     >
                       {label}{sortIndicator(col.sortKey)}
@@ -500,7 +519,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                   );
                 }
                 return (
-                  <th key={col.key} class="px-4 py-3 font-medium">
+                  <th key={col.key} class={thClass}>
                     {label}
                   </th>
                 );
