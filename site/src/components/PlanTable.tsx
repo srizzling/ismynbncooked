@@ -19,6 +19,8 @@ const BASE_COLUMNS: ColumnDef[] = [
   { key: 'uploadSpeed', label: 'Upload', mobileDefault: true },
   { key: 'monthlyPrice', label: 'Monthly', mobileDefault: true, sortKey: 'monthlyPrice' },
   { key: 'promo', label: 'Promo', mobileDefault: true },
+  { key: 'eff6mo', label: '6mo $/mo' },
+  { key: 'eff12mo', label: '1yr $/mo' },
   { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
   { key: 'effectiveCost', label: 'Effective/mo', sortKey: 'effectiveCost' },
   { key: 'typicalEveningSpeed', label: 'Eve Speed', sortKey: 'typicalEveningSpeed' },
@@ -339,6 +341,26 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
             ) : (
               <span class="text-neutral-600">—</span>
             )}
+          </td>
+        );
+      }
+      case 'eff6mo': {
+        const eff6 = calcCosts(plan, 6).effectiveCost;
+        return (
+          <td class="px-4 py-3 tabular-nums" key={col.key}>
+            <span class={eff6 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
+              ${eff6.toFixed(2)}
+            </span>
+          </td>
+        );
+      }
+      case 'eff12mo': {
+        const eff12 = calcCosts(plan, 12).effectiveCost;
+        return (
+          <td class="px-4 py-3 tabular-nums" key={col.key}>
+            <span class={eff12 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
+              ${eff12.toFixed(2)}
+            </span>
           </td>
         );
       }
