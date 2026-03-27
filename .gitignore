@@ -12,3 +12,4 @@ site/public/data/
 
 # Migration script output
 scripts/output/
+.playwright-mcp/
