@@ -184,7 +184,7 @@ export default function PlanChecker({ manifest }: Props) {
     }`;
 
   return (
-    <div class="bg-surface-raised border border-surface-border rounded-2xl p-5 sm:p-6">
+    <div class="bg-surface-raised border border-surface-border rounded-2xl p-5 sm:p-6 max-w-3xl">
       <h2 class="font-display font-bold text-xl mb-1">
         {hasExisting ? 'Update your plan' : 'Enter your plan'}
       </h2>
@@ -244,7 +244,7 @@ export default function PlanChecker({ manifest }: Props) {
                   All
                 </button>
               )}
-              {!allUploadsSelected && uploads.map(u => (
+              {uploads.map(u => (
                 <button
                   key={u}
                   type="button"
