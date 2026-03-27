@@ -194,146 +194,165 @@ export default function PlanChecker({ manifest }: Props) {
           : "Tell us what you're paying and we'll tell you if you're getting rorted"}
       </p>
 
-      <form onSubmit={handleSubmit} class="space-y-3">
-        {/* Speed tier — single flowing row */}
-        <div class="flex flex-wrap items-center gap-1.5">
-          {networks.map(n => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => toggleNetwork(n)}
-              class={pillClass(selectedNetworks.has(n))}
-            >
-              {n === 'nbn' ? 'NBN' : 'Opticomm'}
-            </button>
-          ))}
-          <span class="text-neutral-700">|</span>
-          <button
-            type="button"
-            onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
-            class={pillClass(allDownloadsSelected)}
-          >
-            All
-          </button>
-          {!allDownloadsSelected && downloads.map(d => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setDownloadSpeed(d)}
-              class={pillClass(downloadSpeed === d)}
-            >
-              {d}
-            </button>
-          ))}
-          {!allDownloadsSelected && uploads.length > 0 && (
-            <>
-              <span class="text-neutral-700">/</span>
-              {hasMultipleUploads && (
+      <form onSubmit={handleSubmit}>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 sm:gap-6">
+          {/* Left column — Speed tier */}
+          <div class="space-y-3">
+            <h3 class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Speed tier</h3>
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-xs text-neutral-500 w-14 shrink-0">Network</span>
+                {networks.map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => toggleNetwork(n)}
+                    class={pillClass(selectedNetworks.has(n))}
+                  >
+                    {n === 'nbn' ? 'NBN' : 'Opticomm'}
+                  </button>
+                ))}
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-xs text-neutral-500 w-14 shrink-0">Down</span>
                 <button
                   type="button"
-                  onClick={toggleAllUploads}
-                  class={pillClass(allUploadsSelected)}
+                  onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
+                  class={pillClass(allDownloadsSelected)}
                 >
                   All
                 </button>
+                {!allDownloadsSelected && downloads.map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDownloadSpeed(d)}
+                    class={pillClass(downloadSpeed === d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+              {!allDownloadsSelected && uploads.length > 0 && (
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-xs text-neutral-500 w-14 shrink-0">Up</span>
+                  {hasMultipleUploads && (
+                    <button
+                      type="button"
+                      onClick={toggleAllUploads}
+                      class={pillClass(allUploadsSelected)}
+                    >
+                      All
+                    </button>
+                  )}
+                  {uploads.map(u => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => toggleUpload(u)}
+                      class={pillClass(selectedUploads.has(u))}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
               )}
-              {uploads.map(u => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => toggleUpload(u)}
-                  class={pillClass(selectedUploads.has(u))}
-                >
-                  {u}
-                </button>
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Price + Provider + State + Promo — single row */}
-        <div class="flex flex-wrap items-center gap-2">
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="$/mo"
-            value={price}
-            onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
-            required
-            class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-          />
-          <input
-            type="text"
-            placeholder="Provider"
-            value={provider}
-            onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
-            class="w-32 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-          />
-          <select
-            value={state}
-            onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
-            class="w-20 bg-surface border border-surface-border rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent appearance-none"
-          >
-            {AU_STATES.map((s) => (
-              <option key={s} value={s}>{STATE_LABELS[s]}</option>
-            ))}
-          </select>
-          <span class="text-neutral-700">|</span>
-          <span class="text-xs text-neutral-500">Promo?</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="After $/mo"
-            value={fullPrice}
-            onInput={(e) => {
-              setFullPrice((e.target as HTMLInputElement).value);
-              if ((e.target as HTMLInputElement).value) setOnPromo(true);
-            }}
-            class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-          />
-          <input
-            type="number"
-            step="1"
-            min="0"
-            max="36"
-            placeholder="Mo left"
-            value={promoMonthsLeft}
-            onInput={(e) => {
-              setPromoMonthsLeft((e.target as HTMLInputElement).value);
-              if ((e.target as HTMLInputElement).value) setOnPromo(true);
-            }}
-            class="w-20 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-          />
-        </div>
-
-        {/* Promo summary */}
-        {onPromo && fullPrice && promoMonthsLeft && price && (
-          <div class="text-xs text-neutral-400">
-            ${parseFloat(price).toFixed(2)}/mo × {promoMonthsLeft}mo, then ${parseFloat(fullPrice).toFixed(2)}/mo
-            {(() => {
-              const promoLeft = parseInt(promoMonthsLeft) || 0;
-              const promoP = parseFloat(price) || 0;
-              const fullP = parseFloat(fullPrice) || 0;
-              if (promoLeft > 0 && promoP > 0 && fullP > 0) {
-                const totalCost12 = promoLeft <= 12
-                  ? promoLeft * promoP + (12 - promoLeft) * fullP
-                  : 12 * promoP;
-                const effective12 = totalCost12 / 12;
-                return <> — effective <span class="text-accent font-medium">${effective12.toFixed(2)}/mo</span> over 1yr</>;
-              }
-              return null;
-            })()}
+            </div>
           </div>
-        )}
 
-        <button
-          type="submit"
-          class="bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-6 py-2.5 text-base transition-colors"
-        >
-          {isCompareMode ? 'Compare plans' : 'Am I getting rorted?'}
-        </button>
+          {/* Divider */}
+          <div class="hidden sm:block w-px bg-surface-border" />
+
+          {/* Right column — Your plan */}
+          <div class="space-y-3">
+            <h3 class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Your plan</h3>
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="$/mo"
+                  value={price}
+                  onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
+                  required
+                  class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                />
+                <input
+                  type="text"
+                  placeholder="Provider"
+                  value={provider}
+                  onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
+                  class="w-32 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                />
+                <select
+                  value={state}
+                  onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
+                  class="w-20 bg-surface border border-surface-border rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent appearance-none"
+                >
+                  {AU_STATES.map((s) => (
+                    <option key={s} value={s}>{STATE_LABELS[s]}</option>
+                  ))}
+                </select>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs text-neutral-500">Promo?</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="After $/mo"
+                  value={fullPrice}
+                  onInput={(e) => {
+                    setFullPrice((e.target as HTMLInputElement).value);
+                    if ((e.target as HTMLInputElement).value) setOnPromo(true);
+                  }}
+                  class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                />
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="36"
+                  placeholder="Mo left"
+                  value={promoMonthsLeft}
+                  onInput={(e) => {
+                    setPromoMonthsLeft((e.target as HTMLInputElement).value);
+                    if ((e.target as HTMLInputElement).value) setOnPromo(true);
+                  }}
+                  class="w-20 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                />
+              </div>
+              {onPromo && fullPrice && promoMonthsLeft && price && (
+                <div class="text-xs text-neutral-400">
+                  ${parseFloat(price).toFixed(2)}/mo × {promoMonthsLeft}mo, then ${parseFloat(fullPrice).toFixed(2)}/mo
+                  {(() => {
+                    const promoLeft = parseInt(promoMonthsLeft) || 0;
+                    const promoP = parseFloat(price) || 0;
+                    const fullP = parseFloat(fullPrice) || 0;
+                    if (promoLeft > 0 && promoP > 0 && fullP > 0) {
+                      const totalCost12 = promoLeft <= 12
+                        ? promoLeft * promoP + (12 - promoLeft) * fullP
+                        : 12 * promoP;
+                      const effective12 = totalCost12 / 12;
+                      return <> — eff. <span class="text-accent font-medium">${effective12.toFixed(2)}/mo</span></>;
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button
+            type="submit"
+            class="w-full sm:w-auto bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
+          >
+            {isCompareMode ? 'Compare plans' : 'Am I getting rorted?'}
+          </button>
+        </div>
       </form>
     </div>
   );
