@@ -2,6 +2,7 @@ import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, Netwo
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
+import { fetchCommunityPlans } from './community';
 
 function normalizeNetworkType(raw: string): NetworkType {
   const lower = raw.toLowerCase();
@@ -207,6 +208,30 @@ export default {
       }
     }
 
+    // Fetch and merge community-sourced plans (if Firecrawl key is available)
+    if (env.FIRECRAWL_API_KEY) {
+      try {
+        const communityPlans = await fetchCommunityPlans(env.FIRECRAWL_API_KEY);
+        if (communityPlans.length > 0) {
+          const communityGroups = groupPlansByTier(communityPlans);
+          for (const [tierKey, tierPlans] of communityGroups) {
+            const existing = allTierGroups.get(tierKey);
+            if (existing) {
+              // Dedupe by provider+plan name to avoid duplicates with NetBargains
+              const existingKeys = new Set(existing.map(p => `${p.providerName}:${p.planName}`));
+              const newPlans = tierPlans.filter(p => !existingKeys.has(`${p.providerName}:${p.planName}`));
+              existing.push(...newPlans);
+            } else {
+              allTierGroups.set(tierKey, tierPlans);
+            }
+          }
+          console.log(`[price-sync] Merged ${communityPlans.length} community plan(s)`);
+        }
+      } catch (err) {
+        console.error('[price-sync] Community plan fetch failed:', err);
+      }
+    }
+
     // Store each discovered tier
     const manifestTiers: TierInfo[] = [];
 
@@ -379,6 +404,38 @@ export default {
       return new Response(JSON.stringify({ ok: true, results }, null, 2), {
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // Test mode: POST a community source, scrape it, return extracted plans
+    if (url.pathname === '/scrape-test' && request.method === 'POST') {
+      if (!env.FIRECRAWL_API_KEY) {
+        return new Response(JSON.stringify({ ok: false, error: 'FIRECRAWL_API_KEY not configured' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      try {
+        const source = await request.json() as import('./community').CommunitySource;
+        if (!source.url || !source.downloadSpeed || !source.uploadSpeed || !source.networkType || !source.provider) {
+          return new Response(JSON.stringify({ ok: false, error: 'Missing required fields: provider, url, networkType, downloadSpeed, uploadSpeed' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        const { scrapeSource } = await import('./community');
+        const plans = await scrapeSource(source, env.FIRECRAWL_API_KEY);
+
+        return new Response(JSON.stringify({ ok: true, source, plansFound: plans.length, plans }, null, 2), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     await this.scheduled({} as ScheduledEvent, env, ctx);

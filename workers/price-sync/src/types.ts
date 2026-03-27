@@ -1,6 +1,7 @@
 export interface Env {
   DATA_BUCKET: R2Bucket;
   NETBARGAINS_API_KEY: string;
+  FIRECRAWL_API_KEY?: string;
 }
 
 // Download speeds we query from the NetBargains API

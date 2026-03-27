@@ -15,3 +15,4 @@ bucket_name = "ismynbncooked-data"
 
 [vars]
 # NETBARGAINS_API_KEY set via `wrangler secret put NETBARGAINS_API_KEY`
+# FIRECRAWL_API_KEY set via `wrangler secret put FIRECRAWL_API_KEY`
