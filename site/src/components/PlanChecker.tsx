@@ -307,7 +307,7 @@ export default function PlanChecker({ manifest }: Props) {
               </div>
               <div class="mt-2 p-3 bg-surface border border-surface-border rounded-lg space-y-2">
                 <h4 class="text-xs font-medium text-neutral-400 uppercase tracking-wider">On a promo or intro rate?</h4>
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="grid grid-cols-2 gap-2">
                   <div>
                     <label class="block text-xs text-neutral-500 mb-1">Price after promo</label>
                     <input
@@ -320,7 +320,7 @@ export default function PlanChecker({ manifest }: Props) {
                         setFullPrice((e.target as HTMLInputElement).value);
                         if ((e.target as HTMLInputElement).value) setOnPromo(true);
                       }}
-                      class="w-28 bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                      class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
                     />
                   </div>
                   <div>
@@ -336,7 +336,7 @@ export default function PlanChecker({ manifest }: Props) {
                         setPromoMonthsLeft((e.target as HTMLInputElement).value);
                         if ((e.target as HTMLInputElement).value) setOnPromo(true);
                       }}
-                      class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                      class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
                     />
                   </div>
                 </div>
