@@ -1,75 +1,181 @@
 ---
 import Base from '../layouts/Base.astro';
 import TierDashboard from '../components/TierDashboard';
-import { parseTierKey, DEFAULT_UPLOAD_MAP, type TierData, type TierHistory, type ComparisonsData, type TierManifest } from '../lib/types';
-import { getFixtureManifest } from '../lib/data';
+import { parseTierKey, parseGroupedTierKey, DEFAULT_UPLOAD_MAP, type TierData, type TierHistory, type ComparisonsData, type TierManifest, type NBNPlan } from '../lib/types';
+import { getFixtureManifest, getTierKeysForGroup } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
 
-// Extract tier key from the param (e.g. "nbn-1000-50" or legacy "nbn-100")
 const { tier } = Astro.params;
 
-// Try new format first: nbn-1000-50 or opticomm-100-20
+// Try exact tier key first: nbn-1000-50 or opticomm-100-20
 const parsed = tier ? parseTierKey(tier) : null;
+// Try grouped tier key: nbn-500 or opticomm-100
+const parsedGroup = !parsed && tier ? parseGroupedTierKey(tier) : null;
 
-if (!parsed) {
-  // Try legacy format: nbn-100 → redirect to nbn-100-20
-  const legacyMatch = tier?.match(/^nbn-(\d+)$/);
-  if (legacyMatch) {
-    const speed = Number(legacyMatch[1]);
-    const newTierKey = DEFAULT_UPLOAD_MAP[speed];
-    if (newTierKey) {
-      return Astro.redirect(`/${newTierKey}`, 301);
-    }
-    // If not in default map, try loading manifest to find best match
-    try {
-      const bucket = Astro.locals.runtime.env.DATA_BUCKET;
-      const manifestObj = await bucket.get('data/manifest.json');
-      if (manifestObj) {
-        const manifest = await manifestObj.json() as TierManifest;
-        const match = manifest.tiers.find(t => t.network === 'nbn' && t.downloadSpeed === speed);
-        if (match) return Astro.redirect(`/${match.key}`, 301);
-      }
-    } catch {}
-  }
+if (!parsed && !parsedGroup) {
   return Astro.redirect('/');
 }
 
-const tierKey = tier!;
-const label = `${parsed.network === 'nbn' ? 'NBN' : 'Opticomm'} ${parsed.download}/${parsed.upload}`;
+// Determine if this is a grouped page or a single-tier page
+const isGrouped = !!parsedGroup;
+const network = parsed?.network ?? parsedGroup!.network;
+const download = parsed?.download ?? parsedGroup!.download;
+const networkLabel = network === 'nbn' ? 'NBN' : 'Opticomm';
 
 let tierData: TierData | null = null;
 let history: TierHistory | null = null;
 let comparisons: ComparisonsData | null = null;
 let manifest: TierManifest | null = null;
 
+// Helper to load a single tier's data from R2 or local files
+async function loadTierData(key: string, bucket?: any): Promise<TierData | null> {
+  if (bucket) {
+    try {
+      const obj = await bucket.get(`data/plans/${key}.json`);
+      if (obj) return await obj.json() as TierData;
+    } catch {}
+  }
+  return await readLocalJson<TierData>(`data/plans/${key}.json`);
+}
+
+async function loadTierHistory(key: string, bucket?: any): Promise<TierHistory | null> {
+  if (bucket) {
+    try {
+      const obj = await bucket.get(`data/history/${key}.json`);
+      if (obj) return await obj.json() as TierHistory;
+    } catch {}
+  }
+  return await readLocalJson<TierHistory>(`data/history/${key}.json`);
+}
+
+let bucket: any = null;
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
-  const [tierObj, historyObj, comparisonsObj, manifestObj] = await Promise.all([
-    bucket.get(`data/plans/${tierKey}.json`),
-    bucket.get(`data/history/${tierKey}.json`),
-    bucket.get('data/comparisons.json'),
-    bucket.get('data/manifest.json'),
-  ]);
-  tierData = tierObj ? await tierObj.json() as TierData : null;
-  history = historyObj ? await historyObj.json() as TierHistory : null;
-  comparisons = comparisonsObj ? await comparisonsObj.json() as ComparisonsData : null;
-  manifest = manifestObj ? await manifestObj.json() as TierManifest : null;
+  bucket = Astro.locals.runtime.env.DATA_BUCKET;
 } catch {}
 
-// If R2 didn't have the data, fall back to local files
-if (!tierData) tierData = await readLocalJson<TierData>(`data/plans/${tierKey}.json`);
-if (!history) history = await readLocalJson<TierHistory>(`data/history/${tierKey}.json`);
+// Load manifest and comparisons
+try {
+  if (bucket) {
+    const [comparisonsObj, manifestObj] = await Promise.all([
+      bucket.get('data/comparisons.json'),
+      bucket.get('data/manifest.json'),
+    ]);
+    comparisons = comparisonsObj ? await comparisonsObj.json() as ComparisonsData : null;
+    manifest = manifestObj ? await manifestObj.json() as TierManifest : null;
+  }
+} catch {}
 if (!comparisons) comparisons = await readLocalJson<ComparisonsData>('data/comparisons.json');
 if (!manifest) manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
 
+if (isGrouped) {
+  // Grouped tier page: load and merge plans from all upload variants
+  const tierKeys = getTierKeysForGroup(tier!, manifest);
+  if (tierKeys.length === 0) return Astro.redirect('/');
+
+  // If only one variant exists, redirect to it
+  if (tierKeys.length === 1) {
+    return Astro.redirect(`/${tierKeys[0]}`, 302);
+  }
+
+  // Load all tier data in parallel
+  const allTierData = await Promise.all(tierKeys.map(k => loadTierData(k, bucket)));
+  const allHistories = await Promise.all(tierKeys.map(k => loadTierHistory(k, bucket)));
+
+  // Merge plans from all variants
+  const allPlans: NBNPlan[] = [];
+  let cheapest = Infinity;
+  let totalPriceSum = 0;
+  let totalPlanCount = 0;
+
+  for (const td of allTierData) {
+    if (!td) continue;
+    allPlans.push(...td.plans);
+    if (td.cheapest < cheapest) cheapest = td.cheapest;
+    totalPriceSum += td.average * td.planCount;
+    totalPlanCount += td.planCount;
+  }
+
+  if (allPlans.length === 0) return Astro.redirect('/');
+
+  const avgPrice = totalPlanCount > 0 ? totalPriceSum / totalPlanCount : 0;
+
+  // Build a merged TierData
+  const firstTd = allTierData.find(td => td !== null)!;
+  tierData = {
+    tierKey: tier!,
+    network,
+    downloadSpeed: download,
+    uploadSpeed: 0, // grouped - no single upload speed
+    label: `${networkLabel} ${download}`,
+    updatedAt: firstTd.updatedAt,
+    planCount: allPlans.length,
+    cheapest: cheapest === Infinity ? 0 : cheapest,
+    average: Math.round(avgPrice),
+    plans: allPlans.sort((a, b) => a.monthlyPrice - b.monthlyPrice),
+  };
+
+  // Merge history: combine providers and daily summaries from all variants
+  const mergedProviders: Record<string, any> = {};
+  const dailyMap = new Map<string, { cheapest: number; totalPrice: number; totalPlans: number }>();
+  for (const h of allHistories) {
+    if (!h) continue;
+    // Merge providers
+    for (const [provider, data] of Object.entries(h.providers)) {
+      if (!mergedProviders[provider]) {
+        mergedProviders[provider] = data;
+      }
+    }
+    // Merge daily summaries
+    for (const d of h.daily) {
+      const existing = dailyMap.get(d.date);
+      if (existing) {
+        existing.cheapest = Math.min(existing.cheapest, d.cheapestPrice);
+        existing.totalPrice += d.averagePrice * d.planCount;
+        existing.totalPlans += d.planCount;
+      } else {
+        dailyMap.set(d.date, {
+          cheapest: d.cheapestPrice,
+          totalPrice: d.averagePrice * d.planCount,
+          totalPlans: d.planCount,
+        });
+      }
+    }
+  }
+  const mergedDaily = [...dailyMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, data]) => ({
+      date,
+      cheapestPrice: data.cheapest,
+      averagePrice: data.totalPlans > 0 ? data.totalPrice / data.totalPlans : 0,
+      planCount: data.totalPlans,
+    }));
+
+  history = {
+    providers: mergedProviders,
+    daily: mergedDaily,
+  };
+} else {
+  // Single tier page (exact key like nbn-500-50)
+  const tierKey = tier!;
+  tierData = await loadTierData(tierKey, bucket);
+  history = await loadTierHistory(tierKey, bucket);
+
+  if (!tierData) return Astro.redirect('/');
+}
+
 if (!tierData) return Astro.redirect('/');
 
-const networkLabel = parsed.network === 'nbn' ? 'NBN' : 'Opticomm';
-const speedDesc = `${parsed.download}/${parsed.upload} Mbps`;
+const tierKey = tier!;
+const label = isGrouped
+  ? `${networkLabel} ${download}`
+  : `${networkLabel} ${download}/${parsed!.upload}`;
+const speedDesc = isGrouped
+  ? `${download} Mbps`
+  : `${download}/${parsed!.upload} Mbps`;
 ---
 
 <Base
-  title={`Cheapest ${label} Plans Australia — Compare ${tierData.planCount} ${networkLabel} ${parsed.download}/${parsed.upload} Plans`}
+  title={`Cheapest ${label} Plans Australia — Compare ${tierData.planCount} ${networkLabel} ${download} Plans`}
   description={`Compare ${tierData.planCount} Australian ${label} internet plans. Cheapest from $${tierData.cheapest.toFixed(0)}/mo. See prices, promos, evening speeds, and contract terms across all ISPs.`}
   canonicalPath={`/${tierKey}`}
   jsonLd={{
@@ -107,5 +213,6 @@ const speedDesc = `${parsed.download}/${parsed.upload} Mbps`;
     history={history}
     comparisons={comparisons}
     manifest={manifest}
+    isGrouped={isGrouped}
   />
 </Base>

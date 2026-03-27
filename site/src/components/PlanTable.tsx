@@ -13,9 +13,10 @@ interface ColumnDef {
   sortKey?: SortKey;
 }
 
-const COLUMNS: ColumnDef[] = [
+const BASE_COLUMNS: ColumnDef[] = [
   { key: 'provider', label: 'Provider', always: true, mobileDefault: true },
   { key: 'planName', label: 'Plan', always: true, mobileDefault: true },
+  { key: 'uploadSpeed', label: 'Upload', mobileDefault: true },
   { key: 'monthlyPrice', label: 'Monthly', mobileDefault: true, sortKey: 'monthlyPrice' },
   { key: 'promo', label: 'Promo', mobileDefault: true },
   { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
@@ -34,6 +35,7 @@ interface Props {
   providerHistory?: Record<string, ProviderHistory>;
   horizon: Horizon;
   onHorizonChange: (h: Horizon) => void;
+  showUploadSpeed?: boolean;
 }
 
 function isNoNotice(val: string | null | undefined): boolean {
@@ -164,7 +166,13 @@ function ProviderSparkline({ history }: { history: { date: string; monthlyPrice:
   );
 }
 
-export default function PlanTable({ plans, highlightProvider, userPrice, userFullPrice, userPromoMonthsLeft, providerHistory, horizon, onHorizonChange }: Props) {
+export default function PlanTable({ plans, highlightProvider, userPrice, userFullPrice, userPromoMonthsLeft, providerHistory, horizon, onHorizonChange, showUploadSpeed }: Props) {
+  // Filter out the upload column unless showUploadSpeed is set
+  const COLUMNS = useMemo(() =>
+    BASE_COLUMNS.filter(c => c.key !== 'uploadSpeed' || showUploadSpeed),
+    [showUploadSpeed]
+  );
+
   const [sortKey, setSortKey] = useState<SortKey>('effectiveCost');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterNoLockin, setFilterNoLockin] = useState(false);
@@ -174,7 +182,9 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
     // SSR-safe default: mobile set. Will update on mount via useEffect.
-    return new Set(['monthlyPrice', 'promo']);
+    const initial = new Set(['monthlyPrice', 'promo']);
+    if (showUploadSpeed) initial.add('uploadSpeed');
+    return initial;
   });
   const [columnPickerOpen, setColumnPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -299,6 +309,12 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
             ) : (
               <span class="truncate">{plan.planName}</span>
             )}
+          </td>
+        );
+      case 'uploadSpeed':
+        return (
+          <td class="px-4 py-3 tabular-nums text-neutral-300" key={col.key}>
+            {plan.uploadSpeed} Mbps
           </td>
         );
       case 'monthlyPrice':

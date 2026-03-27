@@ -82,6 +82,49 @@ export function saveUserState(state: AUState): void {
   localStorage.setItem(STATE_KEY, state);
 }
 
+// --- Horizon preference ---
+
+const HORIZON_KEY = 'ismynbncooked_horizon';
+
+export type HorizonPreference = 3 | 6 | 12 | 24 | 'cheapest';
+
+export function getDefaultHorizon(): HorizonPreference {
+  if (typeof window === 'undefined') return 6;
+  try {
+    const raw = localStorage.getItem(HORIZON_KEY);
+    if (!raw) return 'cheapest';
+    if (raw === 'cheapest') return 'cheapest';
+    const num = parseInt(raw, 10);
+    if ([3, 6, 12, 24].includes(num)) return num as 3 | 6 | 12 | 24;
+    return 'cheapest';
+  } catch {
+    return 'cheapest';
+  }
+}
+
+export function saveDefaultHorizon(pref: HorizonPreference): void {
+  localStorage.setItem(HORIZON_KEY, String(pref));
+}
+
+// --- Tier grouping preference ---
+
+const GROUPING_KEY = 'ismynbncooked_group_tiers';
+
+export function getGroupTiers(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const raw = localStorage.getItem(GROUPING_KEY);
+    if (raw === null) return true;
+    return raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function saveGroupTiers(grouped: boolean): void {
+  localStorage.setItem(GROUPING_KEY, String(grouped));
+}
+
 // --- Price visit tracking (for "price drops since last visit") ---
 
 const VISIT_KEY = 'ismynbncooked_visits';

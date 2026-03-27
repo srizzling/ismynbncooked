@@ -1,4 +1,5 @@
-import type { TierManifest, TierInfo } from './types';
+import type { TierManifest, TierInfo, GroupedTier, NetworkType } from './types';
+import { buildGroupedTierKey } from './types';
 
 export interface TierSummary {
   cheapest: number;
@@ -24,6 +25,79 @@ export function getFixtureManifest(): TierManifest {
     ],
     providers: ['Aussie Broadband', 'Exetel', 'Launtel', 'Leaptel', 'Superloop', 'Tangerine', 'Telstra', 'TPG'],
   };
+}
+
+/**
+ * Group tiers by network + download speed, merging upload variants.
+ * Each group aggregates plan counts, picks the cheapest price, and
+ * computes a weighted average price across variants.
+ */
+export function groupTiersByDownload(tiers: TierInfo[]): GroupedTier[] {
+  const map = new Map<string, GroupedTier>();
+
+  for (const tier of tiers) {
+    const groupKey = buildGroupedTierKey(tier.network, tier.downloadSpeed);
+    let group = map.get(groupKey);
+    if (!group) {
+      const prefix = tier.network === 'nbn' ? 'NBN' : 'Opticomm';
+      group = {
+        groupKey,
+        network: tier.network,
+        downloadSpeed: tier.downloadSpeed,
+        label: `${prefix} ${tier.downloadSpeed}`,
+        tierKeys: [],
+        tiers: [],
+        planCount: 0,
+      };
+      map.set(groupKey, group);
+    }
+    group.tierKeys.push(tier.key);
+    group.tiers.push(tier);
+    group.planCount += tier.planCount ?? 0;
+
+    if (tier.cheapest != null) {
+      if (group.cheapest == null || tier.cheapest < group.cheapest) {
+        group.cheapest = tier.cheapest;
+        group.cheapestProvider = tier.cheapestProvider;
+      }
+    }
+    if (tier.cheapestEffective != null) {
+      if (group.cheapestEffective == null || tier.cheapestEffective < group.cheapestEffective) {
+        group.cheapestEffective = tier.cheapestEffective;
+      }
+    }
+  }
+
+  // Compute weighted average price across variants
+  for (const group of map.values()) {
+    let totalWeightedPrice = 0;
+    let totalPlans = 0;
+    for (const tier of group.tiers) {
+      if (tier.average != null && tier.planCount != null && tier.planCount > 0) {
+        totalWeightedPrice += tier.average * tier.planCount;
+        totalPlans += tier.planCount;
+      }
+    }
+    if (totalPlans > 0) {
+      group.average = totalWeightedPrice / totalPlans;
+    }
+  }
+
+  // Sort by download speed
+  return [...map.values()].sort((a, b) => a.downloadSpeed - b.downloadSpeed);
+}
+
+/**
+ * Find all tier keys that belong to a grouped tier key (e.g. "nbn-500" → ["nbn-500-42", "nbn-500-45", ...])
+ */
+export function getTierKeysForGroup(groupKey: string, manifest: TierManifest): string[] {
+  const match = groupKey.match(/^(nbn|opticomm)-(\d+)$/);
+  if (!match) return [];
+  const network = match[1];
+  const download = parseInt(match[2], 10);
+  return manifest.tiers
+    .filter(t => t.network === network && t.downloadSpeed === download)
+    .map(t => t.key);
 }
 
 // Fixture data for development / when R2 is not available
