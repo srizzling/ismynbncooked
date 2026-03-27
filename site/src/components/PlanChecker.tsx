@@ -185,16 +185,26 @@ export default function PlanChecker({ manifest }: Props) {
 
   return (
     <div class="bg-surface-raised border border-surface-border rounded-2xl p-5 sm:p-6 max-w-3xl">
-      <h2 class="font-display font-bold text-xl mb-1">
-        {hasExisting ? 'Update your plan' : 'Enter your plan'}
-      </h2>
-      <p class="text-neutral-400 text-sm mb-4">
-        {hasExisting
-          ? 'Your details are saved below. Update them or check a different speed tier.'
-          : "Tell us what you're paying and we'll tell you if you're getting rorted"}
-      </p>
-
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}
+      >
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="font-display font-bold text-xl mb-1">
+            {hasExisting ? 'Update your plan' : 'Enter your plan'}
+          </h2>
+          <p class="text-neutral-400 text-sm">
+            {hasExisting
+              ? 'Your details are saved below. Update them or check a different speed tier.'
+              : "Tell us what you're paying and we'll tell you if you're getting rorted"}
+          </p>
+        </div>
+        <button
+          type="submit"
+          class="hidden sm:block bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-6 py-2.5 text-base transition-colors whitespace-nowrap ml-4"
+        >
+          {isCompareMode ? 'Compare plans' : 'Am I getting rorted?'}
+        </button>
+      </div>>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 sm:gap-6">
           {/* Left column — Speed tier */}
           <div class="space-y-3">
@@ -353,10 +363,10 @@ export default function PlanChecker({ manifest }: Props) {
           </div>
         </div>
 
-        <div class="mt-4">
+        <div class="mt-4 sm:hidden">
           <button
             type="submit"
-            class="w-full sm:w-auto bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
+            class="w-full bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
           >
             {isCompareMode ? 'Compare plans' : 'Am I getting rorted?'}
           </button>
