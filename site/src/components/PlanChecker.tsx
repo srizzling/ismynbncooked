@@ -204,14 +204,14 @@ export default function PlanChecker({ manifest }: Props) {
         >
           {isCompareMode ? 'Compare plans' : 'Am I getting rorted?'}
         </button>
-      </div>>
+      </div>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 sm:gap-6">
           {/* Left column — Speed tier */}
           <div class="space-y-3">
             <h3 class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Speed tier</h3>
-            <div class="space-y-2">
+            <div class="space-y-3">
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-xs text-neutral-500 w-14 shrink-0">Network</span>
+                <span class="text-xs text-neutral-500 w-24 shrink-0">Network</span>
                 {networks.map(n => (
                   <button
                     key={n}
@@ -224,7 +224,7 @@ export default function PlanChecker({ manifest }: Props) {
                 ))}
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-xs text-neutral-500 w-14 shrink-0">Down</span>
+                <span class="text-xs text-neutral-500 w-24 shrink-0">Download speed</span>
                 <button
                   type="button"
                   onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
@@ -245,7 +245,7 @@ export default function PlanChecker({ manifest }: Props) {
               </div>
               {!allDownloadsSelected && uploads.length > 0 && (
                 <div class="flex flex-wrap items-center gap-1.5">
-                  <span class="text-xs text-neutral-500 w-14 shrink-0">Up</span>
+                  <span class="text-xs text-neutral-500 w-24 shrink-0">Upload speed</span>
                   {hasMultipleUploads && (
                     <button
                       type="button"
@@ -276,34 +276,43 @@ export default function PlanChecker({ manifest }: Props) {
           {/* Right column — Your plan */}
           <div class="space-y-3">
             <h3 class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Your plan</h3>
-            <div class="space-y-2">
-              <div class="flex flex-wrap items-center gap-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="$/mo"
-                  value={price}
-                  onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
-                  required
-                  class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-                />
-                <input
-                  type="text"
-                  placeholder="Provider"
-                  value={provider}
-                  onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
-                  class="w-32 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-                />
-                <select
-                  value={state}
-                  onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
-                  class="w-20 bg-surface border border-surface-border rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent appearance-none"
-                >
-                  {AU_STATES.map((s) => (
-                    <option key={s} value={s}>{STATE_LABELS[s]}</option>
-                  ))}
-                </select>
+            <div class="space-y-3">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="block text-xs text-neutral-500 mb-1">Monthly price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="$89.00"
+                    value={price}
+                    onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
+                    required
+                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-neutral-500 mb-1">Provider</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Telstra"
+                    value={provider}
+                    onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
+                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-neutral-500 mb-1">State</label>
+                  <select
+                    value={state}
+                    onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
+                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white focus:outline-none focus:border-accent appearance-none"
+                  >
+                    {AU_STATES.map((s) => (
+                      <option key={s} value={s}>{STATE_LABELS[s]}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div class="mt-2 p-3 bg-surface border border-surface-border rounded-lg space-y-2">
                 <h4 class="text-xs font-medium text-neutral-400 uppercase tracking-wider">On a promo or intro rate?</h4>
