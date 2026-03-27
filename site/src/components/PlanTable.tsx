@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks'
 import type { NBNPlan, ProviderHistory } from '../lib/types';
 import { calcCosts, type Horizon, HORIZONS } from '../lib/costs';
 
-type SortKey = 'monthlyPrice' | 'totalCost' | 'effectiveCost' | 'typicalEveningSpeed';
+type SortKey = 'monthlyPrice' | 'totalCost' | 'effectiveCost' | 'typicalEveningSpeed' | 'eff3mo' | 'eff6mo' | 'eff12mo';
 type SortDir = 'asc' | 'desc';
 
 interface ColumnDef {
@@ -19,9 +19,9 @@ const BASE_COLUMNS: ColumnDef[] = [
   { key: 'uploadSpeed', label: 'Upload', mobileDefault: true },
   { key: 'monthlyPrice', label: 'Monthly', mobileDefault: true, sortKey: 'monthlyPrice' },
   { key: 'promo', label: 'Promo', mobileDefault: true },
-  { key: 'eff3mo', label: '3mo $/mo' },
-  { key: 'eff6mo', label: '6mo $/mo' },
-  { key: 'eff12mo', label: '1yr $/mo' },
+  { key: 'eff3mo', label: '3mo $/mo', sortKey: 'eff3mo' },
+  { key: 'eff6mo', label: '6mo $/mo', sortKey: 'eff6mo' },
+  { key: 'eff12mo', label: '1yr $/mo', sortKey: 'eff12mo' },
   { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
   { key: 'typicalEveningSpeed', label: 'Eve Speed', sortKey: 'typicalEveningSpeed' },
   { key: 'contract', label: 'Contract' },
@@ -175,7 +175,9 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
     [showUploadSpeed]
   );
 
-  const [sortKey, setSortKey] = useState<SortKey>('monthlyPrice');
+  const horizonToSortKey = (h: Horizon): SortKey =>
+    h === 3 ? 'eff3mo' : h === 6 ? 'eff6mo' : h === 12 ? 'eff12mo' : 'monthlyPrice';
+  const [sortKey, setSortKey] = useState<SortKey>(() => horizonToSortKey(horizon));
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterNoLockin, setFilterNoLockin] = useState(false);
   const [filterHasPromo, setFilterHasPromo] = useState(false);
@@ -237,6 +239,15 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
       } else if (sortKey === 'effectiveCost') {
         av = calcCosts(a, horizon).effectiveCost;
         bv = calcCosts(b, horizon).effectiveCost;
+      } else if (sortKey === 'eff3mo') {
+        av = calcCosts(a, 3).effectiveCost;
+        bv = calcCosts(b, 3).effectiveCost;
+      } else if (sortKey === 'eff6mo') {
+        av = calcCosts(a, 6).effectiveCost;
+        bv = calcCosts(b, 6).effectiveCost;
+      } else if (sortKey === 'eff12mo') {
+        av = calcCosts(a, 12).effectiveCost;
+        bv = calcCosts(b, 12).effectiveCost;
       } else {
         av = (a[sortKey] as number) ?? Infinity;
         bv = (b[sortKey] as number) ?? Infinity;
