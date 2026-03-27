@@ -23,7 +23,6 @@ const BASE_COLUMNS: ColumnDef[] = [
   { key: 'eff6mo', label: '6mo $/mo' },
   { key: 'eff12mo', label: '1yr $/mo' },
   { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
-  { key: 'effectiveCost', label: 'Effective/mo', sortKey: 'effectiveCost' },
   { key: 'typicalEveningSpeed', label: 'Eve Speed', sortKey: 'typicalEveningSpeed' },
   { key: 'contract', label: 'Contract' },
   { key: 'noticePeriod', label: 'Notice' },
@@ -176,7 +175,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
     [showUploadSpeed]
   );
 
-  const [sortKey, setSortKey] = useState<SortKey>('effectiveCost');
+  const [sortKey, setSortKey] = useState<SortKey>('monthlyPrice');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterNoLockin, setFilterNoLockin] = useState(false);
   const [filterHasPromo, setFilterHasPromo] = useState(false);
@@ -382,14 +381,6 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
         return (
           <td class="px-4 py-3 tabular-nums text-neutral-300" key={col.key}>
             ${totalCost.toFixed(0)}
-          </td>
-        );
-      case 'effectiveCost':
-        return (
-          <td class="px-4 py-3 tabular-nums" key={col.key}>
-            <span class={effectiveCost < plan.monthlyPrice ? 'text-cooked-green font-medium' : 'text-neutral-300'}>
-              ${effectiveCost.toFixed(2)}
-            </span>
           </td>
         );
       case 'typicalEveningSpeed':
