@@ -18,16 +18,16 @@ export default function PlanChecker({ manifest }: Props) {
   const [fullPrice, setFullPrice] = useState('');
   const [promoMonthsLeft, setPromoMonthsLeft] = useState('');
 
-  // Derived: primary network for tier key building
-  const network: NetworkType = selectedNetworks.size === 1 ? [...selectedNetworks][0] : 'nbn';
-  const allNetworksSelected = selectedNetworks.size === networks.length && networks.length > 1;
-  const allDownloadsSelected = downloadSpeed === 'all';
-
   // Derive available options from manifest
   const networks = useMemo(() => {
     const set = new Set(manifest.tiers.map(t => t.network));
     return ['nbn' as NetworkType, 'opticomm' as NetworkType].filter(n => set.has(n));
   }, [manifest]);
+
+  // Derived: primary network for tier key building
+  const network: NetworkType = selectedNetworks.size === 1 ? [...selectedNetworks][0] : 'nbn';
+  const allNetworksSelected = selectedNetworks.size === networks.length && networks.length > 1;
+  const allDownloadsSelected = downloadSpeed === 'all';
 
   const downloads = useMemo(() => {
     return [...new Set(manifest.tiers
@@ -184,94 +184,84 @@ export default function PlanChecker({ manifest }: Props) {
     }`;
 
   return (
-    <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8">
-      <h2 class="font-display font-bold text-2xl mb-1">
+    <div class="bg-surface-raised border border-surface-border rounded-2xl p-5 sm:p-6">
+      <h2 class="font-display font-bold text-xl mb-1">
         {hasExisting ? 'Update your plan' : 'Enter your plan'}
       </h2>
-      <p class="text-neutral-400 text-sm mb-6">
+      <p class="text-neutral-400 text-sm mb-4">
         {hasExisting
           ? 'Your details are saved below. Update them or check a different speed tier.'
           : "Tell us what you're paying and we'll tell you if you're getting rorted"}
       </p>
 
-      <form onSubmit={handleSubmit} class="space-y-4">
-        {/* Speed tier — pill selectors */}
-        <div class="space-y-3">
-          {/* Network */}
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1.5">Network</label>
-            <div class="flex flex-wrap gap-1.5">
-              {networks.map(n => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => toggleNetwork(n)}
-                  class={pillClass(selectedNetworks.has(n))}
-                >
-                  {n === 'nbn' ? 'NBN' : 'Opticomm'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Download */}
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1.5">Download</label>
-            <div class="flex flex-wrap gap-1.5">
+      <form onSubmit={handleSubmit} class="space-y-3">
+        {/* Speed tier — compact pill rows */}
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-xs text-neutral-500 w-16 shrink-0">Network</span>
+            {networks.map(n => (
               <button
+                key={n}
                 type="button"
-                onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
-                class={pillClass(allDownloadsSelected)}
+                onClick={() => toggleNetwork(n)}
+                class={pillClass(selectedNetworks.has(n))}
               >
-                All
+                {n === 'nbn' ? 'NBN' : 'Opticomm'}
               </button>
-              {!allDownloadsSelected && downloads.map(d => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDownloadSpeed(d)}
-                  class={pillClass(downloadSpeed === d)}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
 
-          {/* Upload — only show when a specific download is selected */}
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-xs text-neutral-500 w-16 shrink-0">Download</span>
+            <button
+              type="button"
+              onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
+              class={pillClass(allDownloadsSelected)}
+            >
+              All
+            </button>
+            {!allDownloadsSelected && downloads.map(d => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDownloadSpeed(d)}
+                class={pillClass(downloadSpeed === d)}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
           {!allDownloadsSelected && uploads.length > 0 && (
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1.5">Upload</label>
-              <div class="flex flex-wrap gap-1.5">
-                {hasMultipleUploads && (
-                  <button
-                    type="button"
-                    onClick={toggleAllUploads}
-                    class={pillClass(allUploadsSelected)}
-                  >
-                    All
-                  </button>
-                )}
-                {!allUploadsSelected && uploads.map(u => (
-                  <button
-                    key={u}
-                    type="button"
-                    onClick={() => toggleUpload(u)}
-                    class={pillClass(selectedUploads.has(u))}
-                  >
-                    {u}
-                  </button>
-                ))}
-              </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-xs text-neutral-500 w-16 shrink-0">Upload</span>
+              {hasMultipleUploads && (
+                <button
+                  type="button"
+                  onClick={toggleAllUploads}
+                  class={pillClass(allUploadsSelected)}
+                >
+                  All
+                </button>
+              )}
+              {!allUploadsSelected && uploads.map(u => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => toggleUpload(u)}
+                  class={pillClass(selectedUploads.has(u))}
+                >
+                  {u}
+                </button>
+              ))}
             </div>
           )}
 
-          {/* Tier confirmation */}
           <div class="text-xs text-neutral-500">
-            Selected: <span class="text-white font-medium">
+            <span class="text-white font-medium">
               {allNetworksSelected ? 'NBN + Opticomm' : network === 'nbn' ? 'NBN' : 'Opticomm'}
               {allDownloadsSelected
-                ? <span class="text-neutral-400"> (all speeds)</span>
+                ? <span class="text-neutral-400"> — all speeds</span>
                 : <>
                     {' '}{downloadSpeed}
                     {allUploadsSelected
