@@ -34,7 +34,6 @@ function buildGroupedCards(groups: GroupedTier[]): TierCardData[] {
 
 function buildUngroupedCards(tiers: TierInfo[]): TierCardData[] {
   return tiers
-    .filter(t => t.planCount != null && t.planCount > 0)
     .sort((a, b) => a.downloadSpeed - b.downloadSpeed || a.uploadSpeed - b.uploadSpeed)
     .map(t => ({
       key: t.key,
@@ -139,8 +138,10 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
     const speeds = new Set<number>();
     nbnGrouped.forEach(g => speeds.add(g.downloadSpeed));
     opticommGrouped.forEach(g => speeds.add(g.downloadSpeed));
+    nbnTiers.forEach(t => speeds.add(t.downloadSpeed));
+    opticommTiers.forEach(t => speeds.add(t.downloadSpeed));
     return [...speeds].sort((a, b) => a - b);
-  }, [nbnGrouped, opticommGrouped]);
+  }, [nbnGrouped, opticommGrouped, nbnTiers, opticommTiers]);
 
   const filteredNbn = nbnCards.filter(c => !hiddenSpeeds.has(c.downloadSpeed));
   const filteredOpticomm = opticommCards.filter(c => !hiddenSpeeds.has(c.downloadSpeed));
