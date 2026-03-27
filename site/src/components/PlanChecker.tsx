@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
-import { AU_STATES, STATE_LABELS, buildTierKey, parseTierKey, type AUState, type UserPlan, type TierManifest, type NetworkType } from '../lib/types';
+import { AU_STATES, STATE_LABELS, buildTierKey, buildGroupedTierKey, parseTierKey, parseGroupedTierKey, type AUState, type UserPlan, type TierManifest, type NetworkType } from '../lib/types';
 import { saveUserPlan, getUserPlans, saveUserState, getUserState } from '../lib/storage';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 export default function PlanChecker({ manifest }: Props) {
   const [network, setNetwork] = useState<NetworkType>('nbn');
   const [downloadSpeed, setDownloadSpeed] = useState(100);
-  const [uploadSpeed, setUploadSpeed] = useState(20);
+  const [uploadSpeed, setUploadSpeed] = useState<number | 'all'>(20);
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [state, setState] = useState<AUState>('nsw');
@@ -43,6 +43,8 @@ export default function PlanChecker({ manifest }: Props) {
     )].sort((a, b) => a - b);
   }, [manifest, network, downloadSpeed]);
 
+  const hasMultipleUploads = uploads.length > 1;
+
   // Has Opticomm tiers for the current download speed?
   const hasOpticomm = useMemo(() => {
     return manifest.tiers.some(t => t.network === 'opticomm' && t.downloadSpeed === downloadSpeed);
@@ -57,10 +59,11 @@ export default function PlanChecker({ manifest }: Props) {
 
   // Reset upload when download changes
   useEffect(() => {
-    if (!uploads.includes(uploadSpeed)) {
-      setUploadSpeed(uploads[0] ?? 20);
+    if (uploadSpeed !== 'all' && !uploads.includes(uploadSpeed)) {
+      // Default to "all" when there are multiple upload variants
+      setUploadSpeed(hasMultipleUploads ? 'all' : (uploads[0] ?? 20));
     }
-  }, [uploads]);
+  }, [uploads, hasMultipleUploads]);
 
   // Load existing plan
   useEffect(() => {
@@ -71,10 +74,15 @@ export default function PlanChecker({ manifest }: Props) {
       entries.sort((a, b) => b[1].savedAt.localeCompare(a[1].savedAt));
       const [key, plan] = entries[0];
       const parsed = parseTierKey(key);
+      const parsedGrouped = !parsed ? parseGroupedTierKey(key) : null;
       if (parsed && manifest.tiers.some(t => t.key === key)) {
         setNetwork(parsed.network);
         setDownloadSpeed(parsed.download);
         setUploadSpeed(parsed.upload);
+      } else if (parsedGrouped) {
+        setNetwork(parsedGrouped.network);
+        setDownloadSpeed(parsedGrouped.download);
+        setUploadSpeed('all');
       }
       setPrice(plan.price.toString());
       setProvider(plan.provider);
@@ -92,7 +100,9 @@ export default function PlanChecker({ manifest }: Props) {
     if (savedState) setState(savedState);
   }, []);
 
-  const tierKey = buildTierKey(network, downloadSpeed, uploadSpeed);
+  const tierKey = uploadSpeed === 'all'
+    ? buildGroupedTierKey(network, downloadSpeed)
+    : buildTierKey(network, downloadSpeed, uploadSpeed);
   const isCompareMode = acrossDownload || acrossUpload || includeOpticomm;
 
   function handleSubmit(e: Event) {
@@ -116,7 +126,7 @@ export default function PlanChecker({ manifest }: Props) {
       const params = new URLSearchParams({
         network,
         download: downloadSpeed.toString(),
-        upload: uploadSpeed.toString(),
+        upload: uploadSpeed === 'all' ? 'all' : uploadSpeed.toString(),
         across: across.join(','),
       });
       window.location.href = `/compare?${params}`;
@@ -177,9 +187,15 @@ export default function PlanChecker({ manifest }: Props) {
               <label class="block text-xs text-neutral-500 mb-1">Upload</label>
               <select
                 value={uploadSpeed}
-                onChange={(e) => setUploadSpeed(parseInt((e.target as HTMLSelectElement).value))}
+                onChange={(e) => {
+                  const val = (e.target as HTMLSelectElement).value;
+                  setUploadSpeed(val === 'all' ? 'all' : parseInt(val));
+                }}
                 class={selectClass}
               >
+                {hasMultipleUploads && (
+                  <option value="all">All uploads</option>
+                )}
                 {uploads.map(u => (
                   <option key={u} value={u}>{u} Mbps</option>
                 ))}
@@ -189,7 +205,10 @@ export default function PlanChecker({ manifest }: Props) {
 
           {/* Tier confirmation */}
           <div class="mt-2 text-xs text-neutral-500">
-            Selected: <span class="text-white font-medium">{network === 'nbn' ? 'NBN' : 'Opticomm'} {downloadSpeed}/{uploadSpeed} Mbps</span>
+            Selected: <span class="text-white font-medium">
+              {network === 'nbn' ? 'NBN' : 'Opticomm'} {downloadSpeed}{uploadSpeed === 'all' ? '' : `/${uploadSpeed}`} Mbps
+              {uploadSpeed === 'all' && <span class="text-neutral-400"> (all upload speeds)</span>}
+            </span>
           </div>
         </div>
 

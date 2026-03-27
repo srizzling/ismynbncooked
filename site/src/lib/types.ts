@@ -21,6 +21,30 @@ export interface TierManifest {
   providers: string[];
 }
 
+/**
+ * A grouped tier merges multiple upload-speed variants for the same
+ * network + download speed into a single display unit.
+ * e.g. nbn-500-42, nbn-500-45, nbn-500-48, nbn-500-50 → "NBN 500"
+ */
+export interface GroupedTier {
+  /** Display key like "nbn-500" (no upload component) */
+  groupKey: string;
+  network: NetworkType;
+  downloadSpeed: number;
+  /** Human label like "NBN 500" */
+  label: string;
+  /** The individual tier keys that were merged */
+  tierKeys: string[];
+  /** The individual TierInfo entries */
+  tiers: TierInfo[];
+  /** Aggregated stats (merged across variants) */
+  planCount: number;
+  cheapest?: number;
+  cheapestEffective?: number;
+  cheapestProvider?: string;
+  average?: number;
+}
+
 export function buildTierKey(network: NetworkType, download: number, upload: number): string {
   return `${network}-${download}-${upload}`;
 }
@@ -32,6 +56,19 @@ export function parseTierKey(key: string): { network: NetworkType; download: num
     network: match[1] as NetworkType,
     download: parseInt(match[2], 10),
     upload: parseInt(match[3], 10),
+  };
+}
+
+export function buildGroupedTierKey(network: NetworkType, download: number): string {
+  return `${network}-${download}`;
+}
+
+export function parseGroupedTierKey(key: string): { network: NetworkType; download: number } | null {
+  const match = key.match(/^(nbn|opticomm)-(\d+)$/);
+  if (!match) return null;
+  return {
+    network: match[1] as NetworkType,
+    download: parseInt(match[2], 10),
   };
 }
 
