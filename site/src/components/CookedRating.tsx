@@ -155,8 +155,10 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
         const remaining = getPromoRemaining(existing);
         setUserFullPrice(existing.fullPrice);
         setUserPromoLeft(remaining);
-        const userEffective = computeEffectiveRate(existing.price, existing.fullPrice, remaining, horizon);
-        const r = calculateCooked(userEffective, baseline);
+        // Rate on current promo price, not blended effective — the user cares about what they're paying NOW
+        const r = remaining > 0
+          ? calculateCooked(existing.price, baseline)
+          : calculateCooked(existing.fullPrice, baseline);
         setResult(r);
         onCookedChange?.(r);
       } else {
