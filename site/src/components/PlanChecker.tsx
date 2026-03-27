@@ -173,6 +173,12 @@ export default function PlanChecker({ manifest }: Props) {
 
   const selectClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-accent appearance-none";
   const inputClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent";
+  const pillClass = (active: boolean) =>
+    `text-xs px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+      active
+        ? 'bg-accent/10 border-accent text-accent'
+        : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600 hover:text-neutral-300'
+    }`;
 
   return (
     <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8">
@@ -186,75 +192,70 @@ export default function PlanChecker({ manifest }: Props) {
       </p>
 
       <form onSubmit={handleSubmit} class="space-y-4">
-        {/* Speed tier — cascading selectors */}
-        <div>
-          <label class="block text-sm text-neutral-400 mb-2">Speed tier</label>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Network */}
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Network</label>
-              <select
-                value={network}
-                onChange={(e) => setNetwork((e.target as HTMLSelectElement).value as NetworkType)}
-                class={selectClass}
-              >
-                {networks.map(n => (
-                  <option key={n} value={n}>{n === 'nbn' ? 'NBN' : 'Opticomm'}</option>
-                ))}
-              </select>
+        {/* Speed tier — pill selectors */}
+        <div class="space-y-3">
+          {/* Network */}
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1.5">Network</label>
+            <div class="flex flex-wrap gap-1.5">
+              {networks.map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setNetwork(n)}
+                  class={pillClass(network === n)}
+                >
+                  {n === 'nbn' ? 'NBN' : 'Opticomm'}
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Download */}
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Download</label>
-              <select
-                value={downloadSpeed}
-                onChange={(e) => setDownloadSpeed(parseInt((e.target as HTMLSelectElement).value))}
-                class={selectClass}
-              >
-                {downloads.map(d => (
-                  <option key={d} value={d}>{d} Mbps</option>
-                ))}
-              </select>
+          {/* Download */}
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1.5">Download</label>
+            <div class="flex flex-wrap gap-1.5">
+              {downloads.map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDownloadSpeed(d)}
+                  class={pillClass(downloadSpeed === d)}
+                >
+                  {d}
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Upload */}
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Upload</label>
-              <div class="flex flex-wrap gap-1.5 mt-1">
-                {hasMultipleUploads && (
-                  <button
-                    type="button"
-                    onClick={toggleAllUploads}
-                    class={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
-                      allSelected
-                        ? 'bg-accent/10 border-accent text-accent'
-                        : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600'
-                    }`}
-                  >
-                    All
-                  </button>
-                )}
-                {uploads.map(u => (
-                  <button
-                    key={u}
-                    type="button"
-                    onClick={() => toggleUpload(u)}
-                    class={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
-                      selectedUploads.has(u)
-                        ? 'bg-accent/10 border-accent text-accent'
-                        : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600'
-                    }`}
-                  >
-                    {u}
-                  </button>
-                ))}
-              </div>
+          {/* Upload */}
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1.5">Upload</label>
+            <div class="flex flex-wrap gap-1.5">
+              {hasMultipleUploads && (
+                <button
+                  type="button"
+                  onClick={toggleAllUploads}
+                  class={pillClass(allSelected)}
+                >
+                  All
+                </button>
+              )}
+              {uploads.map(u => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => toggleUpload(u)}
+                  class={pillClass(selectedUploads.has(u))}
+                >
+                  {u}
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Tier confirmation */}
-          <div class="mt-2 text-xs text-neutral-500">
+          <div class="text-xs text-neutral-500">
             Selected: <span class="text-white font-medium">
               {network === 'nbn' ? 'NBN' : 'Opticomm'} {downloadSpeed}
               {allSelected
