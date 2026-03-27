@@ -1,0 +1,1081 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+    - generic [ref=e4]: Skip to main content
+  - generic [ref=e7]:
+    - generic:
+      - generic:
+        - generic [ref=e8]:
+          - generic: "I built a site to check if your NBN plan is overpriced — amigettingrorted.au : r/nbn"
+        - banner [ref=e11]:
+          - navigation [ref=e12]:
+            - generic [ref=e13]:
+              - button "Open menu" [ref=e17] [cursor=pointer]:
+                - img [ref=e20]
+                - generic [ref=e22]:
+                  - generic: Open menu
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - link "Home":
+                          - /url: /
+            - search [ref=e32]:
+              - generic [ref=e34]:
+                - img [ref=e37]
+                - generic "Remove r/nbn filter and expand search to all of Reddit" [ref=e40] [cursor=pointer]:
+                  - button [pressed] [ref=e41]:
+                    - generic [ref=e45]: r/nbn
+                  - img [ref=e47]
+                - textbox "Remove r/nbn filter and expand search to all of Reddit" [ref=e50]:
+                  - /placeholder: Search in r/nbn
+            - generic [ref=e51]:
+              - generic [ref=e52]:
+                - button "Open chat" [ref=e58] [cursor=pointer]:
+                  - img [ref=e61]
+                  - generic [ref=e63]:
+                    - generic: Open chat
+                - link "Create post" [ref=e68] [cursor=pointer]:
+                  - /url: /r/nbn/submit/
+                  - generic [ref=e69]:
+                    - img [ref=e71]
+                    - generic [ref=e73]: Create
+                  - generic [ref=e74]:
+                    - generic: Create post
+                - link "Open inbox" [ref=e78] [cursor=pointer]:
+                  - /url: /notifications
+                  - img [ref=e81]
+                  - generic [ref=e83]:
+                    - generic: Open inbox
+              - button "Expand user menu" [ref=e88] [cursor=pointer]:
+                - img [ref=e98]
+                - generic [ref=e101]:
+                  - generic: Expand user menu
+        - generic [ref=e105]:
+          - main [ref=e106]:
+            - 'generic "I built a site to check if your NBN plan is overpriced — amigettingrorted.au : r/nbn"'
+            - generic [ref=e107]:
+              - generic [ref=e108]:
+                - generic [ref=e109]:
+                  - link "Go to nbn" [ref=e112] [cursor=pointer]:
+                    - /url: /r/nbn/
+                    - generic [ref=e116]:
+                      - generic: Go to nbn
+                  - group [ref=e117]:
+                    - generic [ref=e118]:
+                      - link "r/nbn" [ref=e122] [cursor=pointer]:
+                        - /url: /r/nbn/
+                      - generic [ref=e123]: •
+                      - time [ref=e125]: 17d ago
+                    - 'link "Author: srizzling" [ref=e131] [cursor=pointer]':
+                      - /url: /user/srizzling/
+                      - text: srizzling
+                - button "Open user actions" [ref=e136] [cursor=pointer]:
+                  - img [ref=e139]
+              - generic [ref=e142]:
+                - 'heading "Post Title: I built a site to check if your NBN plan is overpriced — amigettingrorted.au" [level=1] [ref=e143]': I built a site to check if your NBN plan is overpriced — amigettingrorted.au
+                - 'link "Flair: Other" [ref=e146] [cursor=pointer]':
+                  - /url: /r/nbn/?f=flair_name%3A%22Other%22
+                  - 'generic "Flair: Other" [ref=e148]': Other
+              - link "amigettingrorted.au Open" [ref=e152] [cursor=pointer]:
+                - /url: http://amigettingrorted.au
+                - generic [ref=e153]: amigettingrorted.au
+                - button "Open" [ref=e154]:
+                  - generic [ref=e156]: Open
+              - generic [ref=e160]:
+                - paragraph [ref=e161]: Bit of self-promotion, but hopefully useful for people here.
+                - paragraph [ref=e162]: "I kept finding it weirdly hard to answer a simple question: am I actually getting a good NBN deal or am I getting rorted?"
+                - paragraph [ref=e163]: Comparison sites are full of affiliate links, and a lot of the important stuff is buried in CIS PDFs that nobody reads.
+                - paragraph [ref=e164]:
+                  - text: I actually got stung once when moving rentals — cancelled a service thinking it was simple and then found out (too late) there was a 30-day notice clause buried in the CIS. Ended up paying for internet at a place I’d already moved out of. Probably a story for
+                  - link "r/shitrentals" [ref=e165] [cursor=pointer]:
+                    - /url: /r/shitrentals/
+                  - text: .
+                - paragraph [ref=e166]: "So I built a small site that tries to make the information a bit clearer:"
+                - paragraph [ref=e167]:
+                  - link "https://amigettingrorted.au" [ref=e168] [cursor=pointer]:
+                    - /url: https://amigettingrorted.au
+                - paragraph [ref=e169]: "You can:"
+                - generic [ref=e170]: • Compare NBN plan prices across providers • Quickly sanity-check what people pay for each speed tier • See contract terms pulled from CIS documents
+                - paragraph [ref=e171]: "One important note: the pricing data comes from NetBargains, which does a great job tracking Aussie internet deals. If you find the tool useful, consider supporting or donating to them — they’re the ones maintaining the underlying deal data."
+                - paragraph [ref=e172]: "Also just to get ahead of the usual Reddit questions:"
+                - generic [ref=e173]: • No ads • No tracking • No accounts • No affiliate links • I don’t make money from this
+                - paragraph [ref=e174]: If anyone here has ideas, features, or providers I’ve missed, I’m keen to improve it.
+                - paragraph [ref=e175]:
+                  - text: "Here is my rort scale rating:"
+                  - link "https://amigettingrorted.au/share?d=WzUwMCw5NTAwLCJBdXNzaWVCcm9hZGJhbmQiLDUzNTAsImFic29sdXRlLXJvcnQiLCJPUklHSU4gQlJPQURCQU5EIiw2LDg1MDAsMV0" [ref=e176] [cursor=pointer]:
+                    - /url: https://amigettingrorted.au/share?d=WzUwMCw5NTAwLCJBdXNzaWVCcm9hZGJhbmQiLDUzNTAsImFic29sdXRlLXJvcnQiLCJPUklHSU4gQlJPQURCQU5EIiw2LDg1MDAsMV0
+              - generic "Actions available for this post" [ref=e177]:
+                - generic [ref=e180]:
+                  - button "Upvote" [pressed] [ref=e181] [cursor=pointer]:
+                    - img [ref=e183]
+                    - generic [ref=e185]:
+                      - generic: Upvote
+                  - generic [ref=e187]: "61"
+                  - button "Downvote" [ref=e188] [cursor=pointer]:
+                    - img [ref=e190]
+                    - generic [ref=e192]:
+                      - generic: Downvote
+                - button "43 Go to comments" [ref=e193] [cursor=pointer]:
+                  - generic [ref=e194]:
+                    - img [ref=e196]
+                    - generic [ref=e199]: "43"
+                  - generic [ref=e200]:
+                    - generic: Go to comments
+                - button "Give award" [ref=e202] [cursor=pointer]:
+                  - img [ref=e205]
+                - button "Share" [ref=e210] [cursor=pointer]:
+                  - generic [ref=e211]:
+                    - img [ref=e213]
+                    - generic [ref=e215]: Share
+              - generic [ref=e217]:
+                - generic [ref=e218]:
+                  - img [ref=e219]
+                  - generic [ref=e222]: 36K views
+                - link "See More Insights" [ref=e223] [cursor=pointer]:
+                  - /url: /poststats/1rmltpq/
+            - generic [ref=e264]:
+              - generic:
+                - textbox [ref=e274]:
+                  - /placeholder: Join the conversation
+                - generic [ref=e280]:
+                  - generic [ref=e282]:
+                    - generic [ref=e283]: "Sort by:"
+                    - button "Sort by Best" [ref=e288] [cursor=pointer]:
+                      - generic [ref=e290]: Best
+                  - button "Search Comments Expand comment search" [ref=e297] [cursor=pointer]:
+                    - generic [ref=e298]:
+                      - img [ref=e301]
+                      - generic [ref=e304]: Search Comments
+                    - generic [ref=e305]:
+                      - generic: Expand comment search
+            - region "Comments" [ref=e309]:
+              - heading "Comments Section" [level=1] [ref=e310]
+              - generic:
+                - article "Comment from bastian320 17 days ago" [ref=e312]:
+                  - generic "Metadata for bastian320's comment" [ref=e313]:
+                    - link "bastian320's profile --- avatar" [ref=e319] [cursor=pointer]:
+                      - /url: /user/bastian320/
+                      - img [ref=e324]
+                    - generic [ref=e330]:
+                      - link "bastian320's profile" [ref=e334] [cursor=pointer]:
+                        - /url: /user/bastian320/
+                        - text: bastian320
+                      - generic [ref=e335]: •
+                      - link "17d ago" [ref=e336] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o91ykkb/
+                        - time [ref=e337]: 17d ago
+                  - generic [ref=e339]:
+                    - generic [ref=e344]:
+                      - paragraph [ref=e345]: Mate, cap the share ID as 25 characters? Even 20. At the moment it's comically long for no good reason. Domain is nice and short!
+                      - paragraph [ref=e346]: I'd have even taken the chance to use a dictionary based approach. Four words with hyphens? Could be good fun.
+                      - paragraph [ref=e347]: amibeingrorted.au/share?id=honest-milkshake-bungee-goblin
+                      - paragraph [ref=e348]: Suddenly it's a lesser seen little nicety rather than "did I copy all the garble properly?"
+                    - generic [ref=e356]:
+                      - generic [ref=e358]:
+                        - button "Upvote" [ref=e359] [cursor=pointer]:
+                          - img [ref=e361]
+                          - generic [ref=e363]:
+                            - generic: Upvote
+                        - generic [ref=e365]: "0"
+                        - button "Downvote" [ref=e366] [cursor=pointer]:
+                          - img [ref=e368]
+                          - generic [ref=e370]:
+                            - generic: Downvote
+                      - button "Reply" [ref=e372] [cursor=pointer]:
+                        - generic [ref=e373]:
+                          - img [ref=e375]
+                          - generic [ref=e377]: Reply
+                      - button "Open user actions" [ref=e381] [cursor=pointer]:
+                        - img [ref=e384]
+                - article "Comment from view_askew 17 days ago" [ref=e387]:
+                  - generic "Metadata for view_askew's comment" [ref=e388]:
+                    - link "view_askew's profile --- avatar" [ref=e394] [cursor=pointer]:
+                      - /url: /user/view_askew/
+                      - img [ref=e399]
+                    - generic [ref=e405]:
+                      - link "view_askew's profile" [ref=e409] [cursor=pointer]:
+                        - /url: /user/view_askew/
+                        - text: view_askew
+                      - generic [ref=e410]: •
+                      - link "17d ago" [ref=e411] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o90ebtd/
+                        - time [ref=e412]: 17d ago
+                  - generic [ref=e414]:
+                    - generic [ref=e422]:
+                      - paragraph [ref=e423]: Looking good though with price as the only metric can lead to people signing up to unreliable services which detects from the value proposition.
+                      - paragraph [ref=e424]: Have you stumbled upon a site that provides that kind of data in your travels? If so you could potentially incorporate that in to the next interation of your site.
+                    - generic [ref=e425]:
+                      - button "Toggle Comment Thread" [expanded] [ref=e427] [cursor=pointer]:
+                        - img [ref=e430]
+                      - generic [ref=e437]:
+                        - generic [ref=e439]:
+                          - button "Upvote" [pressed] [ref=e440] [cursor=pointer]:
+                            - img [ref=e442]
+                            - generic [ref=e444]:
+                              - generic: Upvote
+                          - generic [ref=e446]: "26"
+                          - button "Downvote" [ref=e447] [cursor=pointer]:
+                            - img [ref=e449]
+                            - generic [ref=e451]:
+                              - generic: Downvote
+                        - button "Reply" [ref=e453] [cursor=pointer]:
+                          - generic [ref=e454]:
+                            - img [ref=e456]
+                            - generic [ref=e458]: Reply
+                        - button "Open user actions" [ref=e462] [cursor=pointer]:
+                          - img [ref=e465]
+                    - generic [ref=e467]:
+                      - 'article "Comment thread level 1: Reply from LifelnTechnicolor 17 days ago" [ref=e469]':
+                        - generic "Metadata for LifelnTechnicolor's comment" [ref=e470]:
+                          - link "LifelnTechnicolor's profile --- avatar" [ref=e476] [cursor=pointer]:
+                            - /url: /user/LifelnTechnicolor/
+                            - img [ref=e481]
+                          - generic [ref=e487]:
+                            - link "LifelnTechnicolor's profile" [ref=e491] [cursor=pointer]:
+                              - /url: /user/LifelnTechnicolor/
+                              - text: LifelnTechnicolor
+                            - generic [ref=e492]: •
+                            - link "17d ago" [ref=e493] [cursor=pointer]:
+                              - /url: /r/nbn/comments/1rmltpq/comment/o93nxmb/
+                              - time [ref=e494]: 17d ago
+                        - generic [ref=e496]:
+                          - generic [ref=e504]:
+                            - paragraph [ref=e505]: Plan price vs bandwidth means nothing, service stability/reliability is everything. I would rather lose all those avocados, flat whites, litres of petrol etc. if it meant I didn't have to switch ISPs all the time. Keep in mind that every time you switch, you're potentially increasing your risks of having your personal details exposed in a data breach.
+                            - paragraph [ref=e506]: No matter what you're paying or what your typical evening speed is, if the connection is so shit that every other packet is getting dropped, you can't take advantage of it. Even more frustrating is whenever you call up the ISP and they keep saying "Looks good on our end" and you've tried everything under the sun.
+                            - paragraph [ref=e507]:
+                              - link "Here are some Smokeping network packet latency/loss graphs of my home network from the last four years showing" [ref=e508] [cursor=pointer]:
+                                - /url: https://imgur.com/a/JxAEIXU
+                              - text: ":"
+                            - list [ref=e509]:
+                              - listitem [ref=e510]:
+                                - paragraph [ref=e511]: TPG's inability to resolve intermittent dropout issues on my FTTP connection (I thought they had fixed it in mid-May '22, but they came back in July '22)
+                              - listitem [ref=e512]:
+                                - paragraph [ref=e513]: My switch to Aussie Broadband, who were about as hopeless as TPG was on the tech support side of things
+                              - listitem [ref=e514]:
+                                - paragraph [ref=e515]:
+                                  - text: Final switch to Telstra NBN in November '22 - to this day I haven't had to contact them
+                                  - strong [ref=e516]: even once
+                                  - text: about the connection (but did have to sort out a replacement TSM3 which is now the backup for a TSM2)
+                          - button "Toggle Comment Thread" [expanded] [ref=e519] [cursor=pointer]:
+                            - img [ref=e522]
+                          - 'article "Comment thread level 2: Reply from view_askew 17 days ago" [ref=e530]':
+                            - generic "Metadata for view_askew's comment" [ref=e531]:
+                              - link "view_askew's profile --- avatar" [ref=e537] [cursor=pointer]:
+                                - /url: /user/view_askew/
+                                - img [ref=e542]
+                              - generic [ref=e548]:
+                                - link "view_askew's profile" [ref=e552] [cursor=pointer]:
+                                  - /url: /user/view_askew/
+                                  - text: view_askew
+                                - generic [ref=e553]: •
+                                - link "17d ago" [ref=e554] [cursor=pointer]:
+                                  - /url: /r/nbn/comments/1rmltpq/comment/o93rq80/
+                                  - time [ref=e555]: 17d ago
+                            - generic [ref=e557]:
+                              - paragraph [ref=e566]: Weird telstra were bad when I've had them previously. Did you use the same router with each isp?
+                              - button "Toggle Comment Thread" [expanded] [ref=e569] [cursor=pointer]:
+                                - img [ref=e572]
+                              - 'article "Comment thread level 3: Reply from LifelnTechnicolor 17 days ago" [ref=e580]':
+                                - generic "Metadata for LifelnTechnicolor's comment" [ref=e581]:
+                                  - link "LifelnTechnicolor's profile --- avatar" [ref=e587] [cursor=pointer]:
+                                    - /url: /user/LifelnTechnicolor/
+                                    - img [ref=e592]
+                                  - generic [ref=e598]:
+                                    - link "LifelnTechnicolor's profile" [ref=e602] [cursor=pointer]:
+                                      - /url: /user/LifelnTechnicolor/
+                                      - text: LifelnTechnicolor
+                                    - generic [ref=e603]: •
+                                    - link "17d ago" [ref=e604] [cursor=pointer]:
+                                      - /url: /r/nbn/comments/1rmltpq/comment/o93ts8o/
+                                      - time [ref=e605]: 17d ago
+                                - generic [ref=e613]:
+                                  - paragraph [ref=e614]: With TPG I used the supplied TP-Link VR1600v for a while, then they sent out a VX420-G2h at some point. With ABB I used a TP-Link Omada ER605, and all this time also had an Apple AirPort Time Capsule (basically an AirPort Extreme with basic NAS functionality for Time Machine backups) and a D-Link DIR-826L as wireless APs to increase range (both were also used to troubleshoot the connection as it came in from the NTD).
+                                  - paragraph [ref=e615]: With Telstra I only ever used their Smart Modems - TSM3 initially which died and was replaced with a TSM2. The new TSM3 that they sent as a replacement is still in its box.
+                      - 'article "Comment thread level 1: Reply from srizzling 17 days ago" [ref=e623]':
+                        - generic "Metadata for srizzling's comment" [ref=e624]:
+                          - link "srizzling's profile --- avatar" [ref=e630] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - img [ref=e635]
+                          - generic [ref=e641]:
+                            - link "srizzling's profile" [ref=e645] [cursor=pointer]:
+                              - /url: /user/srizzling/
+                              - text: srizzling
+                            - generic "Comment distinguished as the original poster" [ref=e648]: OP
+                            - generic [ref=e649]: •
+                            - link "17d ago" [ref=e650] [cursor=pointer]:
+                              - /url: /r/nbn/comments/1rmltpq/comment/o90g7o6/
+                              - time [ref=e651]: 17d ago
+                        - generic [ref=e653]:
+                          - generic [ref=e662]:
+                            - paragraph [ref=e663]: So.. I was thinking about how I can do that. When I think of how I figure out if a service is good is generally looking at reddit.. so I was thinking if I can somehow do a sentiment analysis based on a provider?
+                            - paragraph [ref=e664]:
+                              - text: I saw this post which used product reviews and trust pilot as other signals..
+                              - link "https://www.reddit.com/r/nbn/s/79FRcU1Rwf" [ref=e665] [cursor=pointer]:
+                                - /url: https://www.reddit.com/r/nbn/s/79FRcU1Rwf
+                          - button "Toggle Comment Thread" [expanded] [ref=e668] [cursor=pointer]:
+                            - img [ref=e671]
+                          - 'article "Comment thread level 2: Reply from dzernumbrd 17 days ago" [ref=e679]':
+                            - generic "Metadata for dzernumbrd's comment" [ref=e680]:
+                              - link "dzernumbrd's profile --- avatar" [ref=e686] [cursor=pointer]:
+                                - /url: /user/dzernumbrd/
+                                - img [ref=e691]
+                              - generic [ref=e697]:
+                                - link "dzernumbrd's profile" [ref=e701] [cursor=pointer]:
+                                  - /url: /user/dzernumbrd/
+                                  - text: dzernumbrd
+                                - generic [ref=e702]: •
+                                - link "17d ago" [ref=e703] [cursor=pointer]:
+                                  - /url: /r/nbn/comments/1rmltpq/comment/o964mni/
+                                  - time [ref=e704]: 17d ago
+                                - generic [ref=e705]: •
+                                - generic [ref=e706]:
+                                  - text: Edited
+                                  - time [ref=e707]: 17d ago
+                            - generic [ref=e709]:
+                              - generic [ref=e717]:
+                                - paragraph [ref=e718]: LLM like Claude Batch API could do your sentiment analysis.
+                                - paragraph [ref=e719]: You could scrape google reviews, product review, whirlpool ISP threads, etc. with PlayWright or other tools.
+                                - paragraph [ref=e720]: LLM sentiment analysis on specific categories network performance, customer service, fault resolution, value, onboarding, billings, etc
+                                - paragraph [ref=e721]: A scoring engine to convert LLM sentiment score into 5-star ratings weighted by recency.
+                                - paragraph [ref=e722]: Just get Claude to recommend everything :)
+                              - button "Toggle Comment Thread" [expanded] [ref=e725] [cursor=pointer]:
+                                - img [ref=e728]
+                              - 'article "Comment thread level 3: Reply from srizzling 16 days ago" [ref=e736]':
+                                - generic "Metadata for srizzling's comment" [ref=e737]:
+                                  - link "srizzling's profile --- avatar" [ref=e743] [cursor=pointer]:
+                                    - /url: /user/srizzling/
+                                    - img [ref=e748]
+                                  - generic [ref=e754]:
+                                    - link "srizzling's profile" [ref=e758] [cursor=pointer]:
+                                      - /url: /user/srizzling/
+                                      - text: srizzling
+                                    - generic "Comment distinguished as the original poster" [ref=e761]: OP
+                                    - generic [ref=e762]: •
+                                    - link "16d ago" [ref=e763] [cursor=pointer]:
+                                      - /url: /r/nbn/comments/1rmltpq/comment/o98hz9h/
+                                      - time [ref=e764]: 16d ago
+                                - generic [ref=e773]:
+                                  - paragraph [ref=e774]: Yeah I have an LLM that’s already reading the cis pdfs.. I can scrape the rest and get the a rating system.
+                                  - paragraph [ref=e775]: The initial solution was just night with the newborn
+                - article "Comment from Cnboxer 17 days ago" [ref=e781]:
+                  - generic "Metadata for Cnboxer's comment" [ref=e782]:
+                    - link "Cnboxer's profile --- avatar" [ref=e788] [cursor=pointer]:
+                      - /url: /user/Cnboxer/
+                      - generic [ref=e790]:
+                        - img [ref=e792]
+                        - img [ref=e796]
+                        - img [ref=e799]
+                    - generic [ref=e805]:
+                      - link "Cnboxer's profile" [ref=e809] [cursor=pointer]:
+                        - /url: /user/Cnboxer/
+                        - text: Cnboxer
+                      - generic [ref=e810]: •
+                      - link "17d ago" [ref=e811] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o91kirb/
+                        - time [ref=e812]: 17d ago
+                  - generic [ref=e814]:
+                    - generic [ref=e822]:
+                      - paragraph [ref=e823]: Cost is not the main issue for me. How long do they take to answer the phone? Can I understand the rep on the other side? How technical are the support staff? Do they know anything about networking? What kind of gateways do they provide/support? Will they provide in person service to assess wifi placement, recommend suitable hardware, internal cabling, static IP etc.
+                      - paragraph [ref=e824]: A small increase in monthly service cost well outweighs terrible and inexperienced service. I can call the same tech who fixes issues within minutes on the first call everytime. That alone is better than 90% of providers selling internet only.
+                    - button "Toggle Comment Thread" [expanded] [ref=e827] [cursor=pointer]:
+                      - img [ref=e830]
+                    - 'article "Comment thread level 1: Reply from StasiaMonkey 17 days ago" [ref=e838]':
+                      - generic "Metadata for StasiaMonkey's comment" [ref=e839]:
+                        - link "StasiaMonkey's profile --- avatar" [ref=e845] [cursor=pointer]:
+                          - /url: /user/StasiaMonkey/
+                          - img "u/StasiaMonkey avatar" [ref=e848]
+                        - generic [ref=e853]:
+                          - link "StasiaMonkey's profile" [ref=e857] [cursor=pointer]:
+                            - /url: /user/StasiaMonkey/
+                            - text: StasiaMonkey
+                          - generic [ref=e858]: •
+                          - link "17d ago" [ref=e859] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o93cvce/
+                            - time [ref=e860]: 17d ago
+                      - paragraph [ref=e869]: Ah, it looks like you've also been with Tangerine.
+                - article "Comment from lawyerz88 17 days ago" [ref=e875]:
+                  - generic "Metadata for lawyerz88's comment" [ref=e876]:
+                    - link "lawyerz88's profile --- avatar" [ref=e882] [cursor=pointer]:
+                      - /url: /user/lawyerz88/
+                      - img [ref=e887]
+                    - generic [ref=e893]:
+                      - link "lawyerz88's profile" [ref=e897] [cursor=pointer]:
+                        - /url: /user/lawyerz88/
+                        - text: lawyerz88
+                      - generic [ref=e898]: •
+                      - link "17d ago" [ref=e899] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o90frlf/
+                        - time [ref=e900]: 17d ago
+                  - generic [ref=e902]:
+                    - paragraph [ref=e911]: The results page is kinda confusing for me, commitment period??
+                    - button "Toggle Comment Thread" [expanded] [ref=e914] [cursor=pointer]:
+                      - img [ref=e917]
+                    - 'article "Comment thread level 1: Reply from srizzling 17 days ago" [ref=e925]':
+                      - generic "Metadata for srizzling's comment" [ref=e926]:
+                        - link "srizzling's profile --- avatar" [ref=e932] [cursor=pointer]:
+                          - /url: /user/srizzling/
+                          - img [ref=e937]
+                        - generic [ref=e943]:
+                          - link "srizzling's profile" [ref=e947] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - text: srizzling
+                          - generic "Comment distinguished as the original poster" [ref=e950]: OP
+                          - generic [ref=e951]: •
+                          - link "17d ago" [ref=e952] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o90hjop/
+                            - time [ref=e953]: 17d ago
+                          - generic [ref=e954]: •
+                          - generic [ref=e955]:
+                            - text: Edited
+                            - time [ref=e956]: 17d ago
+                      - generic [ref=e965]:
+                        - paragraph [ref=e966]: Yeah fair point.
+                        - paragraph [ref=e967]: "The commitment period is basically trying to answer: is it worth sticking with a provider after the promo ends instead of churning?"
+                        - paragraph [ref=e968]: "Example (made up numbers):"
+                        - paragraph [ref=e969]: "Provider A: $80 for 6 months, then $100 ongoing Provider B: $90 ongoing"
+                        - paragraph [ref=e970]: Provider A is cheaper for the first 6 months, but once the promo ends it’s more expensive.
+                        - paragraph [ref=e971]: "Over 12 months the total cost is actually the same:"
+                        - paragraph [ref=e972]: Provider A 6 × $80 = $480 6 × $100 = $600 Total = $1080
+                        - paragraph [ref=e973]: Provider B 12 × $90 = $1080
+                        - paragraph [ref=e974]: So it ends up being the same over a year — the difference is just whether you’re happy to churn after the promo or prefer staying with one provider.
+                        - paragraph [ref=e975]: "So the question becomes: • churn after 6 months and keep chasing promos, or • just stay with something slightly more expensive but stable."
+                        - paragraph [ref=e976]: The commitment period is trying to show when those costs roughly balance out depending on how long you plan to stay..
+                        - paragraph [ref=e977]: Perhaps commitment period isn’t the right word.. I’ll try and figure out a way to say it
+                - article "Comment from ecolem 17 days ago" [ref=e983]:
+                  - generic "Metadata for ecolem's comment" [ref=e984]:
+                    - link "ecolem's profile --- avatar" [ref=e990] [cursor=pointer]:
+                      - /url: /user/ecolem/
+                      - img [ref=e995]
+                    - generic [ref=e1001]:
+                      - link "ecolem's profile" [ref=e1005] [cursor=pointer]:
+                        - /url: /user/ecolem/
+                        - text: ecolem
+                      - generic [ref=e1006]: •
+                      - link "17d ago" [ref=e1007] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o921ja8/
+                        - time [ref=e1008]: 17d ago
+                  - generic [ref=e1010]:
+                    - generic [ref=e1018]:
+                      - paragraph [ref=e1019]: "Some constructive feedback:"
+                      - paragraph [ref=e1020]: In theory a good idea for the majority of people who are not technically minded (a lot of people I talk to don't even know the plan they're on).
+                      - paragraph [ref=e1021]: I know I'm paying more for a 1000/50 because of the feature set (cgnat off, ip4 or 6 selections etc), ability to kick my own connection, decent support who are Australian based etc.
+                      - paragraph [ref=e1022]: My suggestion is to ask more probing questions then ask people to fill out a form.
+                      - paragraph [ref=e1023]: Is your Internet speed slow? Do you know what plan you're on? When was the last time you changed your router? Etc
+                      - paragraph [ref=e1024]: Once you unpack the layers you can go from there to figure out what speed they should have (ie. Getting bad speeds or terrible peak speeds) instead of just purely focus on the money aspect.
+                      - paragraph [ref=e1025]: Getting people to switch providers without basic checks first is not always the best thing to do. Cheaper on the same plan with another provider could end up being worse than sticking with the same provider or doing basic troubleshooting first.
+                    - button "Toggle Comment Thread" [expanded] [ref=e1028] [cursor=pointer]:
+                      - img [ref=e1031]
+                    - 'article "Comment thread level 1: Reply from Sample-Range-745 12 days ago" [ref=e1039]':
+                      - generic "Metadata for Sample-Range-745's comment" [ref=e1040]:
+                        - link "Sample-Range-745's profile --- avatar" [ref=e1046] [cursor=pointer]:
+                          - /url: /user/Sample-Range-745/
+                          - img [ref=e1051]
+                        - generic [ref=e1057]:
+                          - link "Sample-Range-745's profile" [ref=e1061] [cursor=pointer]:
+                            - /url: /user/Sample-Range-745/
+                            - text: Sample-Range-745
+                          - generic [ref=e1062]: •
+                          - link "12d ago" [ref=e1063] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o9x7llc/
+                            - time [ref=e1064]: 12d ago
+                      - generic [ref=e1072]:
+                        - paragraph [ref=e1073]: Yeah - but that's the whole problem - people don't know that shit....
+                        - paragraph [ref=e1074]: So you end up with others making sites like this that are totally useless recommendations...
+                        - paragraph [ref=e1075]: It says my plan is $40/mo under the 'average' for my speed tier, but recommended Carbon Comms (whoever they are) to save a whole $4.95/mo - meanwhile saying my current ISP is "taking the piss" lol
+                - article "Comment from Upstairs_Warning_799 17 days ago" [ref=e1081]:
+                  - generic "Metadata for Upstairs_Warning_799's comment" [ref=e1082]:
+                    - link "Upstairs_Warning_799's profile --- avatar" [ref=e1088] [cursor=pointer]:
+                      - /url: /user/Upstairs_Warning_799/
+                      - img [ref=e1093]
+                    - generic [ref=e1099]:
+                      - link "Upstairs_Warning_799's profile" [ref=e1103] [cursor=pointer]:
+                        - /url: /user/Upstairs_Warning_799/
+                        - text: Upstairs_Warning_799
+                      - generic [ref=e1104]: •
+                      - link "17d ago" [ref=e1105] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o91gwr7/
+                        - time [ref=e1106]: 17d ago
+                  - generic [ref=e1108]:
+                    - paragraph [ref=e1117]: That's pretty good. Bravo! Would be awesome if you could add things like Static IPs etc to help get the costing bang on.
+                    - button "Toggle Comment Thread" [expanded] [ref=e1120] [cursor=pointer]:
+                      - img [ref=e1123]
+                    - generic [ref=e1127]:
+                      - 'article "Comment thread level 1: Reply from srizzling 17 days ago" [ref=e1129]':
+                        - generic "Metadata for srizzling's comment" [ref=e1130]:
+                          - link "srizzling's profile --- avatar" [ref=e1136] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - img [ref=e1141]
+                          - generic [ref=e1147]:
+                            - link "srizzling's profile" [ref=e1151] [cursor=pointer]:
+                              - /url: /user/srizzling/
+                              - text: srizzling
+                            - generic "Comment distinguished as the original poster" [ref=e1154]: OP
+                            - generic [ref=e1155]: •
+                            - link "17d ago" [ref=e1156] [cursor=pointer]:
+                              - /url: /r/nbn/comments/1rmltpq/comment/o91hk41/
+                              - time [ref=e1157]: 17d ago
+                        - paragraph [ref=e1167]: Oo awesome idea!
+                      - 'article "Comment thread level 1: Reply from _whip_cracker_ 17 days ago" [ref=e1175]':
+                        - generic "Metadata for _whip_cracker_'s comment" [ref=e1176]:
+                          - link "_whip_cracker_'s profile --- avatar" [ref=e1182] [cursor=pointer]:
+                            - /url: /user/_whip_cracker_/
+                            - img [ref=e1187]
+                          - generic [ref=e1193]:
+                            - link "_whip_cracker_'s profile" [ref=e1197] [cursor=pointer]:
+                              - /url: /user/_whip_cracker_/
+                              - text: _whip_cracker_
+                            - generic [ref=e1198]: •
+                            - link "17d ago" [ref=e1199] [cursor=pointer]:
+                              - /url: /r/nbn/comments/1rmltpq/comment/o91vg5t/
+                              - time [ref=e1200]: 17d ago
+                        - paragraph [ref=e1209]: Yep, definitely needs something to include static ip, maybe if there's an option to confirm ipv6 wan available (unsure if all do that nowadays) then maybe see if there's an option that includes local onshore support, as there's many that won't choose an ISP based on that (usually offshore support is less quality support and many people can't get around the accents or language barrier etc)
+                - article "Comment from ozimarco 17 days ago" [ref=e1215]:
+                  - generic "Metadata for ozimarco's comment" [ref=e1216]:
+                    - link "ozimarco's profile --- avatar" [ref=e1222] [cursor=pointer]:
+                      - /url: /user/ozimarco/
+                      - img "u/ozimarco avatar" [ref=e1225]
+                    - generic [ref=e1229]:
+                      - generic [ref=e1230]:
+                        - link "ozimarco's profile" [ref=e1234] [cursor=pointer]:
+                          - /url: /user/ozimarco/
+                          - text: ozimarco
+                        - generic [ref=e1235]: •
+                        - link "17d ago" [ref=e1236] [cursor=pointer]:
+                          - /url: /r/nbn/comments/1rmltpq/comment/o92hg3r/
+                          - time [ref=e1237]: 17d ago
+                        - generic [ref=e1238]: •
+                        - generic [ref=e1239]:
+                          - text: Edited
+                          - time [ref=e1240]: 17d ago
+                      - generic [ref=e1243] [cursor=pointer]:
+                        - img "Profile Badge for the Achievement Top 1% Commenter" [ref=e1244]
+                        - text: Top 1% Commenter
+                  - generic [ref=e1245]:
+                    - paragraph [ref=e1254]: The cost of a plan is a secondary consideration for me. Before looking at prices, I make a shortlist of ISPs based on reputation, reliability, routing, features, customer support, and so on. Once I have weeded out the undesirable providers, I compare prices to determine which ISP offers the best value for money. I'm not interested in churning every six months, so I prefer to choose a good ISP and a plan I can comfortably afford. By the way, I'm with Neptune on their 500/50 $85 plan and very happy. According to your program, my ISP is taking the piss. I do not agree.
+                    - button "Toggle Comment Thread" [expanded] [ref=e1257] [cursor=pointer]:
+                      - img [ref=e1260]
+                    - 'article "Comment thread level 1: Reply from Ornery-Practice9772 17 days ago" [ref=e1268]':
+                      - generic "Metadata for Ornery-Practice9772's comment" [ref=e1269]:
+                        - link "Ornery-Practice9772's profile --- avatar" [ref=e1275] [cursor=pointer]:
+                          - /url: /user/Ornery-Practice9772/
+                          - generic [ref=e1277]:
+                            - img [ref=e1279]
+                            - img [ref=e1283]
+                            - img [ref=e1286]
+                        - generic [ref=e1292]:
+                          - link "Ornery-Practice9772's profile" [ref=e1296] [cursor=pointer]:
+                            - /url: /user/Ornery-Practice9772/
+                            - text: Ornery-Practice9772
+                          - generic [ref=e1297]: •
+                          - link "17d ago" [ref=e1298] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o934ab7/
+                            - time [ref=e1299]: 17d ago
+                      - paragraph [ref=e1308]: Cost of the plan is paramount to me now that almost every isp does unlimited data🤷‍♀️
+                - article "Comment from Positive_Trip_887 17 days ago" [ref=e1314]:
+                  - generic "Metadata for Positive_Trip_887's comment" [ref=e1315]:
+                    - link "Positive_Trip_887's profile --- avatar" [ref=e1321] [cursor=pointer]:
+                      - /url: /user/Positive_Trip_887/
+                      - img "u/Positive_Trip_887 avatar" [ref=e1324]
+                    - generic [ref=e1329]:
+                      - link "Positive_Trip_887's profile" [ref=e1333] [cursor=pointer]:
+                        - /url: /user/Positive_Trip_887/
+                        - text: Positive_Trip_887
+                      - generic [ref=e1334]: •
+                      - link "17d ago" [ref=e1335] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o91326z/
+                        - time [ref=e1336]: 17d ago
+                  - generic [ref=e1338]:
+                    - paragraph [ref=e1347]: Cool concept but bad name, go with positivity and you more people will be inclined to use it.
+                    - button "Toggle Comment Thread" [expanded] [ref=e1350] [cursor=pointer]:
+                      - img [ref=e1353]
+                    - 'article "Comment thread level 1: Reply from srizzling 17 days ago" [ref=e1361]':
+                      - generic "Metadata for srizzling's comment" [ref=e1362]:
+                        - link "srizzling's profile --- avatar" [ref=e1368] [cursor=pointer]:
+                          - /url: /user/srizzling/
+                          - img [ref=e1373]
+                        - generic [ref=e1379]:
+                          - link "srizzling's profile" [ref=e1383] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - text: srizzling
+                          - generic "Comment distinguished as the original poster" [ref=e1386]: OP
+                          - generic [ref=e1387]: •
+                          - link "17d ago" [ref=e1388] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o919d9o/
+                            - time [ref=e1389]: 17d ago
+                      - generic [ref=e1398]:
+                        - paragraph [ref=e1399]:
+                          - link "https://tenor.com/Wkic.gif" [ref=e1400] [cursor=pointer]:
+                            - /url: https://tenor.com/Wkic.gif
+                        - paragraph [ref=e1401]: I can create a mirror site of the data.. it will just be a copy change
+                - article "Comment from T4Abyss 17 days ago" [ref=e1407]:
+                  - generic "Metadata for T4Abyss's comment" [ref=e1408]:
+                    - link "T4Abyss's profile --- avatar" [ref=e1414] [cursor=pointer]:
+                      - /url: /user/T4Abyss/
+                      - generic [ref=e1416]:
+                        - img [ref=e1418]
+                        - img [ref=e1422]
+                        - img [ref=e1425]
+                    - generic [ref=e1431]:
+                      - link "T4Abyss's profile" [ref=e1435] [cursor=pointer]:
+                        - /url: /user/T4Abyss/
+                        - text: T4Abyss
+                      - generic [ref=e1436]: •
+                      - link "17d ago" [ref=e1437] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o913xs8/
+                        - time [ref=e1438]: 17d ago
+                  - generic [ref=e1440]:
+                    - generic [ref=e1448]:
+                      - paragraph [ref=e1449]: You are missing the plan 1000/100 Mbps
+                      - list [ref=e1450]:
+                        - listitem [ref=e1451]:
+                          - paragraph [ref=e1452]: NBN M2M - Ultrafast (Unlimited)
+                    - button "Toggle Comment Thread" [expanded] [ref=e1455] [cursor=pointer]:
+                      - img [ref=e1458]
+                    - generic [ref=e1462]:
+                      - 'article "Comment thread level 1: Reply from srizzling 17 days ago" [ref=e1464]':
+                        - generic "Metadata for srizzling's comment" [ref=e1465]:
+                          - link "srizzling's profile --- avatar" [ref=e1471] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - img [ref=e1476]
+                          - generic [ref=e1482]:
+                            - link "srizzling's profile" [ref=e1486] [cursor=pointer]:
+                              - /url: /user/srizzling/
+                              - text: srizzling
+                            - generic "Comment distinguished as the original poster" [ref=e1489]: OP
+                            - generic [ref=e1490]: •
+                            - link "17d ago" [ref=e1491] [cursor=pointer]:
+                              - /url: /r/nbn/comments/1rmltpq/comment/o918xwf/
+                              - time [ref=e1492]: 17d ago
+                        - paragraph [ref=e1502]: Noted. I’ll add it soon
+                      - 'article "Comment thread level 1: Reply from srizzling 17 days ago" [ref=e1508]':
+                        - generic "Metadata for srizzling's comment" [ref=e1509]:
+                          - link "srizzling's profile --- avatar" [ref=e1515] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - img [ref=e1520]
+                          - generic [ref=e1526]:
+                            - link "srizzling's profile" [ref=e1530] [cursor=pointer]:
+                              - /url: /user/srizzling/
+                              - text: srizzling
+                            - generic "Comment distinguished as the original poster" [ref=e1533]: OP
+                            - generic [ref=e1534]: •
+                            - link "17d ago" [ref=e1535] [cursor=pointer]:
+                              - /url: /r/nbn/comments/1rmltpq/comment/o919fvk/
+                              - time [ref=e1536]: 17d ago
+                        - paragraph [ref=e1546]: Noted. I’ll take a look
+                      - 'article "Comment thread level 1: Reply from Alternative_Basis480 17 days ago" [ref=e1554]':
+                        - generic "Metadata for Alternative_Basis480's comment" [ref=e1555]:
+                          - link "Alternative_Basis480's profile --- avatar" [ref=e1561] [cursor=pointer]:
+                            - /url: /user/Alternative_Basis480/
+                            - img "u/Alternative_Basis480 avatar" [ref=e1564]
+                          - generic [ref=e1569]:
+                            - link "Alternative_Basis480's profile" [ref=e1573] [cursor=pointer]:
+                              - /url: /user/Alternative_Basis480/
+                              - text: Alternative_Basis480
+                            - generic [ref=e1574]: •
+                            - link "17d ago" [ref=e1575] [cursor=pointer]:
+                              - /url: /r/nbn/comments/1rmltpq/comment/o91htl1/
+                              - time [ref=e1576]: 17d ago
+                        - paragraph [ref=e1585]: "+1"
+                - article "Comment from sho666 17 days ago" [ref=e1591]:
+                  - generic "Metadata for sho666's comment" [ref=e1592]:
+                    - link "sho666's profile --- avatar" [ref=e1598] [cursor=pointer]:
+                      - /url: /user/sho666/
+                      - img "u/sho666 avatar" [ref=e1601]
+                    - generic [ref=e1606]:
+                      - link "sho666's profile" [ref=e1610] [cursor=pointer]:
+                        - /url: /user/sho666/
+                        - text: sho666
+                      - generic [ref=e1611]: •
+                      - link "17d ago" [ref=e1612] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o92rit9/
+                        - time [ref=e1613]: 17d ago
+                  - generic [ref=e1621]:
+                    - paragraph [ref=e1622]: nice
+                    - paragraph [ref=e1623]:
+                      - link "but it should always come back \"yes, youre getting rorted\" cause we paid for the infastructure on the front end, then we pay these vampires on the back-end to acess the infastructure we paid for" [ref=e1624] [cursor=pointer]:
+                        - /url: https://www.youtube.com/watch?v=U06jlgpMtQs
+                    - paragraph [ref=e1625]: the whole thing should be free to every household at the max speed that connection can run at, and repairs etc should just be done out of tax, you know, like the infastructure was
+                    - paragraph [ref=e1626]: pointless rant over, cool site,
+                - article "Comment from Stralia1 17 days ago" [ref=e1632]:
+                  - generic "Metadata for Stralia1's comment" [ref=e1633]:
+                    - link "Stralia1's profile --- avatar" [ref=e1639] [cursor=pointer]:
+                      - /url: /user/Stralia1/
+                      - img "u/Stralia1 avatar" [ref=e1642]
+                    - generic [ref=e1647]:
+                      - link "Stralia1's profile" [ref=e1651] [cursor=pointer]:
+                        - /url: /user/Stralia1/
+                        - text: Stralia1
+                      - generic [ref=e1652]: •
+                      - link "17d ago" [ref=e1653] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o93mjmr/
+                        - time [ref=e1654]: 17d ago
+                  - paragraph [ref=e1663]: Price isn't the whole story though, all ISPs will have different quality networks and support
+                - article "Comment from Fujitsubo 17 days ago" [ref=e1669]:
+                  - generic "Metadata for Fujitsubo's comment" [ref=e1670]:
+                    - link "Fujitsubo's profile --- avatar" [ref=e1676] [cursor=pointer]:
+                      - /url: /user/Fujitsubo/
+                      - img "u/Fujitsubo avatar" [ref=e1679]
+                    - generic [ref=e1684]:
+                      - link "Fujitsubo's profile" [ref=e1688] [cursor=pointer]:
+                        - /url: /user/Fujitsubo/
+                        - text: Fujitsubo
+                      - generic [ref=e1689]: •
+                      - link "17d ago" [ref=e1690] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o93x5dc/
+                        - time [ref=e1691]: 17d ago
+                  - paragraph [ref=e1700]: Missing 2000/500 plans
+                - article "Comment from alexinthis 17 days ago" [ref=e1706]:
+                  - generic "Metadata for alexinthis's comment" [ref=e1707]:
+                    - link "alexinthis's profile --- avatar" [ref=e1713] [cursor=pointer]:
+                      - /url: /user/alexinthis/
+                      - generic [ref=e1715]:
+                        - img [ref=e1717]
+                        - img [ref=e1721]
+                        - img [ref=e1724]
+                    - generic [ref=e1730]:
+                      - link "alexinthis's profile" [ref=e1734] [cursor=pointer]:
+                        - /url: /user/alexinthis/
+                        - text: alexinthis
+                      - generic [ref=e1735]: •
+                      - link "17d ago" [ref=e1736] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o94cx9u/
+                        - time [ref=e1737]: 17d ago
+                  - paragraph [ref=e1746]: This isn't checking if your plan is over priced though, it's checking to see if your plan is the cheapest. There is a big difference.
+                - article "Comment from Unitedfateful 17 days ago" [ref=e1752]:
+                  - generic "Metadata for Unitedfateful's comment" [ref=e1753]:
+                    - link "Unitedfateful's profile --- avatar" [ref=e1759] [cursor=pointer]:
+                      - /url: /user/Unitedfateful/
+                      - generic [ref=e1761]:
+                        - img [ref=e1763]
+                        - img [ref=e1767]
+                        - img [ref=e1770]
+                    - generic [ref=e1776]:
+                      - link "Unitedfateful's profile" [ref=e1780] [cursor=pointer]:
+                        - /url: /user/Unitedfateful/
+                        - text: Unitedfateful
+                      - generic [ref=e1781]: •
+                      - link "17d ago" [ref=e1782] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o91n2np/
+                        - time [ref=e1783]: 17d ago
+                  - paragraph [ref=e1792]: Mate nice work. Awesome site
+                - article "Comment from 0shooter0 17 days ago" [ref=e1798]:
+                  - generic "Metadata for 0shooter0's comment" [ref=e1799]:
+                    - link "0shooter0's profile --- avatar" [ref=e1805] [cursor=pointer]:
+                      - /url: /user/0shooter0/
+                      - img "u/0shooter0 avatar" [ref=e1808]
+                    - generic [ref=e1813]:
+                      - link "0shooter0's profile" [ref=e1817] [cursor=pointer]:
+                        - /url: /user/0shooter0/
+                        - text: 0shooter0
+                      - generic [ref=e1818]: •
+                      - link "17d ago" [ref=e1819] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o91vq92/
+                        - time [ref=e1820]: 17d ago
+                  - paragraph [ref=e1829]: Don't have my nbn tier. 100/40. Yes it's an older one, but I like the higher upload speed.
+                - article "Comment from Twfx00 17 days ago" [ref=e1835]:
+                  - generic "Metadata for Twfx00's comment" [ref=e1836]:
+                    - link "Twfx00's profile --- avatar" [ref=e1842] [cursor=pointer]:
+                      - /url: /user/Twfx00/
+                      - generic [ref=e1844]:
+                        - img [ref=e1846]
+                        - img [ref=e1850]
+                        - img [ref=e1853]
+                    - generic [ref=e1858]:
+                      - generic [ref=e1859]:
+                        - link "Twfx00's profile" [ref=e1863] [cursor=pointer]:
+                          - /url: /user/Twfx00/
+                          - text: Twfx00
+                        - generic [ref=e1864]: •
+                        - link "17d ago" [ref=e1865] [cursor=pointer]:
+                          - /url: /r/nbn/comments/1rmltpq/comment/o927k07/
+                          - time [ref=e1866]: 17d ago
+                      - 'generic "Flair: 2000/200 isnt enough…" [ref=e1870]': 2000/200 isnt enough…
+                  - paragraph [ref=e1878]: This is great!
+                - article "Comment from nbtm_sh 17 days ago" [ref=e1884]:
+                  - generic "Metadata for nbtm_sh's comment" [ref=e1885]:
+                    - link "nbtm_sh's profile --- avatar" [ref=e1891] [cursor=pointer]:
+                      - /url: /user/nbtm_sh/
+                      - img "u/nbtm_sh avatar" [ref=e1894]
+                    - generic [ref=e1899]:
+                      - link "nbtm_sh's profile" [ref=e1903] [cursor=pointer]:
+                        - /url: /user/nbtm_sh/
+                        - text: nbtm_sh
+                      - generic [ref=e1904]: •
+                      - link "17d ago" [ref=e1905] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o92jzbk/
+                        - time [ref=e1906]: 17d ago
+                  - paragraph [ref=e1915]: It seems to be missing the 250/100 and 500/200 plans offered by some providers like Launtel.
+                - article "Comment from Ornery-Practice9772 17 days ago" [ref=e1921]:
+                  - generic "Metadata for Ornery-Practice9772's comment" [ref=e1922]:
+                    - link "Ornery-Practice9772's profile --- avatar" [ref=e1928] [cursor=pointer]:
+                      - /url: /user/Ornery-Practice9772/
+                      - generic [ref=e1930]:
+                        - img [ref=e1932]
+                        - img [ref=e1936]
+                        - img [ref=e1939]
+                    - generic [ref=e1945]:
+                      - link "Ornery-Practice9772's profile" [ref=e1949] [cursor=pointer]:
+                        - /url: /user/Ornery-Practice9772/
+                        - text: Ornery-Practice9772
+                      - generic [ref=e1950]: •
+                      - link "17d ago" [ref=e1951] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o93467p/
+                        - time [ref=e1952]: 17d ago
+                  - generic [ref=e1954]:
+                    - generic [ref=e1962]:
+                      - paragraph [ref=e1963]: It compares the fixed rate i have with promotional rates from other providers
+                      - paragraph [ref=e1964]: Not the same since mine wont go up after 6-12mo
+                      - paragraph [ref=e1965]: Eg xyz is cheapest until abc time then your current plan will be cheapest
+                    - button "Toggle Comment Thread" [expanded] [ref=e1968] [cursor=pointer]:
+                      - img [ref=e1971]
+                    - 'article "Comment thread level 1: Reply from srizzling 17 days ago" [ref=e1979]':
+                      - generic "Metadata for srizzling's comment" [ref=e1980]:
+                        - link "srizzling's profile --- avatar" [ref=e1986] [cursor=pointer]:
+                          - /url: /user/srizzling/
+                          - img [ref=e1991]
+                        - generic [ref=e1997]:
+                          - link "srizzling's profile" [ref=e2001] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - text: srizzling
+                          - generic "Comment distinguished as the original poster" [ref=e2004]: OP
+                          - generic [ref=e2005]: •
+                          - link "17d ago" [ref=e2006] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o936kk7/
+                            - time [ref=e2007]: 17d ago
+                      - paragraph [ref=e2017]: That’s a fair question! I’ll add that into the logic
+                - article "Comment from daven1985 17 days ago" [ref=e2023]:
+                  - generic "Metadata for daven1985's comment" [ref=e2024]:
+                    - link "daven1985's profile --- avatar" [ref=e2030] [cursor=pointer]:
+                      - /url: /user/daven1985/
+                      - img [ref=e2035]
+                    - generic [ref=e2041]:
+                      - link "daven1985's profile" [ref=e2045] [cursor=pointer]:
+                        - /url: /user/daven1985/
+                        - text: daven1985
+                      - generic [ref=e2046]: •
+                      - link "17d ago" [ref=e2047] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o93iqk7/
+                        - time [ref=e2048]: 17d ago
+                  - generic [ref=e2056]:
+                    - paragraph [ref=e2057]: Nice.
+                    - paragraph [ref=e2058]: Be good at add do you have a static IP.
+                - article "Comment from grillp 16 days ago" [ref=e2064]:
+                  - generic "Metadata for grillp's comment" [ref=e2065]:
+                    - link "grillp's profile --- avatar" [ref=e2071] [cursor=pointer]:
+                      - /url: /user/grillp/
+                      - img [ref=e2076]
+                    - generic [ref=e2082]:
+                      - link "grillp's profile" [ref=e2086] [cursor=pointer]:
+                        - /url: /user/grillp/
+                        - text: grillp
+                      - generic [ref=e2087]: •
+                      - link "16d ago" [ref=e2088] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o99bvlf/
+                        - time [ref=e2089]: 16d ago
+                  - paragraph [ref=e2098]: I’m on a 250/100 plan.. can’t select it..
+                - article "Comment from dubsys 15 days ago" [ref=e2104]:
+                  - generic "Metadata for dubsys's comment" [ref=e2105]:
+                    - link "dubsys's profile --- avatar" [ref=e2111] [cursor=pointer]:
+                      - /url: /user/dubsys/
+                      - img "u/dubsys avatar" [ref=e2114]
+                    - generic [ref=e2119]:
+                      - link "dubsys's profile" [ref=e2123] [cursor=pointer]:
+                        - /url: /user/dubsys/
+                        - text: dubsys
+                      - generic [ref=e2124]: •
+                      - link "15d ago" [ref=e2125] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o9fooun/
+                        - time [ref=e2126]: 15d ago
+                  - generic [ref=e2128]:
+                    - paragraph [ref=e2137]: Considering the only metric here is price it's absolutely useless for more than the layman, some people actually care about stability, and even international routing, and from all the ISP's i've checked through looking glass etc, launtel has the best international routing in the country so it's worth the slight premium.
+                    - button "Toggle Comment Thread" [expanded] [ref=e2140] [cursor=pointer]:
+                      - img [ref=e2143]
+                    - 'article "Comment thread level 1: Reply from srizzling 15 days ago" [ref=e2151]':
+                      - generic "Metadata for srizzling's comment" [ref=e2152]:
+                        - link "srizzling's profile --- avatar" [ref=e2158] [cursor=pointer]:
+                          - /url: /user/srizzling/
+                          - img [ref=e2163]
+                        - generic [ref=e2169]:
+                          - link "srizzling's profile" [ref=e2173] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - text: srizzling
+                          - generic "Comment distinguished as the original poster" [ref=e2176]: OP
+                          - generic [ref=e2177]: •
+                          - link "15d ago" [ref=e2178] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o9g4trw/
+                            - time [ref=e2179]: 15d ago
+                      - generic [ref=e2181]:
+                        - paragraph [ref=e2189]: I plan to add some more signals and metrics in a release soon. Like backbone peering and routing. As you can imagine the data isn’t readily available like a json or an api. MVP and all :)
+                        - generic [ref=e2376]:
+                          - generic [ref=e2378]:
+                            - button "Upvote" [pressed] [ref=e2379] [cursor=pointer]:
+                              - img [ref=e2381]
+                              - generic [ref=e2383]:
+                                - generic: Upvote
+                            - generic [ref=e2385]: "1"
+                            - button "Downvote" [ref=e2386] [cursor=pointer]:
+                              - img [ref=e2388]
+                              - generic [ref=e2390]:
+                                - generic: Downvote
+                          - button "Reply" [ref=e2392] [cursor=pointer]:
+                            - generic [ref=e2393]:
+                              - img [ref=e2395]
+                              - generic [ref=e2397]: Reply
+                          - button "Open user actions" [ref=e2401] [cursor=pointer]:
+                            - img [ref=e2404]
+                - article "Comment from spizzeo 14 days ago" [ref=e2195]:
+                  - generic "Metadata for spizzeo's comment" [ref=e2196]:
+                    - link "spizzeo's profile --- avatar" [ref=e2202] [cursor=pointer]:
+                      - /url: /user/spizzeo/
+                      - img "u/spizzeo avatar" [ref=e2205]
+                    - generic [ref=e2210]:
+                      - link "spizzeo's profile" [ref=e2214] [cursor=pointer]:
+                        - /url: /user/spizzeo/
+                        - text: spizzeo
+                      - generic [ref=e2215]: •
+                      - link "14d ago" [ref=e2216] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o9n1119/
+                        - time [ref=e2217]: 14d ago
+                  - generic [ref=e2219]:
+                    - paragraph [ref=e2228]: can you please add 100/40 and 1000/400 plans
+                    - generic [ref=e2229]:
+                      - button "Toggle Comment Thread" [expanded] [ref=e2231] [cursor=pointer]:
+                        - img [ref=e2234]
+                      - generic [ref=e2409]:
+                        - generic [ref=e2411]:
+                          - button "Upvote" [ref=e2412] [cursor=pointer]:
+                            - img [ref=e2414]
+                            - generic [ref=e2416]:
+                              - generic: Upvote
+                          - generic [ref=e2418]: "1"
+                          - button "Downvote" [ref=e2419] [cursor=pointer]:
+                            - img [ref=e2421]
+                            - generic [ref=e2423]:
+                              - generic: Downvote
+                        - button "Reply" [ref=e2425] [cursor=pointer]:
+                          - generic [ref=e2426]:
+                            - img [ref=e2428]
+                            - generic [ref=e2430]: Reply
+                        - button "Open user actions" [ref=e2434] [cursor=pointer]:
+                          - img [ref=e2437]
+                    - 'article "Comment thread level 1: Reply from srizzling 12 days ago" [ref=e2242]':
+                      - generic "Metadata for srizzling's comment" [ref=e2243]:
+                        - link "srizzling's profile --- avatar" [ref=e2249] [cursor=pointer]:
+                          - /url: /user/srizzling/
+                          - img [ref=e2254]
+                        - generic [ref=e2260]:
+                          - link "srizzling's profile" [ref=e2264] [cursor=pointer]:
+                            - /url: /user/srizzling/
+                            - text: srizzling
+                          - generic "Comment distinguished as the original poster" [ref=e2267]: OP
+                          - generic [ref=e2268]: •
+                          - link "12d ago" [ref=e2269] [cursor=pointer]:
+                            - /url: /r/nbn/comments/1rmltpq/comment/o9wxir2/
+                            - time [ref=e2270]: 12d ago
+                      - generic [ref=e2272]:
+                        - paragraph [ref=e2282]: Yeah sorry been drowning in work - and newborn baby stuff. I reckon I’ll have sometime over the weekend
+                        - generic [ref=e2283]:
+                          - button "Toggle Comment Thread" [expanded] [ref=e2285] [cursor=pointer]:
+                            - img [ref=e2288]
+                          - generic [ref=e2442]:
+                            - generic [ref=e2444]:
+                              - button "Upvote" [pressed] [ref=e2445] [cursor=pointer]:
+                                - img [ref=e2447]
+                                - generic [ref=e2449]:
+                                  - generic: Upvote
+                              - generic [ref=e2451]: "1"
+                              - button "Downvote" [ref=e2452] [cursor=pointer]:
+                                - img [ref=e2454]
+                                - generic [ref=e2456]:
+                                  - generic: Downvote
+                            - button "Reply" [ref=e2458] [cursor=pointer]:
+                              - generic [ref=e2459]:
+                                - img [ref=e2461]
+                                - generic [ref=e2463]: Reply
+                            - button "Open user actions" [ref=e2467] [cursor=pointer]:
+                              - img [ref=e2470]
+                        - 'article "Comment thread level 2: Reply from spizzeo 11 days ago" [ref=e2296]':
+                          - generic "Metadata for spizzeo's comment" [ref=e2297]:
+                            - link "spizzeo's profile --- avatar" [ref=e2303] [cursor=pointer]:
+                              - /url: /user/spizzeo/
+                              - img "u/spizzeo avatar" [ref=e2306]
+                            - generic [ref=e2311]:
+                              - link "spizzeo's profile" [ref=e2315] [cursor=pointer]:
+                                - /url: /user/spizzeo/
+                                - text: spizzeo
+                              - generic [ref=e2316]: •
+                              - link "11d ago" [ref=e2317] [cursor=pointer]:
+                                - /url: /r/nbn/comments/1rmltpq/comment/oa88y3x/
+                                - time [ref=e2318]: 11d ago
+                              - generic [ref=e2319]: •
+                              - generic [ref=e2320]:
+                                - text: Edited
+                                - time [ref=e2321]: 9d ago
+                          - generic [ref=e2323]:
+                            - generic [ref=e2329]:
+                              - paragraph [ref=e2330]: No problem and congrats on the newborn.
+                              - paragraph [ref=e2331]: Lastly if you can also add 1000/100 plans as well as the other 2 when you get a chance.
+                            - generic [ref=e2475]:
+                              - generic [ref=e2477]:
+                                - button "Upvote" [ref=e2478] [cursor=pointer]:
+                                  - img [ref=e2480]
+                                  - generic [ref=e2482]:
+                                    - generic: Upvote
+                                - generic [ref=e2484]: "1"
+                                - button "Downvote" [ref=e2485] [cursor=pointer]:
+                                  - img [ref=e2487]
+                                  - generic [ref=e2489]:
+                                    - generic: Downvote
+                              - button "Reply" [ref=e2491] [cursor=pointer]:
+                                - generic [ref=e2492]:
+                                  - img [ref=e2494]
+                                  - generic [ref=e2496]: Reply
+                              - button "Open user actions" [ref=e2500] [cursor=pointer]:
+                                - img [ref=e2503]
+                - article "Comment from Top-Height4256 13 days ago" [ref=e2337]:
+                  - generic "Metadata for Top-Height4256's comment" [ref=e2338]:
+                    - link "Top-Height4256's profile --- avatar" [ref=e2344] [cursor=pointer]:
+                      - /url: /user/Top-Height4256/
+                      - img "u/Top-Height4256 avatar" [ref=e2347]
+                    - generic [ref=e2352]:
+                      - link "Top-Height4256's profile" [ref=e2356] [cursor=pointer]:
+                        - /url: /user/Top-Height4256/
+                        - text: Top-Height4256
+                      - generic [ref=e2357]: •
+                      - link "13d ago" [ref=e2358] [cursor=pointer]:
+                        - /url: /r/nbn/comments/1rmltpq/comment/o9u8vps/
+                        - time [ref=e2359]: 13d ago
+                  - generic [ref=e2361]:
+                    - paragraph [ref=e2368]: How about Opticom?
+                    - generic [ref=e2508]:
+                      - generic [ref=e2510]:
+                        - button "Upvote" [ref=e2511] [cursor=pointer]:
+                          - img [ref=e2513]
+                          - generic [ref=e2515]:
+                            - generic: Upvote
+                        - generic [ref=e2517]: "1"
+                        - button "Downvote" [ref=e2518] [cursor=pointer]:
+                          - img [ref=e2520]
+                          - generic [ref=e2522]:
+                            - generic: Downvote
+                      - button "Reply" [ref=e2524] [cursor=pointer]:
+                        - generic [ref=e2525]:
+                          - img [ref=e2527]
+                          - generic [ref=e2529]: Reply
+                      - button "Open user actions" [ref=e2533] [cursor=pointer]:
+                        - img [ref=e2536]
+          - generic [ref=e243]:
+            - link "Reddit Rules" [ref=e246] [cursor=pointer]:
+              - /url: https://www.redditinc.com/policies/content-policy
+            - link "Privacy Policy" [ref=e249] [cursor=pointer]:
+              - /url: https://www.reddit.com/policies/privacy-policy
+            - link "User Agreement" [ref=e252] [cursor=pointer]:
+              - /url: https://www.redditinc.com/policies/user-agreement
+            - link "Accessibility" [ref=e255] [cursor=pointer]:
+              - /url: https://support.reddithelp.com/hc/sections/38303584022676-Accessibility
+            - link "OSA Information" [ref=e258] [cursor=pointer]:
+              - /url: https://support.reddithelp.com/hc/articles/21856155897492-Information-for-Australian-users
+            - link "Reddit, Inc. © 2026. All rights reserved." [ref=e260] [cursor=pointer]:
+              - /url: https://redditinc.com
