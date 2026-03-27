@@ -231,25 +231,36 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
           </p>
         )}
 
-        {/* Promo warning */}
-        {isOnPromo && (
-          <div class="mt-4 bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-left">
-            <div class="text-accent font-medium">
-              Promo ending in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}
-            </div>
-            <div class="text-neutral-400 mt-1">
-              You're paying <span class="text-white">${currentPrice.toFixed(2)}/mo</span> now, but it jumps to{' '}
-              <span class="text-white">${userFullPrice.toFixed(2)}/mo</span> after.
-              {userFullPrice > baseline && (
-                <span class="block mt-1">
-                  At full price, you'd be paying{' '}
-                  <span class="text-cooked-red font-medium">${(userFullPrice - baseline).toFixed(2)}/mo more</span> than the cheapest available plan.
-                  Time to churn?
+        {/* Promo warning + post-promo rort rating */}
+        {isOnPromo && (() => {
+          const postPromoResult = calculateCooked(userFullPrice, baseline);
+          const postPromoLevel = LEVELS.find(l => l.level === postPromoResult.level);
+          return (
+            <div class="mt-4 bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-left">
+              <div class="text-accent font-medium">
+                Promo ending in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}
+              </div>
+              <div class="text-neutral-400 mt-1">
+                You're paying <span class="text-white">${currentPrice.toFixed(2)}/mo</span> now, but it jumps to{' '}
+                <span class="text-white">${userFullPrice.toFixed(2)}/mo</span> after.
+              </div>
+              <div class="mt-2 flex items-center gap-2">
+                <span class="text-xs text-neutral-500">After promo:</span>
+                <span
+                  class="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: postPromoLevel?.color + '20', color: postPromoLevel?.color }}
+                >
+                  {postPromoResult.label}
                 </span>
-              )}
+                {postPromoResult.monthlySavings > 0 && (
+                  <span class="text-xs text-neutral-400">
+                    — ${postPromoResult.monthlySavings.toFixed(2)}/mo more than cheapest. Time to churn?
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Promo expired warning */}
         {userFullPrice && userPromoLeft === 0 && (
