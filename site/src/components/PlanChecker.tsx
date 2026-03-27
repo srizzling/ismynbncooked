@@ -274,10 +274,10 @@ export default function PlanChecker({ manifest }: Props) {
           </div>
         </div>
 
-        {/* Price + Provider + State */}
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">Monthly price</label>
+        {/* Price + Provider + State — inline rows */}
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-xs text-neutral-500 w-16 shrink-0">Price</span>
             <input
               type="number"
               step="0.01"
@@ -286,51 +286,49 @@ export default function PlanChecker({ manifest }: Props) {
               value={price}
               onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
               required
-              class={inputClass}
+              class="w-28 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
             />
+            <span class="text-xs text-neutral-500">/mo</span>
           </div>
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">Provider (optional)</label>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-xs text-neutral-500 w-16 shrink-0">Provider</span>
             <input
               type="text"
               placeholder="e.g. Telstra"
               value={provider}
               onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
-              class={inputClass}
+              class="w-40 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
             />
-          </div>
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">Your state</label>
+            <span class="text-xs text-neutral-500 ml-2">State</span>
             <select
               value={state}
               onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
-              class={selectClass}
+              class="w-20 bg-surface border border-surface-border rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent appearance-none"
             >
               {AU_STATES.map((s) => (
                 <option key={s} value={s}>{STATE_LABELS[s]}</option>
               ))}
             </select>
           </div>
-        </div>
-
-        {/* Promo toggle */}
-        <div>
-          <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={onPromo}
-              onChange={() => setOnPromo(!onPromo)}
-              class="accent-accent"
-            />
-            I'm on a promo/introductory rate
-          </label>
+          <div class="flex items-center gap-1.5">
+            <span class="w-16 shrink-0" />
+            <label class="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={onPromo}
+                onChange={() => setOnPromo(!onPromo)}
+                class="accent-accent"
+              />
+              I'm on a promo/introductory rate
+            </label>
+          </div>
         </div>
 
         {/* Promo details */}
         {onPromo && (
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4 border-l-2 border-accent/30">
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Price after promo ends</label>
+          <div class="space-y-2 ml-16 pl-3 border-l-2 border-accent/30">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-xs text-neutral-500 w-20 shrink-0">After promo</span>
               <input
                 type="number"
                 step="0.01"
@@ -338,11 +336,10 @@ export default function PlanChecker({ manifest }: Props) {
                 placeholder="$99.00"
                 value={fullPrice}
                 onInput={(e) => setFullPrice((e.target as HTMLInputElement).value)}
-                class={inputClass}
+                class="w-28 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
               />
-            </div>
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Months left on promo</label>
+              <span class="text-xs text-neutral-500">/mo</span>
+              <span class="text-xs text-neutral-500 ml-2">Months left</span>
               <input
                 type="number"
                 step="1"
@@ -351,14 +348,12 @@ export default function PlanChecker({ manifest }: Props) {
                 placeholder="e.g. 4"
                 value={promoMonthsLeft}
                 onInput={(e) => setPromoMonthsLeft((e.target as HTMLInputElement).value)}
-                class={inputClass}
+                class="w-16 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
               />
             </div>
             {fullPrice && promoMonthsLeft && price && (
-              <div class="sm:col-span-2 text-sm text-neutral-400 bg-surface border border-surface-border rounded-lg p-3">
-                Paying <span class="text-white font-medium">${parseFloat(price).toFixed(2)}/mo</span> for{' '}
-                <span class="text-white font-medium">{promoMonthsLeft} more months</span>, then{' '}
-                <span class="text-white font-medium">${parseFloat(fullPrice).toFixed(2)}/mo</span> ongoing.
+              <div class="text-xs text-neutral-400">
+                ${parseFloat(price).toFixed(2)}/mo × {promoMonthsLeft}mo, then ${parseFloat(fullPrice).toFixed(2)}/mo
                 {(() => {
                   const promoLeft = parseInt(promoMonthsLeft) || 0;
                   const promoP = parseFloat(price) || 0;
@@ -368,11 +363,7 @@ export default function PlanChecker({ manifest }: Props) {
                       ? promoLeft * promoP + (12 - promoLeft) * fullP
                       : 12 * promoP;
                     const effective12 = totalCost12 / 12;
-                    return (
-                      <span class="block mt-1">
-                        Your effective monthly over 12 months: <span class="text-accent font-medium">${effective12.toFixed(2)}/mo</span>
-                      </span>
-                    );
+                    return <> — effective <span class="text-accent font-medium">${effective12.toFixed(2)}/mo</span> over 1yr</>;
                   }
                   return null;
                 })()}
