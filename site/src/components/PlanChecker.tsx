@@ -184,7 +184,7 @@ export default function PlanChecker({ manifest }: Props) {
     }`;
 
   return (
-    <div class="bg-surface-raised border border-surface-border rounded-2xl p-5 sm:p-6 max-w-3xl">
+    <div class="bg-surface-raised border border-surface-border rounded-2xl p-5 sm:p-6">
       <form onSubmit={handleSubmit}
       >
       <div class="flex items-start justify-between mb-4">
