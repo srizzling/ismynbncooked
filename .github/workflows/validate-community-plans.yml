@@ -1,0 +1,100 @@
+name: Validate Community Plan Sources
+
+on:
+  pull_request:
+    paths:
+      - 'workers/price-sync/community-sources.json'
+
+jobs:
+  validate:
+    name: Scrape & Extract Plan Data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get new sources
+        id: diff
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          BASE_FILE=$(git show origin/${{ github.base_ref }}:workers/price-sync/community-sources.json 2>/dev/null || echo '[]')
+          HEAD_FILE=$(cat workers/price-sync/community-sources.json)
+
+          node -e "
+            const base = JSON.parse(process.argv[1]);
+            const head = JSON.parse(process.argv[2]);
+            const baseUrls = new Set(base.map(s => s.url));
+            const newSources = head.filter(s => !baseUrls.has(s.url));
+            require('fs').writeFileSync('/tmp/new-sources.json', JSON.stringify(newSources));
+            console.log('count=' + newSources.length);
+          " "$BASE_FILE" "$HEAD_FILE" >> $GITHUB_OUTPUT
+
+      - name: Test scrape via worker API
+        if: steps.diff.outputs.count != '0'
+        env:
+          WORKER_URL: ${{ secrets.PRICE_SYNC_WORKER_URL }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const sources = JSON.parse(fs.readFileSync('/tmp/new-sources.json', 'utf8'));
+
+            async function testSource(source) {
+              console.log('Testing:', source.provider, source.url);
+              const res = await fetch(process.env.WORKER_URL + '/scrape-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(source),
+              });
+              return res.json();
+            }
+
+            async function main() {
+              const results = [];
+              for (const source of sources) {
+                try {
+                  results.push(await testSource(source));
+                } catch (e) {
+                  results.push({ ok: false, source, error: e.message });
+                }
+              }
+
+              // Build markdown summary
+              let md = '## Plan Scrape Validation\n\n';
+              for (const r of results) {
+                const name = r.source?.provider || 'Unknown';
+                md += '### ' + name + '\n\n';
+                if (!r.ok) {
+                  md += '> Error: ' + r.error + '\n\n';
+                  continue;
+                }
+                if (r.plansFound === 0) {
+                  md += '> No matching plans found at this URL.\n\n';
+                  continue;
+                }
+                md += '| Plan | Price | Promo | Speed | Setup |\n';
+                md += '|------|-------|-------|-------|-------|\n';
+                for (const p of r.plans) {
+                  const promo = p.promoValue ? '-\$' + p.promoValue + '/mo × ' + (p.promoDuration || '?') + 'mo' : '-';
+                  md += '| ' + p.planName + ' | \$' + p.monthlyPrice + '/mo | ' + promo + ' | ' + p.downloadSpeed + '/' + p.uploadSpeed + ' | \$' + p.setupFee + ' |\n';
+                }
+                md += '\n**' + r.plansFound + ' plan(s) extracted successfully.**\n\n';
+              }
+              fs.writeFileSync('/tmp/scrape-summary.md', md);
+              console.log(md);
+            }
+
+            main().catch(e => { console.error(e); process.exit(1); });
+          "
+
+      - name: Comment on PR
+        if: steps.diff.outputs.count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('/tmp/scrape-summary.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: summary,
+            });
