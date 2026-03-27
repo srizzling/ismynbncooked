@@ -7,6 +7,7 @@ interface TierCardData {
   label: string;
   speedDesc: string;
   downloadSpeed: number;
+  uploadSpeed: number;
   network: string;
   cheapest: number;
   cheapestEffective?: number;
@@ -23,6 +24,7 @@ function buildGroupedCards(groups: GroupedTier[]): TierCardData[] {
       ? `${g.downloadSpeed} Mbps down · ${g.tiers.length} upload options`
       : `${g.downloadSpeed}/${g.tiers[0]?.uploadSpeed ?? 0} Mbps`,
     downloadSpeed: g.downloadSpeed,
+    uploadSpeed: 0,
     network: g.network,
     cheapest: g.cheapest ?? 0,
     cheapestEffective: g.cheapestEffective,
@@ -40,6 +42,7 @@ function buildUngroupedCards(tiers: TierInfo[]): TierCardData[] {
       label: t.label,
       speedDesc: `${t.downloadSpeed}/${t.uploadSpeed} Mbps`,
       downloadSpeed: t.downloadSpeed,
+      uploadSpeed: t.uploadSpeed,
       network: t.network,
       cheapest: t.cheapest ?? 0,
       cheapestEffective: t.cheapestEffective,
@@ -114,7 +117,8 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
   const [grouped, setGrouped] = useState(() => getGroupTiers());
   const [showNbn, setShowNbn] = useState(true);
   const [showOpticomm, setShowOpticomm] = useState(true);
-  const [hiddenSpeeds, setHiddenSpeeds] = useState<Set<number>>(new Set());
+  const [hiddenDownloads, setHiddenDownloads] = useState<Set<number>>(new Set());
+  const [hiddenUploads, setHiddenUploads] = useState<Set<number>>(new Set());
 
   function toggleGroup() {
     const next = !grouped;
@@ -122,8 +126,17 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
     saveGroupTiers(next);
   }
 
-  function toggleSpeed(speed: number) {
-    setHiddenSpeeds(prev => {
+  function toggleDownload(speed: number) {
+    setHiddenDownloads(prev => {
+      const next = new Set(prev);
+      if (next.has(speed)) next.delete(speed);
+      else next.add(speed);
+      return next;
+    });
+  }
+
+  function toggleUpload(speed: number) {
+    setHiddenUploads(prev => {
       const next = new Set(prev);
       if (next.has(speed)) next.delete(speed);
       else next.add(speed);
@@ -134,7 +147,7 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
   const nbnCards = grouped ? buildGroupedCards(nbnGrouped) : buildUngroupedCards(nbnTiers);
   const opticommCards = grouped ? buildGroupedCards(opticommGrouped) : buildUngroupedCards(opticommTiers);
 
-  const allSpeeds = useMemo(() => {
+  const allDownloads = useMemo(() => {
     const speeds = new Set<number>();
     nbnGrouped.forEach(g => speeds.add(g.downloadSpeed));
     opticommGrouped.forEach(g => speeds.add(g.downloadSpeed));
@@ -143,32 +156,34 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
     return [...speeds].sort((a, b) => a - b);
   }, [nbnGrouped, opticommGrouped, nbnTiers, opticommTiers]);
 
-  const filteredNbn = nbnCards.filter(c => !hiddenSpeeds.has(c.downloadSpeed));
-  const filteredOpticomm = opticommCards.filter(c => !hiddenSpeeds.has(c.downloadSpeed));
+  const allUploads = useMemo(() => {
+    const speeds = new Set<number>();
+    nbnTiers.forEach(t => speeds.add(t.uploadSpeed));
+    opticommTiers.forEach(t => speeds.add(t.uploadSpeed));
+    return [...speeds].sort((a, b) => a - b);
+  }, [nbnTiers, opticommTiers]);
+
+  const filteredNbn = nbnCards.filter(c =>
+    !hiddenDownloads.has(c.downloadSpeed) &&
+    (grouped || !hiddenUploads.has(c.uploadSpeed))
+  );
+  const filteredOpticomm = opticommCards.filter(c =>
+    !hiddenDownloads.has(c.downloadSpeed) &&
+    (grouped || !hiddenUploads.has(c.uploadSpeed))
+  );
 
   const hasOpticomm = opticommCards.length > 0;
 
   return (
     <>
       {/* Filters */}
-      <div class="mb-6 space-y-3">
+      <div class="mb-6 space-y-2">
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-xs text-neutral-500 mr-1">Network:</span>
           <button onClick={() => setShowNbn(!showNbn)} class={pillClass(showNbn)}>NBN</button>
           {hasOpticomm && (
             <button onClick={() => setShowOpticomm(!showOpticomm)} class={pillClass(showOpticomm)}>Opticomm</button>
           )}
-          <span class="text-neutral-700 mx-1">|</span>
-          <span class="text-xs text-neutral-500 mr-1">Speed:</span>
-          {allSpeeds.map(speed => (
-            <button
-              key={speed}
-              onClick={() => toggleSpeed(speed)}
-              class={pillClass(!hiddenSpeeds.has(speed))}
-            >
-              {speed}
-            </button>
-          ))}
           <span class="text-neutral-700 mx-1">|</span>
           <button
             onClick={toggleGroup}
@@ -178,6 +193,32 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
             {grouped ? 'Grouped' : 'Group uploads'}
           </button>
         </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-neutral-500 mr-1">Download:</span>
+          {allDownloads.map(speed => (
+            <button
+              key={speed}
+              onClick={() => toggleDownload(speed)}
+              class={pillClass(!hiddenDownloads.has(speed))}
+            >
+              {speed}
+            </button>
+          ))}
+        </div>
+        {!grouped && allUploads.length > 1 && (
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-neutral-500 mr-1">Upload:</span>
+            {allUploads.map(speed => (
+              <button
+                key={speed}
+                onClick={() => toggleUpload(speed)}
+                class={pillClass(!hiddenUploads.has(speed))}
+              >
+                {speed}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* NBN tiers */}
