@@ -241,7 +241,7 @@ export default function PlanChecker({ manifest }: Props) {
                   All
                 </button>
               )}
-              {uploads.map(u => (
+              {!allSelected && uploads.map(u => (
                 <button
                   key={u}
                   type="button"
