@@ -195,46 +195,39 @@ export default function PlanChecker({ manifest }: Props) {
       </p>
 
       <form onSubmit={handleSubmit} class="space-y-3">
-        {/* Speed tier — compact pill rows */}
-        <div class="space-y-2">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span class="text-xs text-neutral-500 w-16 shrink-0">Network</span>
-            {networks.map(n => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => toggleNetwork(n)}
-                class={pillClass(selectedNetworks.has(n))}
-              >
-                {n === 'nbn' ? 'NBN' : 'Opticomm'}
-              </button>
-            ))}
-          </div>
-
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span class="text-xs text-neutral-500 w-16 shrink-0">Download</span>
+        {/* Speed tier — single flowing row */}
+        <div class="flex flex-wrap items-center gap-1.5">
+          {networks.map(n => (
             <button
+              key={n}
               type="button"
-              onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
-              class={pillClass(allDownloadsSelected)}
+              onClick={() => toggleNetwork(n)}
+              class={pillClass(selectedNetworks.has(n))}
             >
-              All
+              {n === 'nbn' ? 'NBN' : 'Opticomm'}
             </button>
-            {!allDownloadsSelected && downloads.map(d => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setDownloadSpeed(d)}
-                class={pillClass(downloadSpeed === d)}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
-
+          ))}
+          <span class="text-neutral-700">|</span>
+          <button
+            type="button"
+            onClick={() => setDownloadSpeed(downloadSpeed === 'all' ? (downloads[0] ?? 100) : 'all')}
+            class={pillClass(allDownloadsSelected)}
+          >
+            All
+          </button>
+          {!allDownloadsSelected && downloads.map(d => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDownloadSpeed(d)}
+              class={pillClass(downloadSpeed === d)}
+            >
+              {d}
+            </button>
+          ))}
           {!allDownloadsSelected && uploads.length > 0 && (
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span class="text-xs text-neutral-500 w-16 shrink-0">Upload</span>
+            <>
+              <span class="text-neutral-700">/</span>
               {hasMultipleUploads && (
                 <button
                   type="button"
@@ -254,127 +247,90 @@ export default function PlanChecker({ manifest }: Props) {
                   {u}
                 </button>
               ))}
-            </div>
+            </>
           )}
+        </div>
 
-          <div class="text-xs text-neutral-500">
-            <span class="text-white font-medium">
-              {allNetworksSelected ? 'NBN + Opticomm' : network === 'nbn' ? 'NBN' : 'Opticomm'}
-              {allDownloadsSelected
-                ? <span class="text-neutral-400"> — all speeds</span>
-                : <>
-                    {' '}{downloadSpeed}
-                    {allUploadsSelected
-                      ? <span class="text-neutral-400"> (all uploads)</span>
-                      : `/${[...selectedUploads].sort((a, b) => a - b).join(', ')}`
-                    } Mbps
-                  </>
+        {/* Price + Provider + State + Promo — single row */}
+        <div class="flex flex-wrap items-center gap-2">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="$/mo"
+            value={price}
+            onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
+            required
+            class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+          />
+          <input
+            type="text"
+            placeholder="Provider"
+            value={provider}
+            onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
+            class="w-32 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+          />
+          <select
+            value={state}
+            onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
+            class="w-20 bg-surface border border-surface-border rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent appearance-none"
+          >
+            {AU_STATES.map((s) => (
+              <option key={s} value={s}>{STATE_LABELS[s]}</option>
+            ))}
+          </select>
+          <span class="text-neutral-700">|</span>
+          <span class="text-xs text-neutral-500">Promo?</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="After $/mo"
+            value={fullPrice}
+            onInput={(e) => {
+              setFullPrice((e.target as HTMLInputElement).value);
+              if ((e.target as HTMLInputElement).value) setOnPromo(true);
+            }}
+            class="w-24 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+          />
+          <input
+            type="number"
+            step="1"
+            min="0"
+            max="36"
+            placeholder="Mo left"
+            value={promoMonthsLeft}
+            onInput={(e) => {
+              setPromoMonthsLeft((e.target as HTMLInputElement).value);
+              if ((e.target as HTMLInputElement).value) setOnPromo(true);
+            }}
+            class="w-20 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+          />
+        </div>
+
+        {/* Promo summary */}
+        {onPromo && fullPrice && promoMonthsLeft && price && (
+          <div class="text-xs text-neutral-400">
+            ${parseFloat(price).toFixed(2)}/mo × {promoMonthsLeft}mo, then ${parseFloat(fullPrice).toFixed(2)}/mo
+            {(() => {
+              const promoLeft = parseInt(promoMonthsLeft) || 0;
+              const promoP = parseFloat(price) || 0;
+              const fullP = parseFloat(fullPrice) || 0;
+              if (promoLeft > 0 && promoP > 0 && fullP > 0) {
+                const totalCost12 = promoLeft <= 12
+                  ? promoLeft * promoP + (12 - promoLeft) * fullP
+                  : 12 * promoP;
+                const effective12 = totalCost12 / 12;
+                return <> — effective <span class="text-accent font-medium">${effective12.toFixed(2)}/mo</span> over 1yr</>;
               }
-            </span>
-          </div>
-        </div>
-
-        {/* Price + Provider + State — inline rows */}
-        <div class="space-y-2">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span class="text-xs text-neutral-500 w-16 shrink-0">Price</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="$89.00"
-              value={price}
-              onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
-              required
-              class="w-28 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-            />
-            <span class="text-xs text-neutral-500">/mo</span>
-          </div>
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span class="text-xs text-neutral-500 w-16 shrink-0">Provider</span>
-            <input
-              type="text"
-              placeholder="e.g. Telstra"
-              value={provider}
-              onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
-              class="w-40 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-            />
-            <span class="text-xs text-neutral-500 ml-2">State</span>
-            <select
-              value={state}
-              onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
-              class="w-20 bg-surface border border-surface-border rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent appearance-none"
-            >
-              {AU_STATES.map((s) => (
-                <option key={s} value={s}>{STATE_LABELS[s]}</option>
-              ))}
-            </select>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <span class="w-16 shrink-0" />
-            <label class="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={onPromo}
-                onChange={() => setOnPromo(!onPromo)}
-                class="accent-accent"
-              />
-              I'm on a promo/introductory rate
-            </label>
-          </div>
-        </div>
-
-        {/* Promo details */}
-        {onPromo && (
-          <div class="space-y-2 ml-16 pl-3 border-l-2 border-accent/30">
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span class="text-xs text-neutral-500 w-20 shrink-0">After promo</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="$99.00"
-                value={fullPrice}
-                onInput={(e) => setFullPrice((e.target as HTMLInputElement).value)}
-                class="w-28 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-              />
-              <span class="text-xs text-neutral-500">/mo</span>
-              <span class="text-xs text-neutral-500 ml-2">Months left</span>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                max="36"
-                placeholder="e.g. 4"
-                value={promoMonthsLeft}
-                onInput={(e) => setPromoMonthsLeft((e.target as HTMLInputElement).value)}
-                class="w-16 bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
-              />
-            </div>
-            {fullPrice && promoMonthsLeft && price && (
-              <div class="text-xs text-neutral-400">
-                ${parseFloat(price).toFixed(2)}/mo × {promoMonthsLeft}mo, then ${parseFloat(fullPrice).toFixed(2)}/mo
-                {(() => {
-                  const promoLeft = parseInt(promoMonthsLeft) || 0;
-                  const promoP = parseFloat(price) || 0;
-                  const fullP = parseFloat(fullPrice) || 0;
-                  if (promoLeft > 0 && promoP > 0 && fullP > 0) {
-                    const totalCost12 = promoLeft <= 12
-                      ? promoLeft * promoP + (12 - promoLeft) * fullP
-                      : 12 * promoP;
-                    const effective12 = totalCost12 / 12;
-                    return <> — effective <span class="text-accent font-medium">${effective12.toFixed(2)}/mo</span> over 1yr</>;
-                  }
-                  return null;
-                })()}
-              </div>
-            )}
+              return null;
+            })()}
           </div>
         )}
 
         <button
           type="submit"
-          class="w-full sm:w-auto bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-8 py-3 text-lg transition-colors"
+          class="bg-accent hover:bg-accent/90 text-white font-display font-bold rounded-lg px-6 py-2.5 text-base transition-colors"
         >
           {isCompareMode ? 'Compare plans' : 'Am I getting rorted?'}
         </button>
