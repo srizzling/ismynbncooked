@@ -87,16 +87,37 @@ const description = "Learn how the Rort Scale rating works, how we calculate eff
       <h2 class="font-display font-bold text-xl mb-4">The commitment period selector</h2>
       <p class="text-neutral-400 text-sm mb-4">
         The commitment period selector (shown on each speed-tier page) lets you choose how many months you
-        plan to stay with your next provider — typically 12 or 24 months.
+        plan to stay with your next provider: 3, 6, 12, or 24 months. Changing it recalculates every
+        plan's effective cost and re-ranks the table accordingly.
       </p>
       <p class="text-neutral-400 text-sm mb-4">
-        Why does it matter? A plan with a 6-month promo looks great over 6 months but becomes expensive over 24.
-        Changing the horizon recalculates every plan's effective cost so you can see which deal is actually
-        cheapest for <em>your</em> situation, not just the one with the flashiest introductory price.
+        The <span class="text-neutral-300 font-medium">Auto: cheapest</span> default picks the horizon
+        that produces the single lowest effective monthly cost across all plans. When two horizons tie, it
+        leans toward the longer one — which sounds sensible, but read on.
       </p>
+
+      <!-- Churn tip callout -->
+      <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-4 mb-4">
+        <div class="font-medium text-amber-400 mb-1">The churn trick most people miss</div>
+        <p class="text-neutral-400 text-sm">
+          Most NBN plans are <span class="text-neutral-300 font-medium">no lock-in</span> — you can
+          leave whenever you like. That means a 12-month horizon only makes sense if you're actually
+          planning to sit still for a year. If you're willing to churn every 6 months, set the selector
+          to <span class="text-neutral-300">6 months</span> and pick the cheapest plan at that horizon.
+          Ride out the promo, then switch again. Repeat. You'll consistently beat the plan that "Auto:
+          cheapest" picks over 12 months.
+        </p>
+        <p class="text-neutral-400 text-sm mt-2">
+          <span class="text-amber-400 font-medium">Catch:</span> always check the notice period before
+          you churn. Some providers require 30 days' notice — so "month-to-month" doesn't always mean
+          you can leave tomorrow. The notice period is listed in each plan's detail row on the comparison
+          table, and you can filter to only show plans with no notice required.
+        </p>
+      </div>
+
       <p class="text-neutral-400 text-sm">
-        Short-term: favour plans with long promo periods. Long-term: favour plans with low ongoing rates.
-        The selector makes that trade-off obvious at a glance.
+        Short-term: favour plans with long promo periods and no setup fee. Long-term: favour plans with
+        low ongoing rates. The selector makes that trade-off obvious at a glance.
       </p>
     </section>
 
