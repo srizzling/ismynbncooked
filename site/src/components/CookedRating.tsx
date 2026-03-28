@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import type { CookedResult, TierManifest } from '../lib/types';
-import { parseTierKey, buildTierLabel } from '../lib/types';
+import { parseTierKey, parseGroupedTierKey, buildTierLabel, buildGroupedTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { LEVELS } from '../lib/cooked';
 import { getUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
@@ -102,7 +102,12 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
 
 export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, manifest, onCookedChange }: Props) {
   const parsed = parseTierKey(tierKey);
-  const tierLabel = parsed ? buildTierLabel(parsed.network, parsed.download, parsed.upload) : tierKey;
+  const parsedGroup = !parsed ? parseGroupedTierKey(tierKey) : null;
+  const tierLabel = parsed
+    ? buildTierLabel(parsed.network, parsed.download, parsed.upload)
+    : parsedGroup
+      ? buildGroupedTierLabel(parsedGroup.network, parsedGroup.download)
+      : tierKey;
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [result, setResult] = useState<CookedResult | null>(null);
