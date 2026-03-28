@@ -209,8 +209,12 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
           </div>
         )}
 
-        <div class="mt-2">
+        <div class="mt-2 flex items-center justify-center gap-3">
           <RortScale currentLevel={result.level} />
+          <span class="text-neutral-700">·</span>
+          <a href="/how-it-works" aria-label="How the Rort Scale rating system works" class="text-sm text-neutral-500 hover:text-neutral-300 underline decoration-dashed underline-offset-2 transition-colors">
+            How it works
+          </a>
         </div>
 
         {result.monthlySavings > 0 ? (
