@@ -7,6 +7,9 @@ dist/
 .DS_Store
 .direnv/
 
+# npm lock file (project uses pnpm)
+site/package-lock.json
+
 # Dev fixture data (fetched from R2 in production)
 site/public/data/
 
