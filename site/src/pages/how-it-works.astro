@@ -1,0 +1,130 @@
+---
+import Base from '../layouts/Base.astro';
+
+const title = "How It Works — Is My NBN Cooked?";
+const description = "Learn how the Rort Scale rating works, how we calculate effective pricing, and where the plan data comes from.";
+---
+
+<Base title={title} description={description} canonicalPath="/how-it-works">
+  <div class="max-w-3xl mx-auto">
+    <div class="mb-10">
+      <a href="/" class="text-sm text-neutral-500 hover:text-accent transition-colors">&larr; Back to plan checker</a>
+    </div>
+
+    <h1 class="font-display font-bold text-3xl sm:text-4xl mb-3">How it works</h1>
+    <p class="text-neutral-400 mb-12">
+      Everything you need to know about how we compare NBN plans and calculate your rort rating.
+    </p>
+
+    <!-- The Rort Scale -->
+    <section class="mb-12">
+      <h2 class="font-display font-bold text-xl mb-4">The Rort Scale</h2>
+      <p class="text-neutral-400 text-sm mb-6">
+        After you enter your monthly price, we compare it against the cheapest available plan at the same
+        speed tier and assign you a rating. Here's what each level means:
+      </p>
+      <div class="space-y-3">
+        <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
+          <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background-color: #22d3ee;"></div>
+          <div>
+            <div class="font-bold" style="color: #22d3ee;">Winning</div>
+            <div class="text-sm text-neutral-400 mt-0.5">You're paying <span class="text-neutral-300">less</span> than the cheapest plan we track. Whatever you did, don't change a thing.</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
+          <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background-color: #4ade80;"></div>
+          <div>
+            <div class="font-bold" style="color: #4ade80;">Sweet As</div>
+            <div class="text-sm text-neutral-400 mt-0.5">0–4% above the cheapest available plan. You're on a fair deal — no need to churn.</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
+          <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background-color: #facc15;"></div>
+          <div>
+            <div class="font-bold" style="color: #facc15;">Bit Shit</div>
+            <div class="text-sm text-neutral-400 mt-0.5">5–14% above the cheapest available plan. Not the end of the world, but money's money — worth having a look around.</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
+          <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background-color: #fb923c;"></div>
+          <div>
+            <div class="font-bold" style="color: #fb923c;">Taking the Piss</div>
+            <div class="text-sm text-neutral-400 mt-0.5">15–29% above the cheapest available plan. Your provider is having a laugh. Seriously consider churning.</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
+          <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background-color: #ef4444;"></div>
+          <div>
+            <div class="font-bold" style="color: #ef4444;">Absolute Rort</div>
+            <div class="text-sm text-neutral-400 mt-0.5">30%+ above the cheapest available plan. Mate. You're getting absolutely done. Switch immediately.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Effective pricing -->
+    <section class="mb-12">
+      <h2 class="font-display font-bold text-xl mb-4">How effective pricing works</h2>
+      <p class="text-neutral-400 text-sm mb-4">
+        Many ISPs advertise a low introductory price that reverts to a higher rate after a promo period,
+        and some plans charge a one-off setup fee. Comparing the headline price alone is misleading.
+      </p>
+      <p class="text-neutral-400 text-sm mb-4">
+        To produce a fair comparison we calculate the <span class="text-neutral-300 font-medium">effective monthly cost</span>
+        — the true average you'll pay over the commitment period:
+      </p>
+      <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 font-mono text-sm text-neutral-300 mb-4">
+        effective cost = (promo months × promo price + remaining months × full price + setup fee) ÷ commitment period
+      </div>
+      <p class="text-neutral-400 text-sm">
+        This means a plan with a great intro offer but a steep post-promo price may rank lower than one with
+        a flat rate that's genuinely cheap — which is exactly what you want to know before signing up.
+      </p>
+    </section>
+
+    <!-- Commitment period selector -->
+    <section class="mb-12">
+      <h2 class="font-display font-bold text-xl mb-4">The commitment period selector</h2>
+      <p class="text-neutral-400 text-sm mb-4">
+        The commitment period selector (shown on each speed-tier page) lets you choose how many months you
+        plan to stay with your next provider — typically 12 or 24 months.
+      </p>
+      <p class="text-neutral-400 text-sm mb-4">
+        Why does it matter? A plan with a 6-month promo looks great over 6 months but becomes expensive over 24.
+        Changing the horizon recalculates every plan's effective cost so you can see which deal is actually
+        cheapest for <em>your</em> situation, not just the one with the flashiest introductory price.
+      </p>
+      <p class="text-neutral-400 text-sm">
+        Short-term: favour plans with long promo periods. Long-term: favour plans with low ongoing rates.
+        The selector makes that trade-off obvious at a glance.
+      </p>
+    </section>
+
+    <!-- Data source -->
+    <section class="mb-12">
+      <h2 class="font-display font-bold text-xl mb-4">Where the data comes from</h2>
+      <p class="text-neutral-400 text-sm mb-4">
+        All plan data is sourced from <a href="https://www.netbargains.com.au" class="underline hover:text-white transition-colors" target="_blank" rel="noopener">NetBargains</a>,
+        an independent Australian site that tracks NBN and fixed-line internet plans across every provider.
+        Prices are refreshed daily.
+      </p>
+      <p class="text-neutral-400 text-sm mb-4">
+        This site has <span class="text-neutral-300 font-medium">no affiliate links, no ads, and no sponsored placements</span>.
+        Rankings are based purely on price. If you find this useful and want to support someone,
+        consider chucking a few bucks at
+        <a href="https://www.netbargains.com.au" class="underline hover:text-white transition-colors" target="_blank" rel="noopener">NetBargains</a>
+        — the legends who actually maintain the plan data.
+      </p>
+      <p class="text-neutral-400 text-sm">
+        Prices, availability, and plan details may be out of date, inaccurate, or wrong.
+        Always check the provider's website before signing up.
+      </p>
+    </section>
+
+    <div class="border-t border-surface-border pt-8 text-center">
+      <a href="/" class="inline-block bg-accent hover:bg-accent/90 text-white font-medium rounded-lg px-6 py-3 transition-colors">
+        Check your plan now
+      </a>
+    </div>
+  </div>
+</Base>
