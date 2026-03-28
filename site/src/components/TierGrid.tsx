@@ -183,7 +183,7 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
           >
             <span class={`text-xs transition-transform ${nbnOpen ? 'rotate-90' : ''}`}>&#9654;</span>
             <h2 class="font-display font-bold text-2xl group-hover:text-accent transition-colors">
-              NBN plans by speed tier
+              NBN plans
             </h2>
             <span class="text-sm text-neutral-500">({filteredNbn.length})</span>
           </button>
