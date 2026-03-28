@@ -229,42 +229,45 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
               You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan we track
             </p>
             <p class="text-neutral-400">
-              Whatever you did, don't change a thing.{isOnPromo && ' (But keep reading...)'}
-            </p>
+              Whatever you did, don't change a thing.            </p>
           </div>
         ) : (
           <p class="mt-4 text-lg text-neutral-300">
-            You're on the cheapest plan. Sweet as.{isOnPromo && ' (But keep reading...)'}
-          </p>
+            You're on the cheapest plan. Sweet as.          </p>
         )}
 
-        {/* Post-promo rort rating */}
+        {/* Post-promo rort rating — toggle reveal */}
         {isOnPromo && (() => {
           const postPromoResult = calculateCooked(userFullPrice, baseline);
           const postPromoLevel = LEVELS.find(l => l.level === postPromoResult.level);
           return (
-            <div class="mt-6 border-t border-surface-border pt-4">
-              <div class="text-sm text-neutral-400 mb-1">
-                After your promo ends in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}, at ${userFullPrice.toFixed(2)}/mo...
+            <details class="mt-4 bg-surface border border-surface-border rounded-lg text-left">
+              <summary class="px-4 py-3 cursor-pointer text-sm text-accent hover:text-white transition-colors">
+                What happens after your promo ends in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}?
+              </summary>
+              <div class="px-4 pb-4 pt-1">
+                <div class="text-xs text-neutral-500 mb-1">
+                  At ${userFullPrice.toFixed(2)}/mo, your rating becomes...
+                </div>
+                <div class="text-2xl sm:text-3xl font-display font-bold" style={{ color: postPromoLevel?.color }}>
+                  {postPromoResult.label}
+                </div>
+                {postPromoResult.monthlySavings > 0 ? (
+                  <div class="mt-2 text-sm text-neutral-400">
+                    You'll be paying <span class="text-white font-medium">{(postPromoResult.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest plan
+                    — <span class="text-white font-medium">${postPromoResult.monthlySavings.toFixed(2)}/mo</span> you could save by churning.
+                  </div>
+                ) : postPromoResult.level === 'winning' ? (
+                  <div class="mt-2 text-sm text-neutral-400">
+                    Even at full price you're still beating the cheapest. Nice.
+                  </div>
+                ) : (
+                  <div class="mt-2 text-sm text-neutral-400">
+                    Still a fair price after promo. No need to churn.
+                  </div>
+                )}
               </div>
-              <div class="text-2xl sm:text-3xl font-display font-bold" style={{ color: postPromoLevel?.color }}>
-                {postPromoResult.label}
-              </div>
-              {postPromoResult.monthlySavings > 0 ? (
-                <div class="mt-2 text-sm text-neutral-400">
-                  You'll be paying <span class="text-white font-medium">{(postPromoResult.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest plan
-                  — <span class="text-white font-medium">${postPromoResult.monthlySavings.toFixed(2)}/mo</span> you could save by churning.
-                </div>
-              ) : postPromoResult.level === 'winning' ? (
-                <div class="mt-2 text-sm text-neutral-400">
-                  Even at full price you're still beating the cheapest. Nice.
-                </div>
-              ) : (
-                <div class="mt-2 text-sm text-neutral-400">
-                  Still a fair price after promo. No need to churn.
-                </div>
-              )}
-            </div>
+            </details>
           );
         })()}
 
