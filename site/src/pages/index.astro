@@ -1,11 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
 import Hero from '../components/Hero.astro';
-import TierCard from '../components/TierCard.astro';
 import PlanChecker from '../components/PlanChecker';
 import DataFreshness from '../components/DataFreshness';
+import TierGrid from '../components/TierGrid';
 import { type MetaData, type TierManifest } from '../lib/types';
-import { getFixtureTierSummaries, getFixtureManifest, type TierSummary } from '../lib/data';
+import { getFixtureTierSummaries, getFixtureManifest, groupTiersByDownload, type TierSummary } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
 
 let tierSummaries: Record<string, TierSummary>;
@@ -43,9 +43,10 @@ for (const tier of manifest.tiers) {
   }
 }
 
-// Group tiers by network for display
-const nbnTiers = manifest.tiers.filter(t => t.network === 'nbn');
-const opticommTiers = manifest.tiers.filter(t => t.network === 'opticomm');
+// Group tiers by download speed (merging upload variants)
+const groupedTiers = groupTiersByDownload(manifest.tiers);
+const nbnGrouped = groupedTiers.filter(g => g.network === 'nbn');
+const opticommGrouped = groupedTiers.filter(g => g.network === 'opticomm');
 
 // Total plan count across all tiers
 const totalPlans = Object.values(tierSummaries).reduce((sum, s) => sum + s.planCount, 0);
@@ -121,47 +122,13 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
     <PlanChecker client:load manifest={manifest} />
   </section>
 
-  <section>
-    <h2 class="font-display font-bold text-2xl mb-4">Compare NBN plans by speed tier</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {nbnTiers.map((tier) => {
-        const summary = tierSummaries[tier.key];
-        return summary ? (
-          <TierCard
-            tierKey={tier.key}
-            tierInfo={tier}
-            cheapest={summary.cheapest}
-            cheapestEffective={summary.cheapestEffective}
-            cheapestProvider={summary.cheapestProvider}
-            average={summary.average}
-            planCount={summary.planCount}
-          />
-        ) : null;
-      })}
-    </div>
-  </section>
-
-  {opticommTiers.length > 0 && (
-    <section class="mt-12">
-      <h2 class="font-display font-bold text-2xl mb-4">Opticomm plans</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {opticommTiers.map((tier) => {
-          const summary = tierSummaries[tier.key];
-          return summary ? (
-            <TierCard
-              tierKey={tier.key}
-              tierInfo={tier}
-              cheapest={summary.cheapest}
-              cheapestEffective={summary.cheapestEffective}
-              cheapestProvider={summary.cheapestProvider}
-              average={summary.average}
-              planCount={summary.planCount}
-            />
-          ) : null;
-        })}
-      </div>
-    </section>
-  )}
+  <TierGrid
+    client:load
+    nbnGrouped={nbnGrouped}
+    opticommGrouped={opticommGrouped}
+    nbnTiers={manifest.tiers.filter(t => t.network === 'nbn')}
+    opticommTiers={manifest.tiers.filter(t => t.network === 'opticomm')}
+  />
 
   <!-- SEO FAQ section — visible to users, crawlers, and AI -->
   <section class="mt-16 max-w-3xl mx-auto">

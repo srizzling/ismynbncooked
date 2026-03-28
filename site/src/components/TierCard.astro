@@ -9,14 +9,17 @@ interface Props {
   cheapestProvider?: string;
   average: number;
   planCount: number;
+  uploadVariants?: number[];
 }
 
-const { tierKey, tierInfo, cheapest, cheapestEffective, cheapestProvider, average, planCount } = Astro.props;
+const { tierKey, tierInfo, cheapest, cheapestEffective, cheapestProvider, average, planCount, uploadVariants } = Astro.props;
 const displayPrice = cheapestEffective && cheapestEffective < cheapest ? cheapestEffective : cheapest;
 const hasPromo = cheapestEffective != null && cheapestEffective < cheapest;
 
 const tierName = tierInfo.label;
-const speedDesc = `${tierInfo.downloadSpeed}/${tierInfo.uploadSpeed} Mbps`;
+const speedDesc = uploadVariants
+  ? `${tierInfo.downloadSpeed} Mbps down · ${uploadVariants.length} upload options`
+  : `${tierInfo.downloadSpeed}/${tierInfo.uploadSpeed} Mbps`;
 ---
 
 <a

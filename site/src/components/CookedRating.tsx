@@ -155,8 +155,10 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
         const remaining = getPromoRemaining(existing);
         setUserFullPrice(existing.fullPrice);
         setUserPromoLeft(remaining);
-        const userEffective = computeEffectiveRate(existing.price, existing.fullPrice, remaining, horizon);
-        const r = calculateCooked(userEffective, baseline);
+        // Rate on current promo price, not blended effective — the user cares about what they're paying NOW
+        const r = remaining > 0
+          ? calculateCooked(existing.price, baseline)
+          : calculateCooked(existing.fullPrice, baseline);
         setResult(r);
         onCookedChange?.(r);
       } else {
@@ -195,10 +197,17 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
 
     return (
       <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center">
-        <div class="text-sm text-neutral-400 mb-2">Your {tierLabel} is...</div>
+        <div class="text-sm text-neutral-400 mb-1">
+          {isOnPromo ? 'At your current promo price, your ' : 'Your '}{tierLabel} is...
+        </div>
         <div class="text-4xl sm:text-5xl font-display font-bold" style={{ color: result.color }}>
           {result.label}
         </div>
+        {isOnPromo && (
+          <div class="text-xs text-neutral-500 mt-1">
+            Based on what you're paying now (${currentPrice.toFixed(2)}/mo) vs cheapest (${baseline.toFixed(2)}/mo)
+          </div>
+        )}
 
         <div class="mt-2">
           <RortScale currentLevel={result.level} />
@@ -220,34 +229,47 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
               You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan we track
             </p>
             <p class="text-neutral-400">
-              Whatever you did, don't change a thing.
-            </p>
+              Whatever you did, don't change a thing.            </p>
           </div>
         ) : (
           <p class="mt-4 text-lg text-neutral-300">
-            You're on the cheapest plan. Sweet as.
-          </p>
+            You're on the cheapest plan. Sweet as.          </p>
         )}
 
-        {/* Promo warning */}
-        {isOnPromo && (
-          <div class="mt-4 bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-left">
-            <div class="text-accent font-medium">
-              Promo ending in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}
-            </div>
-            <div class="text-neutral-400 mt-1">
-              You're paying <span class="text-white">${currentPrice.toFixed(2)}/mo</span> now, but it jumps to{' '}
-              <span class="text-white">${userFullPrice.toFixed(2)}/mo</span> after.
-              {userFullPrice > baseline && (
-                <span class="block mt-1">
-                  At full price, you'd be paying{' '}
-                  <span class="text-cooked-red font-medium">${(userFullPrice - baseline).toFixed(2)}/mo more</span> than the cheapest available plan.
-                  Time to churn?
-                </span>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Post-promo rort rating — toggle reveal */}
+        {isOnPromo && (() => {
+          const postPromoResult = calculateCooked(userFullPrice, baseline);
+          const postPromoLevel = LEVELS.find(l => l.level === postPromoResult.level);
+          return (
+            <details class="mt-4 bg-surface border border-surface-border rounded-lg text-left">
+              <summary class="px-4 py-3 cursor-pointer text-sm text-accent hover:text-white transition-colors">
+                What happens after your promo ends in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}?
+              </summary>
+              <div class="px-4 pb-4 pt-1">
+                <div class="text-xs text-neutral-500 mb-1">
+                  At ${userFullPrice.toFixed(2)}/mo, your rating becomes...
+                </div>
+                <div class="text-2xl sm:text-3xl font-display font-bold" style={{ color: postPromoLevel?.color }}>
+                  {postPromoResult.label}
+                </div>
+                {postPromoResult.monthlySavings > 0 ? (
+                  <div class="mt-2 text-sm text-neutral-400">
+                    You'll be paying <span class="text-white font-medium">{(postPromoResult.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest plan
+                    — <span class="text-white font-medium">${postPromoResult.monthlySavings.toFixed(2)}/mo</span> you could save by churning.
+                  </div>
+                ) : postPromoResult.level === 'winning' ? (
+                  <div class="mt-2 text-sm text-neutral-400">
+                    Even at full price you're still beating the cheapest. Nice.
+                  </div>
+                ) : (
+                  <div class="mt-2 text-sm text-neutral-400">
+                    Still a fair price after promo. No need to churn.
+                  </div>
+                )}
+              </div>
+            </details>
+          );
+        })()}
 
         {/* Promo expired warning */}
         {userFullPrice && userPromoLeft === 0 && (

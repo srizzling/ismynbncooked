@@ -38,12 +38,13 @@ export function cheapestPlanForHorizon(plans: NBNPlan[], months: Horizon): { pla
   return best;
 }
 
-/** Find the horizon that gives the cheapest effective monthly price */
+/** Find the horizon that gives the cheapest effective monthly price.
+ *  Ties broken by longest commitment (e.g. if 3mo and 6mo are equal, pick 6mo). */
 export function bestHorizon(plans: NBNPlan[]): { horizon: Horizon; effectiveCost: number } {
   let best: { horizon: Horizon; effectiveCost: number } = { horizon: 12, effectiveCost: Infinity };
   for (const h of HORIZONS) {
     const cost = cheapestEffectiveForHorizon(plans, h);
-    if (cost < best.effectiveCost) {
+    if (cost < best.effectiveCost || (cost === best.effectiveCost && h > best.horizon)) {
       best = { horizon: h, effectiveCost: cost };
     }
   }

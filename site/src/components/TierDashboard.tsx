@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'preact/hooks';
 import type { TierData, TierHistory, ComparisonsData, CookedResult, UserPlan, TierManifest } from '../lib/types';
 import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
-import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit } from '../lib/storage';
+import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit, getDefaultHorizon, saveDefaultHorizon, type HorizonPreference } from '../lib/storage';
 import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHorizon, HORIZONS, type Horizon } from '../lib/costs';
 import CookedRating from './CookedRating';
 import SavingsComparison from './SavingsComparison';
@@ -16,6 +16,7 @@ interface Props {
   history: TierHistory | null;
   comparisons: ComparisonsData | null;
   manifest?: TierManifest;
+  isGrouped?: boolean;
 }
 
 // Find the user's most recently saved plan from another tier
@@ -32,11 +33,22 @@ function findOtherTierPlan(currentTierKey: string): { tierKey: string; label: st
   return best;
 }
 
-export default function TierDashboard({ tierKey, label, tierData, history, comparisons, manifest }: Props) {
+export default function TierDashboard({ tierKey, label, tierData, history, comparisons, manifest, isGrouped }: Props) {
   const [cookedResult, setCookedResult] = useState<CookedResult | null>(null);
   const [otherTierPlan, setOtherTierPlan] = useState<{ tierKey: string; label: string; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
-  const [horizon, setHorizon] = useState<Horizon>(12);
+  const [horizonPref, setHorizonPref] = useState<HorizonPreference>(() => getDefaultHorizon());
+
+  // Find the best horizon (cheapest effective, tie-break by longest commitment)
+  const best = useMemo(() => bestHorizon(tierData.plans), [tierData.plans]);
+
+  // Resolve preference to an actual horizon
+  const horizon: Horizon = horizonPref === 'cheapest' ? best.horizon : horizonPref;
+
+  function handleHorizonChange(h: HorizonPreference) {
+    setHorizonPref(h);
+    saveDefaultHorizon(h);
+  }
 
   // Compute cheapest effective at the current horizon
   const cheapestEffective = useMemo(
@@ -45,9 +57,13 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   );
   const baseline = cheapestEffective < tierData.cheapest ? cheapestEffective : tierData.cheapest;
 
-  // Find the best horizon (shortest commitment with cheapest effective price)
-  const best = useMemo(() => bestHorizon(tierData.plans), [tierData.plans]);
-  const showBestHorizonNudge = best.horizon !== horizon && best.effectiveCost < cheapestEffective - 0.5;
+  const showBestHorizonNudge = horizonPref !== 'cheapest' && best.horizon !== horizon && best.effectiveCost < cheapestEffective - 0.5;
+
+  // Pre-compute cheapest plan at each horizon for the selector buttons
+  const horizonResults = useMemo(
+    () => HORIZONS.map(h => ({ h, result: cheapestPlanForHorizon(tierData.plans, h) })),
+    [tierData.plans]
+  );
 
   useEffect(() => {
     // Check for existing user plan on this tier
@@ -122,10 +138,22 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
               Effective price = total cost (promos + full price + fees) ÷ months
             </div>
           </div>
+          <button
+            onClick={() => handleHorizonChange(horizonPref === 'cheapest' ? horizon : 'cheapest')}
+            class={`text-xs px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap ${
+              horizonPref === 'cheapest'
+                ? 'bg-cooked-green/10 border-cooked-green/30 text-cooked-green'
+                : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600'
+            }`}
+            title={horizonPref === 'cheapest'
+              ? 'Auto-selecting cheapest period. Click to pin current period.'
+              : 'Click to auto-select the cheapest commitment period'}
+          >
+            {horizonPref === 'cheapest' ? '✓ Auto: cheapest' : 'Auto: cheapest'}
+          </button>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {HORIZONS.map((h) => {
-            const result = cheapestPlanForHorizon(tierData.plans, h);
+          {horizonResults.map(({ h, result }) => {
             if (!result) return null;
             const { plan: cheapPlan, effectiveCost: effPrice, totalCost } = result;
             const isBest = h === best.horizon;
@@ -137,7 +165,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
             return (
               <button
                 key={h}
-                onClick={() => setHorizon(h)}
+                onClick={() => handleHorizonChange(h)}
                 class={`relative text-left rounded-xl px-4 py-3 transition-colors border ${
                   isActive
                     ? 'bg-accent/10 border-accent'
@@ -173,6 +201,11 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
             );
           })}
         </div>
+        {horizonPref === 'cheapest' && (
+          <div class="text-xs text-neutral-600 mt-2">
+            Auto-selecting the cheapest commitment period. Your preference is saved for next time.
+          </div>
+        )}
       </div>
 
       {/* Price change since last visit */}
@@ -271,7 +304,8 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           })() : undefined}
           providerHistory={history?.providers}
           horizon={horizon}
-          onHorizonChange={setHorizon}
+          onHorizonChange={(h: Horizon) => { handleHorizonChange(h); saveDefaultHorizon(h); }}
+          showUploadSpeed={isGrouped}
         />
       </div>
 

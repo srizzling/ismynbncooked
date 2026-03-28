@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks'
 import type { NBNPlan, ProviderHistory } from '../lib/types';
 import { calcCosts, type Horizon, HORIZONS } from '../lib/costs';
 
-type SortKey = 'monthlyPrice' | 'totalCost' | 'effectiveCost' | 'typicalEveningSpeed';
+type SortKey = 'monthlyPrice' | 'totalCost' | 'effectiveCost' | 'typicalEveningSpeed' | 'eff3mo' | 'eff6mo' | 'eff12mo';
 type SortDir = 'asc' | 'desc';
 
 interface ColumnDef {
@@ -13,13 +13,16 @@ interface ColumnDef {
   sortKey?: SortKey;
 }
 
-const COLUMNS: ColumnDef[] = [
+const BASE_COLUMNS: ColumnDef[] = [
   { key: 'provider', label: 'Provider', always: true, mobileDefault: true },
   { key: 'planName', label: 'Plan', always: true, mobileDefault: true },
+  { key: 'uploadSpeed', label: 'Upload', mobileDefault: true },
   { key: 'monthlyPrice', label: 'Monthly', mobileDefault: true, sortKey: 'monthlyPrice' },
   { key: 'promo', label: 'Promo', mobileDefault: true },
+  { key: 'eff3mo', label: '3mo $/mo', sortKey: 'eff3mo' },
+  { key: 'eff6mo', label: '6mo $/mo', sortKey: 'eff6mo' },
+  { key: 'eff12mo', label: '1yr $/mo', sortKey: 'eff12mo' },
   { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
-  { key: 'effectiveCost', label: 'Effective/mo', sortKey: 'effectiveCost' },
   { key: 'typicalEveningSpeed', label: 'Eve Speed', sortKey: 'typicalEveningSpeed' },
   { key: 'contract', label: 'Contract' },
   { key: 'noticePeriod', label: 'Notice' },
@@ -34,6 +37,7 @@ interface Props {
   providerHistory?: Record<string, ProviderHistory>;
   horizon: Horizon;
   onHorizonChange: (h: Horizon) => void;
+  showUploadSpeed?: boolean;
 }
 
 function isNoNotice(val: string | null | undefined): boolean {
@@ -164,8 +168,16 @@ function ProviderSparkline({ history }: { history: { date: string; monthlyPrice:
   );
 }
 
-export default function PlanTable({ plans, highlightProvider, userPrice, userFullPrice, userPromoMonthsLeft, providerHistory, horizon, onHorizonChange }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>('effectiveCost');
+export default function PlanTable({ plans, highlightProvider, userPrice, userFullPrice, userPromoMonthsLeft, providerHistory, horizon, onHorizonChange, showUploadSpeed }: Props) {
+  // Filter out the upload column unless showUploadSpeed is set
+  const COLUMNS = useMemo(() =>
+    BASE_COLUMNS.filter(c => c.key !== 'uploadSpeed' || showUploadSpeed),
+    [showUploadSpeed]
+  );
+
+  const horizonToSortKey = (h: Horizon): SortKey =>
+    h === 3 ? 'eff3mo' : h === 6 ? 'eff6mo' : h === 12 ? 'eff12mo' : 'monthlyPrice';
+  const [sortKey, setSortKey] = useState<SortKey>(() => horizonToSortKey(horizon));
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterNoLockin, setFilterNoLockin] = useState(false);
   const [filterHasPromo, setFilterHasPromo] = useState(false);
@@ -174,7 +186,9 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
     // SSR-safe default: mobile set. Will update on mount via useEffect.
-    return new Set(['monthlyPrice', 'promo']);
+    const initial = new Set(['monthlyPrice', 'promo']);
+    if (showUploadSpeed) initial.add('uploadSpeed');
+    return initial;
   });
   const [columnPickerOpen, setColumnPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -216,22 +230,43 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
     return result;
   }, [plans, filterNoLockin, filterHasPromo, filterNoNotice, search]);
 
+  // Pre-compute costs for all plans at all relevant horizons — avoids repeated calcCosts in sort + render
+  const costMap = useMemo(() => {
+    const map = new Map<string, { h: ReturnType<typeof calcCosts>; eff3: number; eff6: number; eff12: number }>();
+    for (const plan of filtered) {
+      const h = calcCosts(plan, horizon);
+      map.set(plan.id, {
+        h,
+        eff3: calcCosts(plan, 3).effectiveCost,
+        eff6: calcCosts(plan, 6).effectiveCost,
+        eff12: calcCosts(plan, 12).effectiveCost,
+      });
+    }
+    return map;
+  }, [filtered, horizon]);
+
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
+      const ca = costMap.get(a.id)!;
+      const cb = costMap.get(b.id)!;
       let av: number, bv: number;
       if (sortKey === 'totalCost') {
-        av = calcCosts(a, horizon).totalCost;
-        bv = calcCosts(b, horizon).totalCost;
+        av = ca.h.totalCost; bv = cb.h.totalCost;
       } else if (sortKey === 'effectiveCost') {
-        av = calcCosts(a, horizon).effectiveCost;
-        bv = calcCosts(b, horizon).effectiveCost;
+        av = ca.h.effectiveCost; bv = cb.h.effectiveCost;
+      } else if (sortKey === 'eff3mo') {
+        av = ca.eff3; bv = cb.eff3;
+      } else if (sortKey === 'eff6mo') {
+        av = ca.eff6; bv = cb.eff6;
+      } else if (sortKey === 'eff12mo') {
+        av = ca.eff12; bv = cb.eff12;
       } else {
         av = (a[sortKey] as number) ?? Infinity;
         bv = (b[sortKey] as number) ?? Infinity;
       }
       return sortDir === 'asc' ? av - bv : bv - av;
     });
-  }, [filtered, sortKey, sortDir, horizon]);
+  }, [filtered, costMap, sortKey, sortDir]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -272,7 +307,8 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
     return typeof col.label === 'function' ? col.label(horizonLabel) : col.label;
   }
 
-  function renderCell(col: ColumnDef, plan: NBNPlan, totalCost: number, effectiveCost: number) {
+  function renderCell(col: ColumnDef, plan: NBNPlan, costs: { h: ReturnType<typeof calcCosts>; eff3: number; eff6: number; eff12: number }) {
+    const { totalCost, effectiveCost } = costs.h;
     switch (col.key) {
       case 'provider':
         return (
@@ -301,6 +337,12 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
             )}
           </td>
         );
+      case 'uploadSpeed':
+        return (
+          <td class="px-4 py-3 tabular-nums text-neutral-300" key={col.key}>
+            {plan.uploadSpeed} Mbps
+          </td>
+        );
       case 'monthlyPrice':
         return (
           <td class="px-4 py-3 tabular-nums font-medium" key={col.key}>
@@ -326,18 +368,34 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
           </td>
         );
       }
+      case 'eff3mo':
+        return (
+          <td class={`px-4 py-3 tabular-nums ${horizon === 3 ? 'bg-accent/5' : ''}`} key={col.key}>
+            <span class={costs.eff3 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
+              ${costs.eff3.toFixed(2)}
+            </span>
+          </td>
+        );
+      case 'eff6mo':
+        return (
+          <td class={`px-4 py-3 tabular-nums ${horizon === 6 ? 'bg-accent/5' : ''}`} key={col.key}>
+            <span class={costs.eff6 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
+              ${costs.eff6.toFixed(2)}
+            </span>
+          </td>
+        );
+      case 'eff12mo':
+        return (
+          <td class={`px-4 py-3 tabular-nums ${horizon === 12 ? 'bg-accent/5' : ''}`} key={col.key}>
+            <span class={costs.eff12 < plan.monthlyPrice ? 'text-cooked-green' : 'text-neutral-300'}>
+              ${costs.eff12.toFixed(2)}
+            </span>
+          </td>
+        );
       case 'totalCost':
         return (
           <td class="px-4 py-3 tabular-nums text-neutral-300" key={col.key}>
             ${totalCost.toFixed(0)}
-          </td>
-        );
-      case 'effectiveCost':
-        return (
-          <td class="px-4 py-3 tabular-nums" key={col.key}>
-            <span class={effectiveCost < plan.monthlyPrice ? 'text-cooked-green font-medium' : 'text-neutral-300'}>
-              ${effectiveCost.toFixed(2)}
-            </span>
           </td>
         );
       case 'typicalEveningSpeed':
@@ -450,11 +508,16 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
             <tr class="border-b border-surface-border text-left text-neutral-400">
               {activeColumns.map((col) => {
                 const label = getColumnLabel(col);
+                const isActiveHorizonCol =
+                  (col.key === 'eff3mo' && horizon === 3) ||
+                  (col.key === 'eff6mo' && horizon === 6) ||
+                  (col.key === 'eff12mo' && horizon === 12);
+                const thClass = `px-4 py-3 font-medium whitespace-nowrap ${isActiveHorizonCol ? 'bg-accent/5 text-accent' : ''}`;
                 if (col.sortKey) {
                   return (
                     <th
                       key={col.key}
-                      class="px-4 py-3 font-medium cursor-pointer hover:text-white whitespace-nowrap"
+                      class={`${thClass} cursor-pointer hover:text-white`}
                       onClick={() => toggleSort(col.sortKey!)}
                     >
                       {label}{sortIndicator(col.sortKey)}
@@ -462,7 +525,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                   );
                 }
                 return (
-                  <th key={col.key} class="px-4 py-3 font-medium">
+                  <th key={col.key} class={thClass}>
                     {label}
                   </th>
                 );
@@ -476,7 +539,8 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                 plan.providerName.toLowerCase() === highlightProvider.toLowerCase();
               const isExpanded = expandedId === plan.id;
               const history = providerHistory?.[plan.providerName]?.history;
-              const { totalCost, effectiveCost } = calcCosts(plan, horizon);
+              const costs = costMap.get(plan.id)!;
+              const { totalCost, effectiveCost } = costs.h;
               const hasSavings = userPrice && userPrice > effectiveCost;
               const savings = userPrice ? userPrice - effectiveCost : 0;
               const hasPromo = plan.promoValue && plan.promoValue > 0 && plan.promoDuration;
@@ -490,7 +554,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                       isHighlighted ? 'bg-accent/10 border-l-2 border-l-accent' : ''
                     } ${isExpanded ? 'bg-surface-raised/70' : ''}`}
                   >
-                    {activeColumns.map((col) => renderCell(col, plan, totalCost, effectiveCost))}
+                    {activeColumns.map((col) => renderCell(col, plan, costs))}
                   </tr>
 
                   {/* Expanded detail row */}
