@@ -131,8 +131,14 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
     });
   }
 
-  const nbnCards = grouped ? buildGroupedCards(nbnGrouped) : buildUngroupedCards(nbnTiers);
-  const opticommCards = grouped ? buildGroupedCards(opticommGrouped) : buildUngroupedCards(opticommTiers);
+  const nbnCards = useMemo(
+    () => grouped ? buildGroupedCards(nbnGrouped) : buildUngroupedCards(nbnTiers),
+    [grouped, nbnGrouped, nbnTiers]
+  );
+  const opticommCards = useMemo(
+    () => grouped ? buildGroupedCards(opticommGrouped) : buildUngroupedCards(opticommTiers),
+    [grouped, opticommGrouped, opticommTiers]
+  );
 
   const allSpeeds = useMemo(() => {
     const speeds = new Set<number>();

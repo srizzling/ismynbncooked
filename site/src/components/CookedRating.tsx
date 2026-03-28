@@ -197,10 +197,17 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
 
     return (
       <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center">
-        <div class="text-sm text-neutral-400 mb-2">Your {tierLabel} is...</div>
+        <div class="text-sm text-neutral-400 mb-1">
+          {isOnPromo ? 'At your current promo price, your ' : 'Your '}{tierLabel} is...
+        </div>
         <div class="text-4xl sm:text-5xl font-display font-bold" style={{ color: result.color }}>
           {result.label}
         </div>
+        {isOnPromo && (
+          <div class="text-xs text-neutral-500 mt-1">
+            Based on what you're paying now (${currentPrice.toFixed(2)}/mo) vs cheapest (${baseline.toFixed(2)}/mo)
+          </div>
+        )}
 
         <div class="mt-2">
           <RortScale currentLevel={result.level} />
@@ -222,42 +229,41 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
               You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan we track
             </p>
             <p class="text-neutral-400">
-              Whatever you did, don't change a thing.
+              Whatever you did, don't change a thing.{isOnPromo && ' (But keep reading...)'}
             </p>
           </div>
         ) : (
           <p class="mt-4 text-lg text-neutral-300">
-            You're on the cheapest plan. Sweet as.
+            You're on the cheapest plan. Sweet as.{isOnPromo && ' (But keep reading...)'}
           </p>
         )}
 
-        {/* Promo warning + post-promo rort rating */}
+        {/* Post-promo rort rating */}
         {isOnPromo && (() => {
           const postPromoResult = calculateCooked(userFullPrice, baseline);
           const postPromoLevel = LEVELS.find(l => l.level === postPromoResult.level);
           return (
-            <div class="mt-4 bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-left">
-              <div class="text-accent font-medium">
-                Promo ending in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}
+            <div class="mt-6 border-t border-surface-border pt-4">
+              <div class="text-sm text-neutral-400 mb-1">
+                After your promo ends in {userPromoLeft} month{userPromoLeft !== 1 ? 's' : ''}, at ${userFullPrice.toFixed(2)}/mo...
               </div>
-              <div class="text-neutral-400 mt-1">
-                You're paying <span class="text-white">${currentPrice.toFixed(2)}/mo</span> now, but it jumps to{' '}
-                <span class="text-white">${userFullPrice.toFixed(2)}/mo</span> after.
+              <div class="text-2xl sm:text-3xl font-display font-bold" style={{ color: postPromoLevel?.color }}>
+                {postPromoResult.label}
               </div>
-              <div class="mt-2 flex items-center gap-2">
-                <span class="text-xs text-neutral-500">After promo:</span>
-                <span
-                  class="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: postPromoLevel?.color + '20', color: postPromoLevel?.color }}
-                >
-                  {postPromoResult.label}
-                </span>
-                {postPromoResult.monthlySavings > 0 && (
-                  <span class="text-xs text-neutral-400">
-                    — ${postPromoResult.monthlySavings.toFixed(2)}/mo more than cheapest. Time to churn?
-                  </span>
-                )}
-              </div>
+              {postPromoResult.monthlySavings > 0 ? (
+                <div class="mt-2 text-sm text-neutral-400">
+                  You'll be paying <span class="text-white font-medium">{(postPromoResult.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest plan
+                  — <span class="text-white font-medium">${postPromoResult.monthlySavings.toFixed(2)}/mo</span> you could save by churning.
+                </div>
+              ) : postPromoResult.level === 'winning' ? (
+                <div class="mt-2 text-sm text-neutral-400">
+                  Even at full price you're still beating the cheapest. Nice.
+                </div>
+              ) : (
+                <div class="mt-2 text-sm text-neutral-400">
+                  Still a fair price after promo. No need to churn.
+                </div>
+              )}
             </div>
           );
         })()}

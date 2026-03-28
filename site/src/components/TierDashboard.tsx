@@ -59,6 +59,12 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
 
   const showBestHorizonNudge = horizonPref !== 'cheapest' && best.horizon !== horizon && best.effectiveCost < cheapestEffective - 0.5;
 
+  // Pre-compute cheapest plan at each horizon for the selector buttons
+  const horizonResults = useMemo(
+    () => HORIZONS.map(h => ({ h, result: cheapestPlanForHorizon(tierData.plans, h) })),
+    [tierData.plans]
+  );
+
   useEffect(() => {
     // Check for existing user plan on this tier
     const existing = getUserPlan(tierKey);
@@ -147,8 +153,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           </button>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {HORIZONS.map((h) => {
-            const result = cheapestPlanForHorizon(tierData.plans, h);
+          {horizonResults.map(({ h, result }) => {
             if (!result) return null;
             const { plan: cheapPlan, effectiveCost: effPrice, totalCost } = result;
             const isBest = h === best.horizon;
