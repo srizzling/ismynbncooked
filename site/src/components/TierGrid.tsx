@@ -112,8 +112,8 @@ interface Props {
 
 export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, opticommTiers }: Props) {
   const [grouped, setGrouped] = useState(() => getGroupTiers());
-  const [showNbn, setShowNbn] = useState(true);
-  const [showOpticomm, setShowOpticomm] = useState(true);
+  const [nbnOpen, setNbnOpen] = useState(true);
+  const [opticommOpen, setOpticommOpen] = useState(false);
   const [hiddenSpeeds, setHiddenSpeeds] = useState<Set<number>>(new Set());
 
   function toggleGroup() {
@@ -151,14 +151,8 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
   return (
     <>
       {/* Filters */}
-      <div class="mb-6 space-y-3">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-xs text-neutral-500 mr-1">Network:</span>
-          <button onClick={() => setShowNbn(!showNbn)} class={pillClass(showNbn)}>NBN</button>
-          {hasOpticomm && (
-            <button onClick={() => setShowOpticomm(!showOpticomm)} class={pillClass(showOpticomm)}>Opticomm</button>
-          )}
-          <span class="text-neutral-700 mx-1">|</span>
+      <div class="mb-6">
+        <div class="flex flex-wrap items-center gap-1.5">
           <span class="text-xs text-neutral-500 mr-1">Speed:</span>
           {allSpeeds.map(speed => (
             <button
@@ -180,31 +174,46 @@ export default function TierGrid({ nbnGrouped, opticommGrouped, nbnTiers, optico
         </div>
       </div>
 
-      {/* NBN tiers */}
-      {showNbn && filteredNbn.length > 0 && (
+      {/* NBN tiers — collapsible */}
+      {filteredNbn.length > 0 && (
         <section>
-          <h2 class="font-display font-bold text-2xl mb-4">NBN plans by speed tier</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredNbn.map(card => <CardUI key={card.key} card={card} />)}
-          </div>
+          <button
+            onClick={() => setNbnOpen(!nbnOpen)}
+            class="flex items-center gap-2 w-full text-left mb-4 group"
+          >
+            <span class={`text-xs transition-transform ${nbnOpen ? 'rotate-90' : ''}`}>&#9654;</span>
+            <h2 class="font-display font-bold text-2xl group-hover:text-accent transition-colors">
+              NBN plans by speed tier
+            </h2>
+            <span class="text-sm text-neutral-500">({filteredNbn.length})</span>
+          </button>
+          {nbnOpen && (
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredNbn.map(card => <CardUI key={card.key} card={card} />)}
+            </div>
+          )}
         </section>
       )}
 
-      {/* Opticomm tiers */}
-      {showOpticomm && hasOpticomm && filteredOpticomm.length > 0 && (
-        <section class={showNbn && filteredNbn.length > 0 ? 'mt-12' : ''}>
-          <h2 class="font-display font-bold text-2xl mb-4">Opticomm plans</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredOpticomm.map(card => <CardUI key={card.key} card={card} />)}
-          </div>
+      {/* Opticomm tiers — collapsible */}
+      {hasOpticomm && filteredOpticomm.length > 0 && (
+        <section class="mt-8">
+          <button
+            onClick={() => setOpticommOpen(!opticommOpen)}
+            class="flex items-center gap-2 w-full text-left mb-4 group"
+          >
+            <span class={`text-xs transition-transform ${opticommOpen ? 'rotate-90' : ''}`}>&#9654;</span>
+            <h2 class="font-display font-bold text-2xl group-hover:text-accent transition-colors">
+              Opticomm plans
+            </h2>
+            <span class="text-sm text-neutral-500">({filteredOpticomm.length})</span>
+          </button>
+          {opticommOpen && (
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredOpticomm.map(card => <CardUI key={card.key} card={card} />)}
+            </div>
+          )}
         </section>
-      )}
-
-      {/* Empty state */}
-      {(!showNbn || filteredNbn.length === 0) && (!showOpticomm || filteredOpticomm.length === 0) && (
-        <div class="text-center py-12 text-neutral-500">
-          No tiers match your filters. Try enabling more speed tiers or networks above.
-        </div>
       )}
     </>
   );
