@@ -5,6 +5,7 @@ import { calculateCooked } from '../lib/cooked';
 import { LEVELS } from '../lib/cooked';
 import { getUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
 import { buildShareUrl, type ShareData, type ShareManifests } from '../lib/share';
+import RortTimeline from './RortTimeline';
 
 interface Props {
   tierKey: string;
@@ -274,6 +275,18 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
             </details>
           );
         })()}
+
+        {/* Rort Timeline — visual month-by-month rating */}
+        {isOnPromo && (
+          <div class="mt-4">
+            <RortTimeline
+              promoPrice={currentPrice}
+              fullPrice={userFullPrice}
+              promoMonthsLeft={userPromoLeft}
+              cheapest={baseline}
+            />
+          </div>
+        )}
 
         {/* Promo expired warning */}
         {userFullPrice && userPromoLeft === 0 && (
