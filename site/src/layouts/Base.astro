@@ -51,7 +51,15 @@ const canonicalUrl = canonicalPath
     )}
   </head>
   <body class="min-h-screen">
-    <main class="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+    <header class="max-w-6xl mx-auto px-4 pt-4 pb-2 flex items-center justify-between">
+      <a href="/" class="text-sm font-display font-bold text-neutral-300 hover:text-white transition-colors">
+        amigettingrorted.au
+      </a>
+      <a href="/how-it-works" class="text-sm text-neutral-500 hover:text-accent transition-colors">
+        How the rating works
+      </a>
+    </header>
+    <main class="max-w-6xl mx-auto px-4 py-6 sm:py-10">
       <slot />
     </main>
     <footer class="max-w-6xl mx-auto px-4 py-8 border-t border-surface-border text-neutral-500 text-sm space-y-3">
@@ -70,9 +78,6 @@ const canonicalUrl = canonicalPath
         If you want to support someone, chuck a few bucks at
         <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a> —
         the legends who actually maintain the plan data.
-      </p>
-      <p>
-        <a href="/how-it-works" class="underline hover:text-white">How the rating system works</a>
       </p>
     </footer>
   </body>
