@@ -1,11 +1,32 @@
 ---
 import Base from '../layouts/Base.astro';
+import katex from 'katex';
 
 const title = "How It Works — Is My NBN Cooked?";
 const description = "Learn how the Rort Scale rating works, how we calculate effective pricing, and where the plan data comes from.";
+
+// Pre-render KaTeX formulas server-side
+const effectiveCostFormula = katex.renderToString(
+  'C_{\\text{eff}} = \\frac{m_p \\cdot P_{\\text{promo}} + m_f \\cdot P_{\\text{full}} + F_{\\text{setup}}}{M}',
+  { displayMode: true, throwOnError: false }
+);
+
+const rortFormula = katex.renderToString(
+  '\\text{Overpay \\%} = \\frac{P_{\\text{you}} - P_{\\text{cheapest}}}{P_{\\text{cheapest}}} \\times 100',
+  { displayMode: true, throwOnError: false }
+);
+
+const mp = katex.renderToString('m_p', { throwOnError: false });
+const mf = katex.renderToString('m_f', { throwOnError: false });
+const pPromo = katex.renderToString('P_{\\text{promo}}', { throwOnError: false });
+const pFull = katex.renderToString('P_{\\text{full}}', { throwOnError: false });
+const fSetup = katex.renderToString('F_{\\text{setup}}', { throwOnError: false });
+const mTotal = katex.renderToString('M', { throwOnError: false });
 ---
 
 <Base title={title} description={description} canonicalPath="/how-it-works">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+
   <div class="max-w-3xl mx-auto">
     <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">
       &larr; Home
@@ -14,17 +35,31 @@ const description = "Learn how the Rort Scale rating works, how we calculate eff
     <h1 class="text-4xl sm:text-5xl font-display font-bold mb-2">
       How the <span class="text-accent">rort scale</span> works
     </h1>
-    <p class="text-neutral-400 mt-2 mb-10">
+    <p class="text-neutral-400 mt-2 mb-8">
       Everything you need to know about how we compare NBN plans and calculate your rating.
     </p>
 
+    <!-- Table of contents -->
+    <nav class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 mb-10">
+      <h2 class="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">On this page</h2>
+      <ul class="space-y-1.5 text-sm">
+        <li><a href="#rort-scale" class="text-neutral-300 hover:text-accent transition-colors">The Rort Scale</a></li>
+        <li><a href="#effective-pricing" class="text-neutral-300 hover:text-accent transition-colors">How effective pricing works</a></li>
+        <li><a href="#commitment-period" class="text-neutral-300 hover:text-accent transition-colors">The commitment period selector</a></li>
+        <li><a href="#data-source" class="text-neutral-300 hover:text-accent transition-colors">Where the data comes from</a></li>
+      </ul>
+    </nav>
+
     <!-- The Rort Scale -->
-    <section class="mb-12">
-      <h2 class="font-display font-bold text-xl mb-4">The Rort Scale</h2>
-      <p class="text-neutral-400 text-sm mb-6">
+    <section id="rort-scale" class="mb-12 scroll-mt-8">
+      <h2 class="font-display font-bold text-xl mb-4">
+        <a href="#rort-scale" class="hover:text-accent transition-colors">The Rort Scale</a>
+      </h2>
+      <p class="text-neutral-400 text-sm mb-4">
         After you enter your monthly price, we compare it against the cheapest available plan at the same
-        speed tier and assign you a rating. Here's what each level means:
+        speed tier. The overpay percentage determines your rating:
       </p>
+      <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 mb-6 overflow-x-auto" set:html={rortFormula} />
       <div class="space-y-3">
         <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
           <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background-color: #22d3ee;"></div>
@@ -65,8 +100,10 @@ const description = "Learn how the Rort Scale rating works, how we calculate eff
     </section>
 
     <!-- Effective pricing -->
-    <section class="mb-12">
-      <h2 class="font-display font-bold text-xl mb-4">How effective pricing works</h2>
+    <section id="effective-pricing" class="mb-12 scroll-mt-8">
+      <h2 class="font-display font-bold text-xl mb-4">
+        <a href="#effective-pricing" class="hover:text-accent transition-colors">How effective pricing works</a>
+      </h2>
       <p class="text-neutral-400 text-sm mb-4">
         Many ISPs advertise a low introductory price that reverts to a higher rate after a promo period,
         and some plans charge a one-off setup fee. Comparing the headline price alone is misleading.
@@ -75,8 +112,17 @@ const description = "Learn how the Rort Scale rating works, how we calculate eff
         To produce a fair comparison we calculate the <span class="text-neutral-300 font-medium">effective monthly cost</span>
         — the true average you'll pay over the commitment period:
       </p>
-      <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 font-mono text-sm text-neutral-300 mb-4">
-        effective cost = (promo months × promo price + remaining months × full price + setup fee) ÷ commitment period
+      <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 mb-4 overflow-x-auto" set:html={effectiveCostFormula} />
+      <div class="text-sm text-neutral-400 mb-4 space-y-1">
+        <p>Where:</p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li><span set:html={mp} /> = promo months (capped to commitment period)</li>
+          <li><span set:html={pPromo} /> = promotional monthly price</li>
+          <li><span set:html={mf} /> = remaining months at full price</li>
+          <li><span set:html={pFull} /> = ongoing monthly price after promo</li>
+          <li><span set:html={fSetup} /> = one-time setup fee</li>
+          <li><span set:html={mTotal} /> = total commitment period (3, 6, 12, or 24 months)</li>
+        </ul>
       </div>
       <p class="text-neutral-400 text-sm">
         This means a plan with a great intro offer but a steep post-promo price may rank lower than one with
@@ -85,8 +131,10 @@ const description = "Learn how the Rort Scale rating works, how we calculate eff
     </section>
 
     <!-- Commitment period selector -->
-    <section class="mb-12">
-      <h2 class="font-display font-bold text-xl mb-4">The commitment period selector</h2>
+    <section id="commitment-period" class="mb-12 scroll-mt-8">
+      <h2 class="font-display font-bold text-xl mb-4">
+        <a href="#commitment-period" class="hover:text-accent transition-colors">The commitment period selector</a>
+      </h2>
       <p class="text-neutral-400 text-sm mb-4">
         The commitment period selector (shown on each speed-tier page) lets you choose how many months you
         plan to stay with your next provider: 3, 6, 12, or 24 months. Changing it recalculates every
@@ -95,7 +143,7 @@ const description = "Learn how the Rort Scale rating works, how we calculate eff
       <p class="text-neutral-400 text-sm mb-4">
         The <span class="text-neutral-300 font-medium">Auto: cheapest</span> default picks the horizon
         that produces the single lowest effective monthly cost across all plans. When two horizons tie, it
-        leans toward the longer one — which sounds sensible, but read on.
+        picks the longer commitment period — on the assumption that a longer cheap streak is better.
       </p>
 
       <!-- Churn tip callout -->
@@ -124,8 +172,10 @@ const description = "Learn how the Rort Scale rating works, how we calculate eff
     </section>
 
     <!-- Data source -->
-    <section class="mb-12">
-      <h2 class="font-display font-bold text-xl mb-4">Where the data comes from</h2>
+    <section id="data-source" class="mb-12 scroll-mt-8">
+      <h2 class="font-display font-bold text-xl mb-4">
+        <a href="#data-source" class="hover:text-accent transition-colors">Where the data comes from</a>
+      </h2>
       <p class="text-neutral-400 text-sm mb-4">
         All plan data is sourced from <a href="https://www.netbargains.com.au" class="underline hover:text-white transition-colors" target="_blank" rel="noopener">NetBargains</a>,
         an independent Australian site that tracks NBN and fixed-line internet plans across every provider.
