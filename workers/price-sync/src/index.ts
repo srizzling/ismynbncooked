@@ -381,6 +381,112 @@ export default {
       });
     }
 
+    // Accept plan submissions from the website (no GitHub account needed)
+    if (url.pathname === '/submit-plan' && request.method === 'POST') {
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS ?? '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Content-Type': 'application/json',
+      };
+
+      if (!env.GITHUB_TOKEN) {
+        return new Response(JSON.stringify({ ok: false, error: 'Submissions not configured' }), {
+          status: 500, headers: corsHeaders,
+        });
+      }
+
+      try {
+        const body = await request.json() as {
+          planUrl: string;
+          cisUrl?: string;
+          provider?: string;
+          networkType?: string;
+          downloadSpeed?: string;
+          uploadSpeed?: string;
+          notes?: string;
+        };
+
+        if (!body.planUrl?.trim()) {
+          return new Response(JSON.stringify({ ok: false, error: 'Plan URL is required' }), {
+            status: 400, headers: corsHeaders,
+          });
+        }
+
+        // Build GitHub issue
+        let hostname = '';
+        try { hostname = new URL(body.planUrl.trim()).hostname; } catch { hostname = 'unknown'; }
+        const titleProvider = body.provider?.trim() || hostname;
+        const speedLabel = body.downloadSpeed
+          ? `${body.downloadSpeed}${body.uploadSpeed ? '/' + body.uploadSpeed : ''}`
+          : '';
+        const title = `[Plan Submission] ${titleProvider}${speedLabel ? ' — ' + (body.networkType?.toUpperCase() || 'NBN') + ' ' + speedLabel : ''}`;
+
+        const networkLabel = body.networkType === 'opticomm' ? 'Opticomm' : 'NBN';
+        const bodyParts = [
+          '## Plan Submission',
+          '',
+          '| Field | Value |',
+          '|-------|-------|',
+          `| **Provider** | ${body.provider?.trim() || '_Not provided_'} |`,
+          `| **Network** | ${networkLabel} |`,
+          `| **Download Speed** | ${body.downloadSpeed ? body.downloadSpeed + ' Mbps' : '_Not provided_'} |`,
+          `| **Upload Speed** | ${body.uploadSpeed ? body.uploadSpeed + ' Mbps' : '_Not provided_'} |`,
+          `| **Plan URL** | ${body.planUrl.trim()} |`,
+          `| **CIS URL** | ${body.cisUrl?.trim() || '_Not provided_'} |`,
+        ];
+
+        if (body.notes?.trim()) {
+          bodyParts.push('', '## Notes', '', body.notes.trim());
+        }
+
+        bodyParts.push('', '---', '*Submitted via the community plan submission form.*');
+
+        const ghRes = await fetch('https://api.github.com/repos/srizzling/ismynbncooked/issues', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'ismynbncooked-bot/1.0',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title,
+            body: bodyParts.join('\n'),
+            labels: ['plan-submission'],
+          }),
+        });
+
+        if (!ghRes.ok) {
+          const err = await ghRes.text();
+          console.error('[submit-plan] GitHub API error:', err);
+          return new Response(JSON.stringify({ ok: false, error: 'Failed to create issue' }), {
+            status: 502, headers: corsHeaders,
+          });
+        }
+
+        const issue = await ghRes.json() as { html_url: string; number: number };
+        return new Response(JSON.stringify({ ok: true, issueNumber: issue.number, issueUrl: issue.html_url }), {
+          headers: corsHeaders,
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+          status: 500, headers: corsHeaders,
+        });
+      }
+    }
+
+    // Handle CORS preflight for submit-plan
+    if (url.pathname === '/submit-plan' && request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS ?? '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        },
+      });
+    }
+
     await this.scheduled({} as ScheduledEvent, env, ctx);
     return new Response('Sync complete', { status: 200 });
   },
