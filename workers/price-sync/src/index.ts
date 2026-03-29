@@ -382,6 +382,7 @@ export default {
     }
 
     // Accept plan submissions from the website (no GitHub account needed)
+    // Creates a JSON file in community-sources/ via a PR + a linked issue
     if (url.pathname === '/submit-plan' && request.method === 'POST') {
       const corsHeaders = {
         'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS ?? '*',
@@ -395,6 +396,14 @@ export default {
           status: 500, headers: corsHeaders,
         });
       }
+
+      const ghHeaders = {
+        'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'ismynbncooked-bot/1.0',
+        'Content-Type': 'application/json',
+      };
+      const repo = 'srizzling/ismynbncooked';
 
       try {
         const body = await request.json() as {
@@ -413,63 +422,118 @@ export default {
           });
         }
 
-        // Build GitHub issue
         let hostname = '';
         try { hostname = new URL(body.planUrl.trim()).hostname; } catch { hostname = 'unknown'; }
-        const titleProvider = body.provider?.trim() || hostname;
+        const provider = body.provider?.trim() || hostname;
+        const networkType = body.networkType === 'opticomm' ? 'opticomm' : 'nbn';
         const speedLabel = body.downloadSpeed
-          ? `${body.downloadSpeed}${body.uploadSpeed ? '/' + body.uploadSpeed : ''}`
+          ? `${body.downloadSpeed}${body.uploadSpeed ? '-' + body.uploadSpeed : ''}`
           : '';
-        const title = `[Plan Submission] ${titleProvider}${speedLabel ? ' — ' + (body.networkType?.toUpperCase() || 'NBN') + ' ' + speedLabel : ''}`;
 
-        const networkLabel = body.networkType === 'opticomm' ? 'Opticomm' : 'NBN';
-        const bodyParts = [
+        // Build the community source JSON
+        const sourceData: Record<string, unknown> = {
+          provider,
+          url: body.planUrl.trim(),
+          networkType,
+        };
+        if (body.cisUrl?.trim()) sourceData.cisUrl = body.cisUrl.trim();
+        if (body.downloadSpeed) sourceData.downloadSpeed = parseInt(body.downloadSpeed);
+        if (body.uploadSpeed) sourceData.uploadSpeed = parseInt(body.uploadSpeed);
+        if (body.notes?.trim()) sourceData.notes = body.notes.trim();
+        sourceData.submittedAt = new Date().toISOString();
+
+        const slug = `${provider.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${networkType}${speedLabel ? '-' + speedLabel : ''}`;
+        const filePath = `workers/price-sync/community-sources/${slug}.json`;
+        const branchName = `plan-submission/${slug}-${Date.now()}`;
+        const fileContent = btoa(unescape(encodeURIComponent(JSON.stringify(sourceData, null, 2))));
+
+        // 0. Check for duplicate — does this file already exist on main?
+        const existingFile = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}?ref=main`, { headers: ghHeaders });
+        if (existingFile.ok) {
+          return new Response(JSON.stringify({ ok: false, error: 'This plan has already been submitted. Thanks though!' }), {
+            status: 409, headers: corsHeaders,
+          });
+        }
+
+        // Also check for open PRs with the same label+provider
+        const openPRs = await fetch(`https://api.github.com/repos/${repo}/pulls?state=open&head=${repo.split('/')[0]}:plan-submission/${slug}`, { headers: ghHeaders });
+        if (openPRs.ok) {
+          const prs = await openPRs.json() as { number: number }[];
+          if (prs.length > 0) {
+            return new Response(JSON.stringify({ ok: false, error: 'This plan is already pending review. Thanks though!' }), {
+              status: 409, headers: corsHeaders,
+            });
+          }
+        }
+
+        // 1. Get main branch SHA
+        const mainRef = await fetch(`https://api.github.com/repos/${repo}/git/ref/heads/main`, { headers: ghHeaders });
+        if (!mainRef.ok) throw new Error('Failed to get main branch ref');
+        const mainData = await mainRef.json() as { object: { sha: string } };
+        const mainSha = mainData.object.sha;
+
+        // 2. Create branch
+        const branchRes = await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
+          method: 'POST', headers: ghHeaders,
+          body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: mainSha }),
+        });
+        if (!branchRes.ok) throw new Error('Failed to create branch');
+
+        // 3. Create file on branch
+        const fileRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+          method: 'PUT', headers: ghHeaders,
+          body: JSON.stringify({
+            message: `feat(submit): add ${provider} ${networkType.toUpperCase()} ${speedLabel || 'plan'}`,
+            content: fileContent,
+            branch: branchName,
+          }),
+        });
+        if (!fileRes.ok) throw new Error('Failed to create file');
+
+        // 4. Create PR
+        const networkLabel = networkType === 'opticomm' ? 'Opticomm' : 'NBN';
+        const prTitle = `[Plan Submission] ${provider}${speedLabel ? ' — ' + networkLabel + ' ' + speedLabel.replace('-', '/') : ''}`;
+
+        const prBodyParts = [
           '## Plan Submission',
           '',
           '| Field | Value |',
           '|-------|-------|',
-          `| **Provider** | ${body.provider?.trim() || '_Not provided_'} |`,
+          `| **Provider** | ${provider} |`,
           `| **Network** | ${networkLabel} |`,
           `| **Download Speed** | ${body.downloadSpeed ? body.downloadSpeed + ' Mbps' : '_Not provided_'} |`,
           `| **Upload Speed** | ${body.uploadSpeed ? body.uploadSpeed + ' Mbps' : '_Not provided_'} |`,
           `| **Plan URL** | ${body.planUrl.trim()} |`,
           `| **CIS URL** | ${body.cisUrl?.trim() || '_Not provided_'} |`,
         ];
-
         if (body.notes?.trim()) {
-          bodyParts.push('', '## Notes', '', body.notes.trim());
+          prBodyParts.push('', '## Notes', '', body.notes.trim());
         }
+        prBodyParts.push('', '---', '*Submitted via the community plan submission form.*');
 
-        bodyParts.push('', '---', '*Submitted via the community plan submission form.*');
-
-        const ghRes = await fetch('https://api.github.com/repos/srizzling/ismynbncooked/issues', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github+json',
-            'User-Agent': 'ismynbncooked-bot/1.0',
-            'Content-Type': 'application/json',
-          },
+        const prRes = await fetch(`https://api.github.com/repos/${repo}/pulls`, {
+          method: 'POST', headers: ghHeaders,
           body: JSON.stringify({
-            title,
-            body: bodyParts.join('\n'),
-            labels: ['plan-submission'],
+            title: prTitle,
+            body: prBodyParts.join('\n'),
+            head: branchName,
+            base: 'main',
           }),
         });
+        if (!prRes.ok) throw new Error('Failed to create PR');
+        const pr = await prRes.json() as { html_url: string; number: number };
 
-        if (!ghRes.ok) {
-          const err = await ghRes.text();
-          console.error('[submit-plan] GitHub API error:', err);
-          return new Response(JSON.stringify({ ok: false, error: 'Failed to create issue' }), {
-            status: 502, headers: corsHeaders,
-          });
-        }
+        // 5. Add label to PR
+        await fetch(`https://api.github.com/repos/${repo}/issues/${pr.number}/labels`, {
+          method: 'POST', headers: ghHeaders,
+          body: JSON.stringify({ labels: ['plan-submission'] }),
+        });
 
-        const issue = await ghRes.json() as { html_url: string; number: number };
-        return new Response(JSON.stringify({ ok: true, issueNumber: issue.number, issueUrl: issue.html_url }), {
+        return new Response(JSON.stringify({ ok: true, prNumber: pr.number, prUrl: pr.html_url }), {
           headers: corsHeaders,
         });
       } catch (err) {
+        console.error('[submit-plan] Error:', err);
         return new Response(JSON.stringify({ ok: false, error: String(err) }), {
           status: 500, headers: corsHeaders,
         });
