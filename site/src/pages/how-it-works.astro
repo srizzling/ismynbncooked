@@ -90,23 +90,18 @@ const mTotal = katex.renderToString('M', { throwOnError: false });
       <h3 class="font-display font-bold text-lg mb-3">The rort timeline</h3>
       <p class="text-neutral-400 text-sm mb-4">
         If you're on a promo, you'll also see a <span class="text-neutral-300 font-medium">rort timeline</span>
-        — a month-by-month bar chart that visualises how your rating changes over the next 12 months.
+        — a visual track showing where you are now and what happens when your promo ends.
       </p>
       <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 mb-4 text-sm text-neutral-400 space-y-2">
         <p>
-          Each bar represents one month. The bar's <span class="text-neutral-300">colour</span> shows your rort
-          rating at that month's price — so you can see exactly when your rating shifts from
-          <span class="font-bold" style="color: #22d3ee;">Winning</span> to
-          <span class="font-bold" style="color: #fb923c;">Taking the Piss</span> (or worse) as your promo expires.
+          The timeline shows two segments: your <span class="text-neutral-300">promo period</span> (coloured by your
+          current rating) and the <span class="text-neutral-300">post-promo period</span> (coloured by what your
+          rating becomes at full price). The transition point is where your promo ends.
         </p>
         <p>
-          The <span class="text-neutral-300">dashed line</span> marks the cheapest available plan — anything above
-          that line means you're overpaying. Hover over any bar to see the exact price and rating for that month.
-        </p>
-        <p>
-          Use it to plan your churn: if your rating drops to
-          <span class="font-bold" style="color: #facc15;">Bit Shit</span> or worse in month 6,
-          that's your cue to start shopping around.
+          A "you are here" marker shows your current position. If your post-promo rating drops to
+          <span class="font-bold" style="color: #fb923c;">Taking the Piss</span> or worse, the timeline
+          tells you exactly how many months you have to find a better deal before the price jumps.
         </p>
       </div>
 

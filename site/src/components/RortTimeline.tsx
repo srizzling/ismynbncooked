@@ -1,5 +1,5 @@
-import { useMemo } from 'preact/hooks';
 import { LEVELS } from '../lib/cooked';
+import { calculateCooked } from '../lib/cooked';
 
 interface Props {
   promoPrice: number;
@@ -10,95 +10,97 @@ interface Props {
 }
 
 export default function RortTimeline({ promoPrice, fullPrice, promoMonthsLeft, cheapest, totalMonths = 12 }: Props) {
-  const months = useMemo(() => {
-    const result: { month: number; price: number; overpay: number; level: string; color: string; label: string }[] = [];
-    for (let m = 1; m <= totalMonths; m++) {
-      const price = m <= promoMonthsLeft ? promoPrice : fullPrice;
-      const overpay = cheapest > 0 ? (price - cheapest) / cheapest : 0;
-      const match = LEVELS.find(l => overpay >= l.threshold) ?? LEVELS[LEVELS.length - 1];
-      result.push({
-        month: m,
-        price,
-        overpay,
-        level: match.level,
-        color: match.color,
-        label: match.label,
-      });
-    }
-    return result;
-  }, [promoPrice, fullPrice, promoMonthsLeft, cheapest, totalMonths]);
+  const currentResult = calculateCooked(promoPrice, cheapest);
+  const currentLevel = LEVELS.find(l => l.level === currentResult.level)!;
 
-  const maxPrice = Math.max(promoPrice, fullPrice, cheapest) * 1.1;
-  const minPrice = Math.min(promoPrice, fullPrice, cheapest) * 0.9;
-  const priceRange = maxPrice - minPrice;
+  const postResult = calculateCooked(fullPrice, cheapest);
+  const postLevel = LEVELS.find(l => l.level === postResult.level)!;
 
-  const barHeight = 120;
-  const barWidth = Math.floor(100 / totalMonths);
+  const promoPercent = Math.round((promoMonthsLeft / totalMonths) * 100);
+  const postPercent = 100 - promoPercent;
 
   return (
     <div class="bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
-      <div class="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">Your rort timeline</div>
+      <div class="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">Your rort timeline</div>
 
-      {/* Timeline bars */}
-      <div class="flex items-end gap-px" style={{ height: `${barHeight}px` }}>
-        {months.map(m => {
-          const height = priceRange > 0 ? ((m.price - minPrice) / priceRange) * 100 : 50;
-          return (
-            <div
-              key={m.month}
-              class="relative group flex-1 rounded-t-sm transition-opacity hover:opacity-80"
-              style={{
-                height: `${Math.max(height, 5)}%`,
-                backgroundColor: m.color + '40',
-                borderTop: `2px solid ${m.color}`,
-              }}
-            >
-              {/* Tooltip */}
-              <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10
-                bg-surface border border-surface-border rounded-lg px-2.5 py-1.5 shadow-lg text-xs whitespace-nowrap">
-                <div class="text-white font-medium">Month {m.month}: ${m.price.toFixed(0)}/mo</div>
-                <div style={{ color: m.color }}>{m.label}</div>
-              </div>
+      {/* Timeline track */}
+      <div class="relative">
+        <div class="flex rounded-full overflow-hidden h-3">
+          {/* Promo segment */}
+          <div
+            class="relative"
+            style={{ width: `${promoPercent}%`, backgroundColor: currentLevel.color + '40', borderRight: '2px solid ' + currentLevel.color }}
+            title={`${promoMonthsLeft} months at $${promoPrice.toFixed(0)}/mo`}
+          />
+          {/* Post-promo segment */}
+          <div
+            class="relative"
+            style={{ width: `${postPercent}%`, backgroundColor: postLevel.color + '40' }}
+            title={`${totalMonths - promoMonthsLeft} months at $${fullPrice.toFixed(0)}/mo`}
+          />
+        </div>
+
+        {/* "You are here" marker at the start */}
+        <div class="absolute left-0 -top-1" style={{ transform: 'translateX(-50%)' }}>
+          <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center text-[8px]"
+            style={{ backgroundColor: currentLevel.color, borderColor: currentLevel.color }}>
+          </div>
+        </div>
+
+        {/* Promo end marker */}
+        <div class="absolute -top-1" style={{ left: `${promoPercent}%`, transform: 'translateX(-50%)' }}>
+          <div class="w-5 h-5 rounded-full border-2 bg-surface flex items-center justify-center"
+            style={{ borderColor: postLevel.color }}>
+          </div>
+        </div>
+
+        {/* End marker */}
+        <div class="absolute right-0 -top-1" style={{ transform: 'translateX(50%)' }}>
+          <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center"
+            style={{ backgroundColor: postLevel.color + '40', borderColor: postLevel.color }}>
+          </div>
+        </div>
+      </div>
+
+      {/* Labels */}
+      <div class="flex justify-between mt-3">
+        {/* Current */}
+        <div class="text-left">
+          <div class="text-xs text-neutral-500">Now</div>
+          <div class="text-sm font-bold" style={{ color: currentLevel.color }}>
+            {currentResult.label}
+          </div>
+          <div class="text-xs text-neutral-400">${promoPrice.toFixed(0)}/mo</div>
+          <div class="text-[10px] text-neutral-600">You are here</div>
+        </div>
+
+        {/* Promo end */}
+        <div class="text-center">
+          <div class="text-xs text-neutral-500">Month {promoMonthsLeft}</div>
+          <div class="text-xs text-accent font-medium">Promo ends</div>
+          <div class="text-xs text-neutral-400">↓ ${fullPrice.toFixed(0)}/mo</div>
+        </div>
+
+        {/* End */}
+        <div class="text-right">
+          <div class="text-xs text-neutral-500">Month {totalMonths}</div>
+          <div class="text-sm font-bold" style={{ color: postLevel.color }}>
+            {postResult.label}
+          </div>
+          <div class="text-xs text-neutral-400">${fullPrice.toFixed(0)}/mo</div>
+          {postResult.monthlySavings > 0 && (
+            <div class="text-[10px] text-neutral-600">
+              ${postResult.monthlySavings.toFixed(0)}/mo over cheapest
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
-      {/* Month labels */}
-      <div class="flex gap-px mt-1">
-        {months.map(m => (
-          <div key={m.month} class="flex-1 text-center text-[9px] text-neutral-600 tabular-nums">
-            {m.month}
-          </div>
-        ))}
-      </div>
-
-      {/* Cheapest line label */}
-      <div class="flex items-center gap-2 mt-3">
-        <div class="h-px flex-1 border-t border-dashed border-neutral-600" />
-        <span class="text-[10px] text-neutral-500">cheapest: ${cheapest.toFixed(0)}/mo</span>
-        <div class="h-px flex-1 border-t border-dashed border-neutral-600" />
-      </div>
-
-      {/* Summary */}
-      <div class="flex flex-wrap gap-3 mt-3 text-xs">
-        {promoMonthsLeft > 0 && (
-          <div class="flex items-center gap-1.5">
-            <div class="w-2 h-2 rounded-full" style={{ backgroundColor: months[0].color }} />
-            <span class="text-neutral-400">
-              Months 1–{promoMonthsLeft}: <span class="text-white">${promoPrice.toFixed(0)}/mo</span>
-              {' '}— <span style={{ color: months[0].color }}>{months[0].label}</span>
-            </span>
-          </div>
-        )}
-        {promoMonthsLeft < totalMonths && (
-          <div class="flex items-center gap-1.5">
-            <div class="w-2 h-2 rounded-full" style={{ backgroundColor: months[months.length - 1].color }} />
-            <span class="text-neutral-400">
-              Months {promoMonthsLeft + 1}–{totalMonths}: <span class="text-white">${fullPrice.toFixed(0)}/mo</span>
-              {' '}— <span style={{ color: months[months.length - 1].color }}>{months[months.length - 1].label}</span>
-            </span>
-          </div>
+      {/* Cheapest reference */}
+      <div class="mt-3 pt-3 border-t border-surface-border flex items-center justify-between text-xs text-neutral-500">
+        <span>Cheapest plan: ${cheapest.toFixed(0)}/mo</span>
+        {postResult.monthlySavings > 0 && (
+          <span>Set a reminder to churn in <span class="text-accent font-medium">{promoMonthsLeft} months</span></span>
         )}
       </div>
     </div>
