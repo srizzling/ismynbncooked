@@ -60,6 +60,34 @@ const mTotal = katex.renderToString('M', { throwOnError: false });
         speed tier. The overpay percentage determines your rating:
       </p>
       <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 mb-6 overflow-x-auto" set:html={rortFormula} />
+
+      <h3 class="font-display font-bold text-lg mb-3 mt-8">Two ratings, not one</h3>
+      <p class="text-neutral-400 text-sm mb-4">
+        If you're on a promotional plan, we actually calculate <span class="text-neutral-300 font-medium">two ratings</span>:
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
+          <div class="text-accent font-medium text-sm mb-1">Your current price</div>
+          <p class="text-neutral-400 text-xs">
+            What you're paying right now — your promo rate. This is the main rating you see.
+            If you're on a $53/mo promo and the cheapest plan is $54/mo, you're <span class="font-bold" style="color: #22d3ee;">Winning</span>.
+          </p>
+        </div>
+        <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
+          <div class="text-accent font-medium text-sm mb-1">After your promo ends</div>
+          <p class="text-neutral-400 text-xs">
+            What your rating will be once the promo price expires and you're on the full ongoing rate.
+            This is shown in an expandable section — so you know whether to start planning your next churn.
+          </p>
+        </div>
+      </div>
+      <p class="text-neutral-400 text-sm mb-6">
+        We don't blend these into a single "effective" rating because what matters most is
+        <span class="text-neutral-300 font-medium">what you're paying right now</span>. The post-promo rating
+        is there so you can set a reminder to churn before the price jumps.
+      </p>
+
+      <h3 class="font-display font-bold text-lg mb-3">Rating levels</h3>
       <div class="space-y-3">
         <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
           <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background-color: #22d3ee;"></div>
