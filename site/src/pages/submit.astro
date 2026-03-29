@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+import PlanSubmission from '../components/PlanSubmission';
+---
+
+<Base
+  title="Submit a Missing Plan — Am I Getting Rorted?"
+  description="Help us build a more complete database. Submit an NBN or Opticomm plan that's missing from our comparison tool."
+  canonicalPath="/submit"
+>
+  <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">
+    &larr; Home
+  </a>
+
+  <section class="mb-8">
+    <h1 class="text-4xl sm:text-5xl font-display font-bold">
+      Submit a <span class="text-accent">missing plan</span>
+    </h1>
+    <p class="text-neutral-400 mt-2 max-w-2xl">
+      Our plan data comes from <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a>,
+      but some providers and plans are missing. If you know of a plan that's not listed,
+      submit it here and we'll get it added to the database.
+    </p>
+  </section>
+
+  <section class="mb-12">
+    <PlanSubmission client:load />
+  </section>
+
+  <section>
+    <h2 class="font-display font-bold text-xl mb-3">How it works</h2>
+    <div class="space-y-3 text-sm text-neutral-400">
+      <div class="flex gap-3">
+        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">1</span>
+        <p>Fill in the plan details above. Make sure to include a link to the provider's plan page so we can verify the information.</p>
+      </div>
+      <div class="flex gap-3">
+        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">2</span>
+        <p>Clicking "Submit plan" opens a pre-filled GitHub issue. You'll need a GitHub account to submit it.</p>
+      </div>
+      <div class="flex gap-3">
+        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">3</span>
+        <p>We'll review the submission, verify the plan details, and add it to the database. New plans typically appear within a few days.</p>
+      </div>
+    </div>
+  </section>
+</Base>
