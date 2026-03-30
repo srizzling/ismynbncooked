@@ -553,7 +553,7 @@ export async function scrapeSwoopRaw(firecrawlApiKey: string, url: string): Prom
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      url: scrapeUrl,
+      url: url,
       waitFor: 3000,
       formats: ['markdown'],
       onlyMainContent: true,
