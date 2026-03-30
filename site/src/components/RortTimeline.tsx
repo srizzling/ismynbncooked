@@ -122,10 +122,12 @@ export default function RortTimeline({ promoPrice, fullPrice, promoMonthsLeft, c
 
               {/* Detail — shown on hover */}
               {isActive && (
-                <div
-                  class="mt-2 text-xs text-neutral-300 bg-surface border border-surface-border rounded-lg px-3 py-2 shadow-lg max-w-[220px]"
-                >
-                  {step.detail}
+                <div class="relative mt-2">
+                  <div
+                    class="absolute left-1/2 -translate-x-1/2 text-xs text-neutral-300 bg-surface border border-surface-border rounded-lg px-3 py-2 shadow-lg w-[220px] z-20"
+                  >
+                    {step.detail}
+                  </div>
                 </div>
               )}
             </li>
