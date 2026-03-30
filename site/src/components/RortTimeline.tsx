@@ -15,6 +15,48 @@ function monthLabel(monthsFromNow: number): string {
   return d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' });
 }
 
+function formatICalDate(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+function downloadIcal(promoMonthsLeft: number, fullPrice: number) {
+  const reminderDate = new Date();
+  reminderDate.setMonth(reminderDate.getMonth() + promoMonthsLeft - 1);
+  reminderDate.setHours(9, 0, 0, 0);
+
+  const endDate = new Date(reminderDate);
+  endDate.setHours(10, 0, 0, 0);
+
+  const promoEndDate = new Date();
+  promoEndDate.setMonth(promoEndDate.getMonth() + promoMonthsLeft);
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//amigettingrorted.au//Churn Reminder//EN',
+    'BEGIN:VEVENT',
+    `DTSTART:${formatICalDate(reminderDate)}`,
+    `DTEND:${formatICalDate(endDate)}`,
+    `SUMMARY:NBN Promo ending soon — time to churn?`,
+    `DESCRIPTION:Your NBN promo ends next month (${promoEndDate.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}).\\nYour price will jump to $${fullPrice.toFixed(2)}/mo.\\n\\nCompare plans at https://amigettingrorted.au`,
+    'BEGIN:VALARM',
+    'TRIGGER:-P1D',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:NBN promo ending soon',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'nbn-churn-reminder.ics';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function RortTimeline({ promoPrice, fullPrice, promoMonthsLeft, cheapest }: Props) {
   const [activeStep, setActiveStep] = useState<number | null>(null);
 
@@ -134,6 +176,24 @@ export default function RortTimeline({ promoPrice, fullPrice, promoMonthsLeft, c
           );
         })}
       </ol>
+
+      {/* Calendar reminder */}
+      {postResult.monthlySavings > 0 && promoMonthsLeft > 1 && (
+        <div class="mt-4 pt-3 border-t border-surface-border flex items-center justify-between">
+          <span class="text-xs text-neutral-500">
+            Cheapest plan: ${cheapest.toFixed(0)}/mo
+          </span>
+          <button
+            onClick={() => downloadIcal(promoMonthsLeft, fullPrice)}
+            class="text-xs px-3 py-1.5 rounded-lg border border-accent/30 bg-accent/10 text-accent hover:bg-accent/20 transition-colors flex items-center gap-1.5"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Remind me to churn
+          </button>
+        </div>
+      )}
     </div>
   );
 }
