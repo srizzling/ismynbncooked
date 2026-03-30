@@ -1,0 +1,145 @@
+name: Verify Plan Submission
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+    paths:
+      - 'workers/price-sync/community-sources/*.json'
+
+jobs:
+  verify:
+    if: contains(github.event.pull_request.labels.*.name, 'plan-submission')
+    runs-on: ubuntu-latest
+    environment: plan-verification
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find community source files
+        id: files
+        run: |
+          FILES=$(git diff --name-only origin/main...HEAD -- 'workers/price-sync/community-sources/*.json' | grep -v '.gitkeep' || true)
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "count=$(echo "$FILES" | grep -c '.' || echo 0)" >> $GITHUB_OUTPUT
+
+      - name: Verify submissions
+        if: steps.files.outputs.count != '0'
+        env:
+          WORKER_URL: https://ismynbncooked-price-sync.venksriram.workers.dev
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT=""
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Verifying: $file"
+
+            # POST the JSON to the worker's verify endpoint
+            RESPONSE=$(curl -sf -X POST "$WORKER_URL/verify-plan" \
+              -H "Content-Type: application/json" \
+              -d @"$file" 2>&1) || {
+              COMMENT="${COMMENT}## ❌ Verification Failed\n\n\`$file\`\n\nCould not reach the verification endpoint.\n\n---\n"
+              continue
+            }
+
+            # Parse response with inline script
+            REPORT=$(echo "$RESPONSE" | python3 -c "
+          import sys, json
+
+          d = json.load(sys.stdin)
+          if not d.get('ok'):
+              print(f'## ❌ Verification Error\n\n{d.get(\"error\", \"Unknown error\")}\n')
+              sys.exit(0)
+
+          lines = []
+
+          # Provider from the source file
+          import os
+          source = json.load(open('$file'))
+          provider = source.get('provider', 'Unknown')
+          plan_url = source.get('url', '')
+          cis_url = source.get('cisUrl', '')
+
+          lines.append(f'## Plan Verification Report\n')
+          lines.append(f'**Provider**: {provider}')
+
+          plan_reachable = d.get('planUrl', {}).get('reachable', False)
+          lines.append(f'**Plan URL**: {plan_url} {\"✅ Reachable\" if plan_reachable else \"❌ Unreachable\"}')
+
+          cis_info = d.get('cisUrl')
+          if cis_info is not None:
+              cis_reachable = cis_info.get('reachable', False)
+              lines.append(f'**CIS URL**: {cis_url} {\"✅ Reachable\" if cis_reachable else \"❌ Unreachable\"}')
+
+          # Submitted plan match
+          sp = d.get('submittedPlan')
+          if sp:
+              if sp.get('found'):
+                  lines.append(f'\n### Submitted Plan: {sp[\"name\"]} ({sp[\"downloadSpeed\"]}/{sp[\"uploadSpeed\"]} Mbps) ✅ Found')
+                  lines.append('| Field | Submitted | Scraped |')
+                  lines.append('|-------|-----------|---------|')
+                  lines.append(f'| Download | {source.get(\"downloadSpeed\", \"—\")} Mbps | {sp[\"downloadSpeed\"]} Mbps ✅ |')
+                  lines.append(f'| Upload | {source.get(\"uploadSpeed\", \"—\")} Mbps | {sp[\"uploadSpeed\"]} Mbps ✅ |')
+                  lines.append(f'| Monthly Price | — | \${sp[\"monthlyPrice\"]:.2f} (promo) |')
+                  lines.append(f'| Ongoing Price | — | \${sp[\"ongoingPrice\"]:.2f} |')
+                  if sp.get('promoValue') and sp.get('promoDuration'):
+                      lines.append(f'| Promo | — | \${sp[\"promoValue\"]:.0f} off for {sp[\"promoDuration\"]} months |')
+                  if sp.get('typicalEveningSpeed'):
+                      lines.append(f'| Typical Evening | — | {sp[\"typicalEveningSpeed\"]} Mbps |')
+              else:
+                  lines.append(f'\n### Submitted Plan: {source.get(\"downloadSpeed\", \"?\")}/{source.get(\"uploadSpeed\", \"?\")} Mbps ❌ Not Found')
+                  lines.append('Could not find a plan matching the submitted speeds on the provider page.')
+
+          # Note for unsupported providers
+          note = d.get('note')
+          if note:
+              lines.append(f'\n> ℹ️ {note}')
+
+          # Missing plans
+          missing = d.get('missingPlans', [])
+          if missing:
+              lines.append(f'\n### Also missing from NetBargains ({len(missing)} plan{\"s\" if len(missing) != 1 else \"\"})')
+              lines.append('| Plan | Speed | Promo | Duration | Ongoing |')
+              lines.append('|------|-------|-------|----------|---------|')
+              for p in missing:
+                  speed = f'{p[\"downloadSpeed\"]}/{p[\"uploadSpeed\"]}'
+                  promo = f'\${p[\"monthlyPrice\"]:.2f}' if p.get('monthlyPrice') else '—'
+                  dur = f'{p[\"promoDuration\"]} months' if p.get('promoDuration') else '—'
+                  ongoing = f'\${p[\"ongoingPrice\"]:.2f}' if p.get('ongoingPrice') else '—'
+                  lines.append(f'| {p[\"name\"]} | {speed} | {promo} | {dur} | {ongoing} |')
+
+          # All scraped plans
+          all_plans = d.get('allScrapedPlans', [])
+          if all_plans:
+              lines.append(f'\n<details><summary>All scraped plans ({len(all_plans)} total)</summary>\n')
+              lines.append('| Plan | Speed | Promo | Duration | Ongoing |')
+              lines.append('|------|-------|-------|----------|---------|')
+              for p in all_plans:
+                  speed = f'{p[\"downloadSpeed\"]}/{p[\"uploadSpeed\"]}'
+                  promo = f'\${p[\"monthlyPrice\"]:.2f}' if p.get('monthlyPrice') else '—'
+                  dur = f'{p[\"promoDuration\"]} months' if p.get('promoDuration') else '—'
+                  ongoing = f'\${p[\"ongoingPrice\"]:.2f}' if p.get('ongoingPrice') else '—'
+                  lines.append(f'| {p[\"name\"]} | {speed} | {promo} | {dur} | {ongoing} |')
+              lines.append('\n</details>')
+
+          # Final verdict
+          if sp and sp.get('found') and plan_reachable:
+              lines.append('\n✅ **Plan verified** — speeds match, URLs reachable')
+          elif plan_reachable:
+              lines.append('\n⚠️ **Partial verification** — URL reachable but could not confirm specific plan')
+          else:
+              lines.append('\n❌ **Verification failed** — plan URL unreachable')
+
+          print('\n'.join(lines))
+          ")
+
+            COMMENT="${COMMENT}${REPORT}\n\n---\n"
+          done <<< "${{ steps.files.outputs.files }}"
+
+          if [ -n "$COMMENT" ]; then
+            echo -e "$COMMENT" | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
+          fi

@@ -4,10 +4,9 @@ const CIS_URL = 'https://leaptel.com.au/wp-content/uploads/NBN-CIS-v25.6.pdf';
 const PLAN_URL = 'https://leaptel.com.au/plans/';
 
 /**
- * Scrapes all Leaptel NBN plans via firecrawl's scrape API.
- * Clicks the "All plans" tab to reveal plans not shown by default.
+ * Scrapes Leaptel plans page via firecrawl and returns raw parsed plans.
  */
-export async function scrapeLeaptelPlans(firecrawlApiKey: string): Promise<NBNPlan[]> {
+export async function scrapeLeaptelRaw(firecrawlApiKey: string): Promise<ParsedPlan[]> {
   console.log('[leaptel-scraper] Fetching plans via firecrawl...');
 
   const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -38,12 +37,21 @@ export async function scrapeLeaptelPlans(firecrawlApiKey: string): Promise<NBNPl
     throw new Error(`Firecrawl scrape failed: ${data.error || 'no markdown returned'}`);
   }
 
-  const plans = parseLeaptelMarkdown(data.data.markdown);
+  const plans = parseLeaptelMarkdownRaw(data.data.markdown);
   console.log(`[leaptel-scraper] Parsed ${plans.length} plans`);
   return plans;
 }
 
-interface ParsedPlan {
+/**
+ * Scrapes all Leaptel NBN plans and returns them as NBNPlan[].
+ * Used by the cron sync to merge missing plans.
+ */
+export async function scrapeLeaptelPlans(firecrawlApiKey: string): Promise<NBNPlan[]> {
+  const rawPlans = await scrapeLeaptelRaw(firecrawlApiKey);
+  return rawPlans.map(parsed => toNBNPlan(parsed));
+}
+
+export interface ParsedPlan {
   name: string;
   downloadSpeed: number;
   uploadSpeed: number;
@@ -72,9 +80,34 @@ interface ParsedPlan {
  *   ${discount} discount for {duration} months,
  *   then ${ongoing} ongoing
  */
-function parseLeaptelMarkdown(markdown: string): NBNPlan[] {
+/** Convert a ParsedPlan to an NBNPlan for the Leaptel provider. */
+function toNBNPlan(parsed: ParsedPlan): NBNPlan {
+  const yearlyCost = computeYearlyCost(parsed.monthlyPrice, parsed.promoValue, parsed.promoDuration);
+  return {
+    id: `leaptel-${parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${parsed.downloadSpeed}-${parsed.uploadSpeed}`,
+    providerName: 'Leaptel',
+    planName: `Leaptel ${parsed.name}`,
+    monthlyPrice: parsed.ongoingPrice,
+    yearlyCost: Math.round(yearlyCost * 100) / 100,
+    effectiveMonthly: Math.round((yearlyCost / 12) * 100) / 100,
+    setupFee: 0,
+    promoValue: parsed.promoValue,
+    promoDuration: parsed.promoDuration,
+    typicalEveningSpeed: parsed.typicalEveningSpeed,
+    contractLength: 0,
+    cisUrl: CIS_URL,
+    minimumTerm: null,
+    cancellationFees: null,
+    noticePeriod: null,
+    downloadSpeed: parsed.downloadSpeed,
+    uploadSpeed: parsed.uploadSpeed,
+    networkType: 'nbn',
+  };
+}
+
+export function parseLeaptelMarkdownRaw(markdown: string): ParsedPlan[] {
   const lines = markdown.split('\n').map(l => l.trim());
-  const plans: NBNPlan[] = [];
+  const plans: ParsedPlan[] = [];
 
   // Known plan names to match against — avoids picking up section headers
   const knownPlanNames = [
@@ -96,28 +129,7 @@ function parseLeaptelMarkdown(markdown: string): NBNPlan[] {
     const parsed = parsePlanBlock(lines, i + 1);
     if (!parsed) continue;
 
-    const yearlyCost = computeYearlyCost(parsed.monthlyPrice, parsed.promoValue, parsed.promoDuration);
-
-    plans.push({
-      id: `leaptel-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${parsed.downloadSpeed}-${parsed.uploadSpeed}`,
-      providerName: 'Leaptel',
-      planName: `Leaptel ${name}`,
-      monthlyPrice: parsed.ongoingPrice,
-      yearlyCost: Math.round(yearlyCost * 100) / 100,
-      effectiveMonthly: Math.round((yearlyCost / 12) * 100) / 100,
-      setupFee: 0,
-      promoValue: parsed.promoValue,
-      promoDuration: parsed.promoDuration,
-      typicalEveningSpeed: parsed.typicalEveningSpeed,
-      contractLength: 0,
-      cisUrl: CIS_URL,
-      minimumTerm: null,
-      cancellationFees: null,
-      noticePeriod: null,
-      downloadSpeed: parsed.downloadSpeed,
-      uploadSpeed: parsed.uploadSpeed,
-      networkType: 'nbn',
-    });
+    plans.push(parsed);
   }
 
   return plans;

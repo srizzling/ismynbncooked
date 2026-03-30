@@ -2,7 +2,7 @@ import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, Netwo
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
-import { scrapeLeaptelPlans } from './community-scrapers';
+import { scrapeLeaptelPlans, scrapeLeaptelRaw, type ParsedPlan } from './community-scrapers';
 
 function normalizeNetworkType(raw: string): NetworkType {
   const lower = raw.toLowerCase();
@@ -578,6 +578,114 @@ export default {
         console.error('[submit-plan] Error:', err);
         return new Response(JSON.stringify({ ok: false, error: String(err) }), {
           status: 500, headers: corsHeaders,
+        });
+      }
+    }
+
+    // Verify a community plan submission by scraping the provider URL
+    if (url.pathname === '/verify-plan' && request.method === 'POST') {
+      if (!env.FIRECRAWL_API_KEY) {
+        return new Response(JSON.stringify({ ok: false, error: 'Firecrawl not configured' }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      try {
+        const body = await request.json() as {
+          provider?: string;
+          url: string;
+          networkType?: string;
+          downloadSpeed?: number;
+          uploadSpeed?: number;
+          cisUrl?: string;
+        };
+
+        if (!body.url?.trim()) {
+          return new Response(JSON.stringify({ ok: false, error: 'URL is required' }), {
+            status: 400, headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Check if plan URL is reachable
+        let planUrlReachable = false;
+        try {
+          const r = await fetch(body.url.trim(), { method: 'HEAD', redirect: 'follow' });
+          planUrlReachable = r.ok;
+        } catch { /* unreachable */ }
+
+        // Check if CIS URL is reachable
+        let cisUrlReachable: boolean | null = null;
+        if (body.cisUrl?.trim()) {
+          try {
+            const r = await fetch(body.cisUrl.trim(), { method: 'HEAD', redirect: 'follow' });
+            cisUrlReachable = r.ok;
+          } catch { cisUrlReachable = false; }
+        }
+
+        // Scrape plans — currently only Leaptel is supported
+        const provider = (body.provider || '').toLowerCase();
+        let scrapedPlans: ParsedPlan[] = [];
+
+        if (provider === 'leaptel' || body.url.includes('leaptel.com.au')) {
+          scrapedPlans = await scrapeLeaptelRaw(env.FIRECRAWL_API_KEY);
+        } else {
+          return new Response(JSON.stringify({
+            ok: true,
+            planUrl: { reachable: planUrlReachable },
+            cisUrl: cisUrlReachable !== null ? { reachable: cisUrlReachable } : undefined,
+            submittedPlan: null,
+            missingPlans: [],
+            note: `Automated scraping not yet supported for this provider. Manual review required.`,
+          }), { headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // Find submitted plan match (if speeds were provided)
+        let submittedPlan: (ParsedPlan & { found: boolean }) | null = null;
+        if (body.downloadSpeed && body.uploadSpeed) {
+          const match = scrapedPlans.find(
+            p => p.downloadSpeed === body.downloadSpeed && p.uploadSpeed === body.uploadSpeed
+          );
+          submittedPlan = match
+            ? { ...match, found: true }
+            : { found: false, name: '', downloadSpeed: body.downloadSpeed, uploadSpeed: body.uploadSpeed, typicalEveningSpeed: null, monthlyPrice: 0, promoValue: 0, promoDuration: 0, ongoingPrice: 0 };
+        }
+
+        // Cross-reference against R2 data to find plans missing from NetBargains
+        const networkType = body.networkType === 'opticomm' ? 'opticomm' : 'nbn';
+        const missingPlans: ParsedPlan[] = [];
+
+        for (const plan of scrapedPlans) {
+          const tierKey = buildTierKey(networkType as 'nbn' | 'opticomm', plan.downloadSpeed, plan.uploadSpeed);
+          try {
+            const tierObj = await env.DATA_BUCKET.get(`data/plans/${tierKey}.json`);
+            if (tierObj) {
+              const tierData = await tierObj.json() as TierData;
+              const hasProvider = tierData.plans.some(
+                p => p.providerName.toLowerCase() === (body.provider || 'leaptel').toLowerCase()
+              );
+              if (!hasProvider) missingPlans.push(plan);
+            } else {
+              // Entire tier is missing
+              missingPlans.push(plan);
+            }
+          } catch {
+            missingPlans.push(plan);
+          }
+        }
+
+        return new Response(JSON.stringify({
+          ok: true,
+          planUrl: { reachable: planUrlReachable },
+          cisUrl: cisUrlReachable !== null ? { reachable: cisUrlReachable } : undefined,
+          submittedPlan,
+          allScrapedPlans: scrapedPlans,
+          missingPlans,
+        }), { headers: { 'Content-Type': 'application/json' } });
+
+      } catch (err) {
+        console.error('[verify-plan] Error:', err);
+        return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
         });
       }
     }
