@@ -1,0 +1,10 @@
+{
+  "provider": "Leaptel",
+  "url": "https://leaptel.com.au/plans/",
+  "networkType": "nbn",
+  "cisUrl": "https://leaptel.com.au/wp-content/uploads/NBN-CIS-v25.6.pdf",
+  "downloadSpeed": 100,
+  "uploadSpeed": 40,
+  "notes": "Full Boost plan - $84.95/mo promo ($15 off for 12 months), $99.95 ongoing. Typical evening speed 100/36 Mbps. Available for FTTN/B/C only.",
+  "submittedAt": "2026-03-30T03:26:47.564Z"
+}
