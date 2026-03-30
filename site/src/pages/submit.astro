@@ -24,7 +24,7 @@ const ghToken = runtime.env.GITHUB_TOKEN;
 if (ghToken) {
   try {
     const res = await fetch(
-      'https://api.github.com/repos/srizzling/ismynbncooked/pulls?state=all&labels=plan-submission&per_page=20&sort=created&direction=desc',
+      'https://api.github.com/repos/srizzling/ismynbncooked/issues?state=all&labels=plan-submission&per_page=20&sort=created&direction=desc',
       {
         headers: {
           'Authorization': `Bearer ${ghToken}`,
@@ -34,15 +34,18 @@ if (ghToken) {
       }
     );
     if (res.ok) {
-      const prs = await res.json() as any[];
-      submissions = prs.map((pr: any) => ({
-        number: pr.number,
-        title: (pr.title as string).replace('[Plan Submission] ', ''),
-        state: pr.state,
-        merged: pr.merged_at !== null,
-        createdAt: pr.created_at,
-        htmlUrl: pr.html_url,
-      }));
+      const issues = await res.json() as any[];
+      // Issues API includes PRs — filter to only PRs (they have pull_request key)
+      submissions = issues
+        .filter((i: any) => i.pull_request)
+        .map((i: any) => ({
+          number: i.number,
+          title: (i.title as string).replace('[Plan Submission] ', ''),
+          state: i.state,
+          merged: i.pull_request.merged_at !== null,
+          createdAt: i.created_at,
+          htmlUrl: i.html_url,
+        }));
     }
   } catch (e) {
     console.error('Failed to fetch submissions:', e);
