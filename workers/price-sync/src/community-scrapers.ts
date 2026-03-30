@@ -542,11 +542,12 @@ function parseOriginPlanBlock(
 
 // ─── Swoop Scraper ────────────────────────────────────────────────────────────
 
-const SWOOP_URL = 'https://www.swoop.com.au/nbn';
+const SWOOP_DEFAULT_URL = 'https://www.swoop.com.au/nbn';
 
-// Scrapes all Swoop NBN plans. Simple page — no tab clicking needed.
-export async function scrapeSwoopRaw(firecrawlApiKey: string): Promise<ParsedPlan[]> {
-  console.log('[swoop-scraper] Fetching plans via firecrawl...');
+// Scrapes Swoop NBN plans. Simple page — no tab clicking needed.
+export async function scrapeSwoopRaw(firecrawlApiKey: string, url?: string): Promise<ParsedPlan[]> {
+  const scrapeUrl = url || SWOOP_DEFAULT_URL;
+  console.log(`[swoop-scraper] Fetching plans from ${scrapeUrl} via firecrawl...`);
 
   const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
     method: 'POST',
@@ -555,7 +556,7 @@ export async function scrapeSwoopRaw(firecrawlApiKey: string): Promise<ParsedPla
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      url: SWOOP_URL,
+      url: scrapeUrl,
       waitFor: 3000,
       formats: ['markdown'],
       onlyMainContent: true,

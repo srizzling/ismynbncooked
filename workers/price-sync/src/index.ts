@@ -612,7 +612,7 @@ export default {
           scrapedPlans = await scrapeOriginRaw(env.FIRECRAWL_API_KEY);
           planUrlReachable = scrapedPlans.length > 0;
         } else if (provider === 'swoop' || body.url.includes('swoop.com.au')) {
-          scrapedPlans = await scrapeSwoopRaw(env.FIRECRAWL_API_KEY);
+          scrapedPlans = await scrapeSwoopRaw(env.FIRECRAWL_API_KEY, body.url.trim());
           planUrlReachable = scrapedPlans.length > 0;
         } else {
           // Unsupported provider — just check if URL is reachable
