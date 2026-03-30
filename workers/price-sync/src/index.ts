@@ -606,13 +606,6 @@ export default {
           });
         }
 
-        // Check if plan URL is reachable
-        let planUrlReachable = false;
-        try {
-          const r = await fetch(body.url.trim(), { method: 'HEAD', redirect: 'follow' });
-          planUrlReachable = r.ok;
-        } catch { /* unreachable */ }
-
         // Check if CIS URL is reachable
         let cisUrlReachable: boolean | null = null;
         if (body.cisUrl?.trim()) {
@@ -623,12 +616,21 @@ export default {
         }
 
         // Scrape plans — currently only Leaptel is supported
+        // If scrape succeeds, the URL is reachable (firecrawl handles Cloudflare)
         const provider = (body.provider || '').toLowerCase();
         let scrapedPlans: ParsedPlan[] = [];
+        let planUrlReachable = false;
 
         if (provider === 'leaptel' || body.url.includes('leaptel.com.au')) {
           scrapedPlans = await scrapeLeaptelRaw(env.FIRECRAWL_API_KEY);
+          planUrlReachable = scrapedPlans.length > 0;
         } else {
+          // Unsupported provider — just check if URL is reachable
+          try {
+            const r = await fetch(body.url.trim(), { method: 'HEAD', redirect: 'follow' });
+            planUrlReachable = r.ok;
+          } catch { /* unreachable */ }
+
           return new Response(JSON.stringify({
             ok: true,
             planUrl: { reachable: planUrlReachable },
