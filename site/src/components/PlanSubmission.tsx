@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import type { NetworkType } from '../lib/types';
 
 const DOWNLOAD_SPEEDS = [25, 50, 100, 250, 500, 750, 1000, 2000];
-const SUBMIT_URL = import.meta.env.PUBLIC_SUBMIT_URL || '/api/submit-plan';
+const SUBMIT_URL = import.meta.env.PUBLIC_SUBMIT_URL || '/submit-plan';
 
 export default function PlanSubmission() {
   const [providerName, setProviderName] = useState('');
