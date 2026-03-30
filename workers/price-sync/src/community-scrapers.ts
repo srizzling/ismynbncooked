@@ -73,6 +73,8 @@ export async function scrapeCommunityPlans(
         plans = await scrapeLeaptelPlans(firecrawlApiKey);
       } else if (providerKey === 'origin energy' || providerKey === 'origin broadband' || providerKey === 'origin' || providerSources[0].url.includes('originenergy.com.au')) {
         plans = await scrapeOriginPlans(firecrawlApiKey);
+      } else if (providerKey === 'swoop' || providerSources[0].url.includes('swoop.com.au')) {
+        plans = await scrapeSwoopPlans(firecrawlApiKey);
       } else {
         console.log(`[community] No scraper for provider "${providerSources[0].provider}" — skipping`);
         continue;
@@ -535,5 +537,173 @@ function parseOriginPlanBlock(
     promoDuration,
     ongoingPrice,
     networkType,
+  };
+}
+
+// ─── Swoop Scraper ────────────────────────────────────────────────────────────
+
+const SWOOP_URL = 'https://www.swoop.com.au/nbn';
+
+// Scrapes all Swoop NBN plans. Simple page — no tab clicking needed.
+export async function scrapeSwoopRaw(firecrawlApiKey: string): Promise<ParsedPlan[]> {
+  console.log('[swoop-scraper] Fetching plans via firecrawl...');
+
+  const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${firecrawlApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url: SWOOP_URL,
+      waitFor: 3000,
+      formats: ['markdown'],
+      onlyMainContent: true,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Firecrawl API error: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json() as { success: boolean; data?: { markdown?: string }; error?: string };
+  if (!data.success || !data.data?.markdown) {
+    throw new Error(`Firecrawl scrape failed: ${data.error || 'no markdown returned'}`);
+  }
+
+  const plans = parseSwoopMarkdown(data.data.markdown);
+  console.log(`[swoop-scraper] Parsed ${plans.length} plans`);
+  return plans;
+}
+
+export async function scrapeSwoopPlans(firecrawlApiKey: string): Promise<NBNPlan[]> {
+  const rawPlans = await scrapeSwoopRaw(firecrawlApiKey);
+  return rawPlans.map(p => ({
+    id: `swoop-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${p.downloadSpeed}-${p.uploadSpeed}`,
+    providerName: 'Swoop',
+    planName: `Swoop ${p.downloadSpeed}/${p.uploadSpeed}`,
+    monthlyPrice: p.ongoingPrice,
+    yearlyCost: Math.round(computeYearlyCost(p.monthlyPrice, p.promoValue, p.promoDuration) * 100) / 100,
+    effectiveMonthly: Math.round((computeYearlyCost(p.monthlyPrice, p.promoValue, p.promoDuration) / 12) * 100) / 100,
+    setupFee: 0,
+    promoValue: p.promoValue,
+    promoDuration: p.promoDuration,
+    typicalEveningSpeed: p.typicalEveningSpeed,
+    contractLength: 0,
+    cisUrl: SWOOP_URL,
+    minimumTerm: null,
+    cancellationFees: null,
+    noticePeriod: null,
+    downloadSpeed: p.downloadSpeed,
+    uploadSpeed: p.uploadSpeed,
+    networkType: 'nbn',
+  }));
+}
+
+// Parses Swoop markdown. Pattern per plan:
+// {dl}/{ul} Mbps
+// Typical evening speed (7pm-11pm)
+// {dl} Mbps **Download**
+// {ul} Mbps **Upload**
+// ${ongoing}${promo}   (concatenated, e.g. "$69$54")
+// **per** **month**
+// ${discount}/mth off for {duration} months
+function parseSwoopMarkdown(markdown: string): ParsedPlan[] {
+  const lines = markdown.split('\n').map(l => l.trim());
+  const plans: ParsedPlan[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    // Match speed header: "25/10 Mbps" or "500/50 Mbps" or "1000/100 Mbps"
+    const speedMatch = lines[i].match(/^(\d+)\/(\d+) Mbps$/);
+    if (!speedMatch) continue;
+
+    const downloadSpeed = parseInt(speedMatch[1]);
+    const uploadSpeed = parseInt(speedMatch[2]);
+
+    // Parse the block after this header
+    const parsed = parseSwoopPlanBlock(lines, i + 1, downloadSpeed, uploadSpeed);
+    if (parsed) plans.push(parsed);
+  }
+
+  return plans;
+}
+
+function parseSwoopPlanBlock(
+  lines: string[],
+  startIdx: number,
+  downloadSpeed: number,
+  uploadSpeed: number,
+): ParsedPlan | null {
+  let typicalDown: number | null = null;
+  let typicalUp: number | null = null;
+  let ongoingPrice = 0;
+  let promoPrice = 0;
+  let promoValue = 0;
+  let promoDuration = 0;
+
+  const nextNonEmpty = (from: number, max: number): string => {
+    for (let j = from; j < max; j++) {
+      if (lines[j] !== '') return lines[j];
+    }
+    return '';
+  };
+
+  const endIdx = Math.min(startIdx + 40, lines.length);
+  for (let i = startIdx; i < endIdx; i++) {
+    const line = lines[i];
+    if (line === '') continue;
+
+    // Stop at next plan's speed header
+    if (line.match(/^\d+\/\d+ Mbps$/)) break;
+
+    // Typical evening speed: bare number followed by Mbps then **Download** or **Upload**
+    const numMatch = line.match(/^(\d+)$/);
+    if (numMatch) {
+      const next1 = nextNonEmpty(i + 1, endIdx);
+      const next2 = nextNonEmpty(i + 2, endIdx);
+      if (next1 === 'Mbps' && next2 === '**Download**' && typicalDown === null) {
+        typicalDown = parseInt(numMatch[1]);
+        continue;
+      }
+      if (next1 === 'Mbps' && next2 === '**Upload**' && typicalUp === null) {
+        typicalUp = parseInt(numMatch[1]);
+        continue;
+      }
+    }
+
+    // Price: "$69$54" (ongoing then promo concatenated)
+    const priceMatch = line.match(/^\$(\d+(?:\.\d{2})?)\$(\d+(?:\.\d{2})?)$/);
+    if (priceMatch) {
+      ongoingPrice = parseFloat(priceMatch[1]);
+      promoPrice = parseFloat(priceMatch[2]);
+      continue;
+    }
+
+    // Discount: "$15/mth off for 6 months"
+    const discountMatch = line.match(/^\$(\d+)\/mth off for (\d+) months$/);
+    if (discountMatch) {
+      promoValue = parseFloat(discountMatch[1]);
+      promoDuration = parseInt(discountMatch[2]);
+      continue;
+    }
+  }
+
+  if (!ongoingPrice) return null;
+
+  // If no separate promo info, derive from prices
+  if (!promoValue && promoPrice && promoPrice < ongoingPrice) {
+    promoValue = ongoingPrice - promoPrice;
+  }
+
+  return {
+    name: `NBN ${downloadSpeed}/${uploadSpeed}`,
+    downloadSpeed,
+    uploadSpeed,
+    typicalEveningSpeed: typicalDown,
+    monthlyPrice: promoPrice || ongoingPrice,
+    promoValue,
+    promoDuration,
+    ongoingPrice,
+    networkType: 'nbn',
   };
 }

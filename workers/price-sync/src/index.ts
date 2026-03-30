@@ -2,7 +2,7 @@ import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, Netwo
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
-import { scrapeCommunityPlans, scrapeLeaptelRaw, scrapeOriginRaw, type ParsedPlan } from './community-scrapers';
+import { scrapeCommunityPlans, scrapeLeaptelRaw, scrapeOriginRaw, scrapeSwoopRaw, type ParsedPlan } from './community-scrapers';
 
 function normalizeNetworkType(raw: string): NetworkType {
   const lower = raw.toLowerCase();
@@ -611,6 +611,9 @@ export default {
         } else if (provider === 'origin energy' || provider === 'origin' || body.url.includes('originenergy.com.au')) {
           scrapedPlans = await scrapeOriginRaw(env.FIRECRAWL_API_KEY);
           planUrlReachable = scrapedPlans.length > 0;
+        } else if (provider === 'swoop' || body.url.includes('swoop.com.au')) {
+          scrapedPlans = await scrapeSwoopRaw(env.FIRECRAWL_API_KEY);
+          planUrlReachable = scrapedPlans.length > 0;
         } else {
           // Unsupported provider — just check if URL is reachable
           try {
@@ -652,6 +655,10 @@ export default {
         }
         if (provider === 'leaptel') {
           providerAliases.add('leaptel');
+        }
+        if (provider === 'swoop') {
+          providerAliases.add('swoop');
+          providerAliases.add('swoop broadband');
         }
         const missingPlans: ParsedPlan[] = [];
 
