@@ -640,11 +640,12 @@ export default {
         }
 
         // Cross-reference against R2 data to find plans missing from NetBargains
-        const networkType = body.networkType === 'opticomm' ? 'opticomm' : 'nbn';
+        const fallbackNetwork = body.networkType === 'opticomm' ? 'opticomm' : 'nbn';
         const missingPlans: ParsedPlan[] = [];
 
         for (const plan of scrapedPlans) {
-          const tierKey = buildTierKey(networkType as 'nbn' | 'opticomm', plan.downloadSpeed, plan.uploadSpeed);
+          const planNetwork = (plan.networkType || fallbackNetwork) as 'nbn' | 'opticomm';
+          const tierKey = buildTierKey(planNetwork, plan.downloadSpeed, plan.uploadSpeed);
           try {
             const tierObj = await env.DATA_BUCKET.get(`data/plans/${tierKey}.json`);
             if (tierObj) {
