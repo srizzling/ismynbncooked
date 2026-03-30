@@ -71,7 +71,7 @@ export async function scrapeCommunityPlans(
       // Dispatch to the appropriate scraper
       if (providerKey === 'leaptel' || providerSources[0].url.includes('leaptel.com.au')) {
         plans = await scrapeLeaptelPlans(firecrawlApiKey);
-      } else if (providerKey === 'origin energy' || providerKey === 'origin' || providerSources[0].url.includes('originenergy.com.au')) {
+      } else if (providerKey === 'origin energy' || providerKey === 'origin broadband' || providerKey === 'origin' || providerSources[0].url.includes('originenergy.com.au')) {
         plans = await scrapeOriginPlans(firecrawlApiKey);
       } else {
         console.log(`[community] No scraper for provider "${providerSources[0].provider}" — skipping`);
@@ -409,7 +409,7 @@ function toOriginNBNPlan(parsed: ParsedPlan): NBNPlan {
   const yearlyCost = computeYearlyCost(parsed.monthlyPrice, parsed.promoValue, parsed.promoDuration);
   return {
     id: `origin-${parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${parsed.downloadSpeed}-${parsed.uploadSpeed}`,
-    providerName: 'Origin Energy',
+    providerName: 'Origin Broadband',
     planName: `Origin ${parsed.name}`,
     monthlyPrice: parsed.ongoingPrice,
     yearlyCost: Math.round(yearlyCost * 100) / 100,
@@ -484,8 +484,8 @@ function parseOriginPlanBlock(
     const line = lines[i];
     if (line === '') continue;
 
-    // Stop at next plan header
-    if (line.match(/^####\s+\*\*/)) break;
+    // Stop at next plan header (but not the "/month" line which is part of the current plan)
+    if (line.match(/^####\s+\*\*/) && !line.includes('/month')) break;
 
     // Ongoing price from strikethrough: ~~$89/month~~
     const ongoingMatch = line.match(/^~~\$(\d+(?:\.\d{2})?)\/month~~$/);
