@@ -74,7 +74,7 @@ export async function scrapeCommunityPlans(
       } else if (providerKey === 'origin energy' || providerKey === 'origin broadband' || providerKey === 'origin' || providerSources[0].url.includes('originenergy.com.au')) {
         plans = await scrapeOriginPlans(firecrawlApiKey);
       } else if (providerKey === 'swoop' || providerSources[0].url.includes('swoop.com.au')) {
-        plans = await scrapeSwoopPlans(firecrawlApiKey);
+        plans = await scrapeSwoopPlans(firecrawlApiKey, providerSources[0].url);
       } else {
         console.log(`[community] No scraper for provider "${providerSources[0].provider}" — skipping`);
         continue;
@@ -542,12 +542,9 @@ function parseOriginPlanBlock(
 
 // ─── Swoop Scraper ────────────────────────────────────────────────────────────
 
-const SWOOP_DEFAULT_URL = 'https://www.swoop.com.au/nbn';
-
-// Scrapes Swoop NBN plans. Simple page — no tab clicking needed.
-export async function scrapeSwoopRaw(firecrawlApiKey: string, url?: string): Promise<ParsedPlan[]> {
-  const scrapeUrl = url || SWOOP_DEFAULT_URL;
-  console.log(`[swoop-scraper] Fetching plans from ${scrapeUrl} via firecrawl...`);
+// Scrapes Swoop NBN plans from the given URL.
+export async function scrapeSwoopRaw(firecrawlApiKey: string, url: string): Promise<ParsedPlan[]> {
+  console.log(`[swoop-scraper] Fetching plans from ${url} via firecrawl...`);
 
   const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
     method: 'POST',
@@ -577,8 +574,8 @@ export async function scrapeSwoopRaw(firecrawlApiKey: string, url?: string): Pro
   return plans;
 }
 
-export async function scrapeSwoopPlans(firecrawlApiKey: string): Promise<NBNPlan[]> {
-  const rawPlans = await scrapeSwoopRaw(firecrawlApiKey);
+export async function scrapeSwoopPlans(firecrawlApiKey: string, url: string): Promise<NBNPlan[]> {
+  const rawPlans = await scrapeSwoopRaw(firecrawlApiKey, url);
   return rawPlans.map(p => ({
     id: `swoop-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${p.downloadSpeed}-${p.uploadSpeed}`,
     providerName: 'Swoop',
