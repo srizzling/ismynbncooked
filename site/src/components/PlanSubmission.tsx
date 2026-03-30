@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import type { NetworkType } from '../lib/types';
 
 const DOWNLOAD_SPEEDS = [25, 50, 100, 250, 500, 750, 1000, 2000];
+const UPLOAD_SPEEDS = [5, 10, 20, 25, 40, 50, 100, 200, 400, 500];
 const SUBMIT_URL = import.meta.env.PUBLIC_SUBMIT_URL || '/submit-plan';
 
 export default function PlanSubmission() {
@@ -196,16 +197,17 @@ export default function PlanSubmission() {
             </select>
           </div>
           <div>
-            <label class="block text-sm text-neutral-400 mb-1">Upload speed (Mbps)</label>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              placeholder="e.g. 20"
+            <label class="block text-sm text-neutral-400 mb-1">Upload speed</label>
+            <select
               value={uploadSpeed}
-              onInput={(e) => setUploadSpeed((e.target as HTMLInputElement).value)}
-              class={inputClass}
-            />
+              onChange={(e) => setUploadSpeed((e.target as HTMLSelectElement).value)}
+              class={selectClass}
+            >
+              <option value="">Not sure</option>
+              {UPLOAD_SPEEDS.map(u => (
+                <option key={u} value={u}>{u} Mbps</option>
+              ))}
+            </select>
           </div>
         </div>
 
