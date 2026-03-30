@@ -71,6 +71,33 @@ jobs:
         working-directory: ${{ matrix.worker.path }}
         run: pnpm exec wrangler deploy
 
+  upload-community-sources:
+    name: Upload Community Sources to R2
+    needs: setup-infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Upload community sources to R2
+        run: |
+          for file in workers/price-sync/community-sources/*.json; do
+            [ -f "$file" ] || continue
+            filename=$(basename "$file")
+            echo "Uploading $filename to R2..."
+            npx wrangler r2 object put "ismynbncooked-data/data/community-sources/$filename" --file "$file" --content-type "application/json"
+          done
+
   deploy-site:
     name: Deploy Site
     runs-on: ubuntu-latest

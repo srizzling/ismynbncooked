@@ -2,7 +2,7 @@ import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, Netwo
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
-import { scrapeLeaptelPlans, scrapeLeaptelRaw, type ParsedPlan } from './community-scrapers';
+import { scrapeCommunityPlans, scrapeLeaptelRaw, type ParsedPlan } from './community-scrapers';
 
 function normalizeNetworkType(raw: string): NetworkType {
   const lower = raw.toLowerCase();
@@ -209,26 +209,10 @@ export default {
     }
 
     // --- Community scrapers: merge plans missing from NetBargains ---
+    // Reads community-sources configs from R2 and scrapes each provider
     if (env.FIRECRAWL_API_KEY) {
-      try {
-        const leaptelPlans = await scrapeLeaptelPlans(env.FIRECRAWL_API_KEY);
-        let added = 0;
-        for (const plan of leaptelPlans) {
-          const tierKey = buildTierKey(plan.networkType, plan.downloadSpeed, plan.uploadSpeed);
-          const existing = allTierGroups.get(tierKey);
-          // Only add if Leaptel doesn't already appear in this tier (from NetBargains)
-          if (existing?.some(p => p.providerName.toLowerCase() === 'leaptel')) continue;
-          if (existing) {
-            existing.push(plan);
-          } else {
-            allTierGroups.set(tierKey, [plan]);
-          }
-          added++;
-        }
-        console.log(`[price-sync] Leaptel community scraper: ${leaptelPlans.length} scraped, ${added} new plans merged`);
-      } catch (err) {
-        console.error('[price-sync] Leaptel scraper failed:', err);
-      }
+      const { added } = await scrapeCommunityPlans(env.DATA_BUCKET, env.FIRECRAWL_API_KEY, allTierGroups);
+      console.log(`[price-sync] Community scrapers: ${added} new plans merged`);
     }
 
     // Store each discovered tier

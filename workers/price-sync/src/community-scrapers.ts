@@ -1,7 +1,104 @@
-import type { NBNPlan } from './types';
+import type { NBNPlan, NetworkType } from './types';
+import { buildTierKey } from './types';
 
 const CIS_URL = 'https://leaptel.com.au/wp-content/uploads/NBN-CIS-v25.6.pdf';
 const PLAN_URL = 'https://leaptel.com.au/plans/';
+
+/** Shape of a community-sources/*.json config file */
+export interface CommunitySource {
+  provider: string;
+  url: string;
+  networkType?: string;
+  cisUrl?: string;
+  downloadSpeed?: number;
+  uploadSpeed?: number;
+  notes?: string;
+  submittedAt?: string;
+}
+
+/**
+ * Reads all community source configs from R2 and scrapes each provider for missing plans.
+ * Returns all plans that should be merged into the tier groups.
+ */
+export async function scrapeCommunityPlans(
+  bucket: R2Bucket,
+  firecrawlApiKey: string,
+  allTierGroups: Map<string, NBNPlan[]>,
+): Promise<{ plans: NBNPlan[]; added: number }> {
+  // List all community source configs in R2
+  const listed = await bucket.list({ prefix: 'data/community-sources/' });
+  const sources: CommunitySource[] = [];
+
+  for (const obj of listed.objects) {
+    if (obj.key.endsWith('.json')) {
+      try {
+        const file = await bucket.get(obj.key);
+        if (file) {
+          const config = await file.json() as CommunitySource;
+          sources.push(config);
+        }
+      } catch (err) {
+        console.error(`[community] Failed to read ${obj.key}:`, err);
+      }
+    }
+  }
+
+  if (sources.length === 0) {
+    console.log('[community] No community sources found in R2');
+    return { plans: [], added: 0 };
+  }
+
+  console.log(`[community] Found ${sources.length} community source(s)`);
+  let totalAdded = 0;
+  const allNewPlans: NBNPlan[] = [];
+
+  // Group sources by provider to avoid scraping the same site multiple times
+  const byProvider = new Map<string, CommunitySource[]>();
+  for (const source of sources) {
+    const key = source.provider.toLowerCase();
+    const existing = byProvider.get(key);
+    if (existing) {
+      existing.push(source);
+    } else {
+      byProvider.set(key, [source]);
+    }
+  }
+
+  for (const [providerKey, providerSources] of byProvider) {
+    try {
+      let plans: NBNPlan[] = [];
+
+      // Dispatch to the appropriate scraper
+      if (providerKey === 'leaptel' || providerSources[0].url.includes('leaptel.com.au')) {
+        plans = await scrapeLeaptelPlans(firecrawlApiKey);
+      } else {
+        console.log(`[community] No scraper for provider "${providerSources[0].provider}" — skipping`);
+        continue;
+      }
+
+      // Merge missing plans
+      let added = 0;
+      for (const plan of plans) {
+        const tierKey = buildTierKey(plan.networkType, plan.downloadSpeed, plan.uploadSpeed);
+        const existing = allTierGroups.get(tierKey);
+        if (existing?.some(p => p.providerName.toLowerCase() === providerKey)) continue;
+        if (existing) {
+          existing.push(plan);
+        } else {
+          allTierGroups.set(tierKey, [plan]);
+        }
+        allNewPlans.push(plan);
+        added++;
+      }
+      totalAdded += added;
+      console.log(`[community] ${providerSources[0].provider}: ${plans.length} scraped, ${added} new plans merged`);
+    } catch (err) {
+      console.error(`[community] Scraper failed for ${providerSources[0].provider}:`, err);
+    }
+  }
+
+  return { plans: allNewPlans, added: totalAdded };
+}
 
 /**
  * Scrapes Leaptel plans page via firecrawl and returns raw parsed plans.
