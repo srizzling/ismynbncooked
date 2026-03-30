@@ -5,32 +5,65 @@ on:
     types: [opened, synchronize, labeled]
     paths:
       - 'workers/price-sync/community-sources/*.json'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to verify'
+        required: true
+        type: number
 
 jobs:
   verify:
-    if: contains(github.event.pull_request.labels.*.name, 'plan-submission')
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'plan-submission')
     runs-on: ubuntu-latest
     environment: plan-verification
     permissions:
       pull-requests: write
       contents: read
     steps:
+      - name: Resolve PR info
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PR_NUMBER="${{ inputs.pr_number }}"
+          else
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          fi
+          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get the PR branch
+          PR_BRANCH=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json headRefName --jq '.headRefName')
+          echo "branch=$PR_BRANCH" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          fetch-depth: 0
 
       - name: Find community source files
         id: files
         run: |
           FILES=$(git diff --name-only origin/main...HEAD -- 'workers/price-sync/community-sources/*.json' | grep -v '.gitkeep' || true)
-          echo "files<<EOF" >> $GITHUB_OUTPUT
-          echo "$FILES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "count=$(echo "$FILES" | grep -c '.' || echo 0)" >> $GITHUB_OUTPUT
+          if [ -z "$FILES" ]; then
+            echo "No community source files found in diff"
+            echo "count=0" >> $GITHUB_OUTPUT
+          else
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo "$FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "count=$(echo "$FILES" | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+          fi
 
       - name: Verify submissions
         if: steps.files.outputs.count != '0'
         env:
           WORKER_URL: https://ismynbncooked-price-sync.venksriram.workers.dev
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
           COMMENT=""
 
@@ -46,37 +79,34 @@ jobs:
               continue
             }
 
-            # Parse response with inline script
-            REPORT=$(echo "$RESPONSE" | python3 -c "
+            # Parse response into markdown report
+            REPORT=$(python3 -c "
           import sys, json
 
-          d = json.load(sys.stdin)
-          if not d.get('ok'):
-              print(f'## ❌ Verification Error\n\n{d.get(\"error\", \"Unknown error\")}\n')
+          response = json.loads('''$RESPONSE''')
+          source = json.load(open('$file'))
+
+          if not response.get('ok'):
+              print(f'## ❌ Verification Error\n\n{response.get(\"error\", \"Unknown error\")}\n')
               sys.exit(0)
 
           lines = []
-
-          # Provider from the source file
-          import os
-          source = json.load(open('$file'))
           provider = source.get('provider', 'Unknown')
           plan_url = source.get('url', '')
           cis_url = source.get('cisUrl', '')
 
-          lines.append(f'## Plan Verification Report\n')
+          lines.append('## Plan Verification Report\n')
           lines.append(f'**Provider**: {provider}')
 
-          plan_reachable = d.get('planUrl', {}).get('reachable', False)
+          plan_reachable = response.get('planUrl', {}).get('reachable', False)
           lines.append(f'**Plan URL**: {plan_url} {\"✅ Reachable\" if plan_reachable else \"❌ Unreachable\"}')
 
-          cis_info = d.get('cisUrl')
+          cis_info = response.get('cisUrl')
           if cis_info is not None:
               cis_reachable = cis_info.get('reachable', False)
               lines.append(f'**CIS URL**: {cis_url} {\"✅ Reachable\" if cis_reachable else \"❌ Unreachable\"}')
 
-          # Submitted plan match
-          sp = d.get('submittedPlan')
+          sp = response.get('submittedPlan')
           if sp:
               if sp.get('found'):
                   lines.append(f'\n### Submitted Plan: {sp[\"name\"]} ({sp[\"downloadSpeed\"]}/{sp[\"uploadSpeed\"]} Mbps) ✅ Found')
@@ -94,13 +124,11 @@ jobs:
                   lines.append(f'\n### Submitted Plan: {source.get(\"downloadSpeed\", \"?\")}/{source.get(\"uploadSpeed\", \"?\")} Mbps ❌ Not Found')
                   lines.append('Could not find a plan matching the submitted speeds on the provider page.')
 
-          # Note for unsupported providers
-          note = d.get('note')
+          note = response.get('note')
           if note:
               lines.append(f'\n> ℹ️ {note}')
 
-          # Missing plans
-          missing = d.get('missingPlans', [])
+          missing = response.get('missingPlans', [])
           if missing:
               lines.append(f'\n### Also missing from NetBargains ({len(missing)} plan{\"s\" if len(missing) != 1 else \"\"})')
               lines.append('| Plan | Speed | Promo | Duration | Ongoing |')
@@ -112,8 +140,7 @@ jobs:
                   ongoing = f'\${p[\"ongoingPrice\"]:.2f}' if p.get('ongoingPrice') else '—'
                   lines.append(f'| {p[\"name\"]} | {speed} | {promo} | {dur} | {ongoing} |')
 
-          # All scraped plans
-          all_plans = d.get('allScrapedPlans', [])
+          all_plans = response.get('allScrapedPlans', [])
           if all_plans:
               lines.append(f'\n<details><summary>All scraped plans ({len(all_plans)} total)</summary>\n')
               lines.append('| Plan | Speed | Promo | Duration | Ongoing |')
@@ -126,7 +153,6 @@ jobs:
                   lines.append(f'| {p[\"name\"]} | {speed} | {promo} | {dur} | {ongoing} |')
               lines.append('\n</details>')
 
-          # Final verdict
           if sp and sp.get('found') and plan_reachable:
               lines.append('\n✅ **Plan verified** — speeds match, URLs reachable')
           elif plan_reachable:
@@ -141,5 +167,5 @@ jobs:
           done <<< "${{ steps.files.outputs.files }}"
 
           if [ -n "$COMMENT" ]; then
-            echo -e "$COMMENT" | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
+            echo -e "$COMMENT" | gh pr comment "$PR_NUMBER" --body-file -
           fi
