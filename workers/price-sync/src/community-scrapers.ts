@@ -71,6 +71,8 @@ export async function scrapeCommunityPlans(
       // Dispatch to the appropriate scraper
       if (providerKey === 'leaptel' || providerSources[0].url.includes('leaptel.com.au')) {
         plans = await scrapeLeaptelPlans(firecrawlApiKey);
+      } else if (providerKey === 'origin energy' || providerKey === 'origin' || providerSources[0].url.includes('originenergy.com.au')) {
+        plans = await scrapeOriginPlans(firecrawlApiKey);
       } else {
         console.log(`[community] No scraper for provider "${providerSources[0].provider}" — skipping`);
         continue;
@@ -157,6 +159,7 @@ export interface ParsedPlan {
   promoValue: number;         // discount amount per month
   promoDuration: number;      // months
   ongoingPrice: number;       // full price after promo
+  networkType?: NetworkType;  // optional — defaults to 'nbn' if not set
 }
 
 /**
@@ -320,4 +323,217 @@ function computeYearlyCost(promoPrice: number, promoValue: number, promoDuration
   const promoMonths = Math.min(promoDuration, 12);
   const fullMonths = 12 - promoMonths;
   return promoMonths * promoPrice + fullMonths * ongoingPrice;
+}
+
+// ─── Origin Energy Scraper ────────────────────────────────────────────────────
+
+const ORIGIN_URL = 'https://www.originenergy.com.au/internet/plans/';
+const ORIGIN_CIS_URL = 'https://www.originenergy.com.au/internet/terms-conditions/critical-information-summary/';
+
+interface OriginTab {
+  selector: string;
+  networkType: NetworkType;
+}
+
+const ORIGIN_TABS: OriginTab[] = [
+  { selector: '#tab-nbn', networkType: 'nbn' },
+  { selector: '#tab-faster_nbn', networkType: 'nbn' },
+  { selector: '#tab-opticomm', networkType: 'opticomm' },
+  { selector: '#tab-faster_opticomm', networkType: 'opticomm' },
+];
+
+/**
+ * Scrapes all Origin Energy plans across all tabs (NBN, Faster NBN, Opticomm, Faster Opticomm).
+ */
+export async function scrapeOriginRaw(firecrawlApiKey: string): Promise<ParsedPlan[]> {
+  console.log('[origin-scraper] Fetching plans via firecrawl...');
+  const allPlans: ParsedPlan[] = [];
+  const seen = new Set<string>();
+
+  for (const tab of ORIGIN_TABS) {
+    try {
+      const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${firecrawlApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: ORIGIN_URL,
+          waitFor: 3000,
+          actions: [
+            { type: 'click', selector: tab.selector },
+            { type: 'wait', milliseconds: 2000 },
+            { type: 'scrape' },
+          ],
+          formats: ['markdown'],
+          onlyMainContent: true,
+        }),
+      });
+
+      if (!res.ok) {
+        console.error(`[origin-scraper] Firecrawl error for ${tab.selector}: ${res.status}`);
+        continue;
+      }
+
+      const data = await res.json() as { success: boolean; data?: { markdown?: string }; error?: string };
+      if (!data.success || !data.data?.markdown) {
+        console.error(`[origin-scraper] Scrape failed for ${tab.selector}: ${data.error}`);
+        continue;
+      }
+
+      const plans = parseOriginMarkdown(data.data.markdown, tab.networkType);
+      for (const plan of plans) {
+        const key = `${plan.name}-${plan.downloadSpeed}-${plan.uploadSpeed}-${plan.networkType}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          allPlans.push(plan);
+        }
+      }
+      console.log(`[origin-scraper] ${tab.selector}: ${plans.length} plans`);
+    } catch (err) {
+      console.error(`[origin-scraper] Error scraping ${tab.selector}:`, err);
+    }
+  }
+
+  console.log(`[origin-scraper] Total: ${allPlans.length} unique plans`);
+  return allPlans;
+}
+
+export async function scrapeOriginPlans(firecrawlApiKey: string): Promise<NBNPlan[]> {
+  const rawPlans = await scrapeOriginRaw(firecrawlApiKey);
+  return rawPlans.map(p => toOriginNBNPlan(p));
+}
+
+function toOriginNBNPlan(parsed: ParsedPlan): NBNPlan {
+  const yearlyCost = computeYearlyCost(parsed.monthlyPrice, parsed.promoValue, parsed.promoDuration);
+  return {
+    id: `origin-${parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${parsed.downloadSpeed}-${parsed.uploadSpeed}`,
+    providerName: 'Origin Energy',
+    planName: `Origin ${parsed.name}`,
+    monthlyPrice: parsed.ongoingPrice,
+    yearlyCost: Math.round(yearlyCost * 100) / 100,
+    effectiveMonthly: Math.round((yearlyCost / 12) * 100) / 100,
+    setupFee: 0,
+    promoValue: parsed.promoValue,
+    promoDuration: parsed.promoDuration,
+    typicalEveningSpeed: parsed.typicalEveningSpeed,
+    contractLength: 0,
+    cisUrl: ORIGIN_CIS_URL,
+    minimumTerm: null,
+    cancellationFees: null,
+    noticePeriod: null,
+    downloadSpeed: parsed.downloadSpeed,
+    uploadSpeed: parsed.uploadSpeed,
+    networkType: parsed.networkType || 'nbn',
+  };
+}
+
+// Parses Origin Energy markdown into ParsedPlan[].
+// Plan headers look like: #### **Plan Name Speed/Speed**
+// Prices: ~~$ongoing/month~~ then ## **$promo** then "for first N months..."
+// Speeds: {N}mbps followed by "download" or "upload"
+function parseOriginMarkdown(markdown: string, networkType: NetworkType): ParsedPlan[] {
+  const lines = markdown.split('\n').map(l => l.trim());
+  const plans: ParsedPlan[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Match plan header: #### **Plan Name Network Speed/Speed**
+    const headerMatch = line.match(/^####\s+\*\*(.+?)\s+(\d+)\/(\d+)\*\*$/);
+    if (!headerMatch) continue;
+
+    const name = headerMatch[1];
+    const nominalDown = parseInt(headerMatch[2]);
+    const nominalUp = parseInt(headerMatch[3]);
+
+    // Skip if this doesn't look like a plan name
+    if (!name.match(/nbn|Opticomm|Everyday|Experience|Enthusiast|Extra|Super|Ultra/i)) continue;
+
+    const parsed = parseOriginPlanBlock(lines, i + 1, name, nominalDown, nominalUp, networkType);
+    if (parsed) plans.push(parsed);
+  }
+
+  return plans;
+}
+
+function parseOriginPlanBlock(
+  lines: string[],
+  startIdx: number,
+  name: string,
+  nominalDown: number,
+  nominalUp: number,
+  networkType: NetworkType,
+): ParsedPlan | null {
+  let promoPrice = 0;
+  let ongoingPrice = 0;
+  let promoDuration = 0;
+  let typicalDown: number | null = null;
+  let typicalUp: number | null = null;
+
+  const nextNonEmpty = (from: number, max: number): string => {
+    for (let j = from; j < max; j++) {
+      if (lines[j] !== '') return lines[j];
+    }
+    return '';
+  };
+
+  const endIdx = Math.min(startIdx + 50, lines.length);
+  for (let i = startIdx; i < endIdx; i++) {
+    const line = lines[i];
+    if (line === '') continue;
+
+    // Stop at next plan header
+    if (line.match(/^####\s+\*\*/)) break;
+
+    // Ongoing price from strikethrough: ~~$89/month~~
+    const ongoingMatch = line.match(/^~~\$(\d+(?:\.\d{2})?)\/month~~$/);
+    if (ongoingMatch) {
+      ongoingPrice = parseFloat(ongoingMatch[1]);
+      continue;
+    }
+
+    // Promo price: ## **$44.50**
+    const promoMatch = line.match(/^##\s+\*\*\$(\d+(?:\.\d{2})?)\*\*$/);
+    if (promoMatch) {
+      promoPrice = parseFloat(promoMatch[1]);
+      continue;
+    }
+
+    // Promo duration: "for first 6 months, then **$89/month** ^"
+    const durationMatch = line.match(/^for first (\d+) months/);
+    if (durationMatch) {
+      promoDuration = parseInt(durationMatch[1]);
+      continue;
+    }
+
+    // Typical evening speed download: "{N}mbps" followed by "download"
+    const speedMatch = line.match(/^(\d+(?:\.\d+)?)mbps$/);
+    if (speedMatch) {
+      const next = nextNonEmpty(i + 1, endIdx).toLowerCase();
+      if (next === 'download' && typicalDown === null) {
+        typicalDown = parseFloat(speedMatch[1]);
+      } else if (next === 'upload' && typicalUp === null) {
+        typicalUp = parseFloat(speedMatch[1]);
+      }
+      continue;
+    }
+  }
+
+  if (!ongoingPrice) return null;
+
+  const promoValue = promoPrice > 0 ? ongoingPrice - promoPrice : 0;
+
+  return {
+    name,
+    downloadSpeed: nominalDown,
+    uploadSpeed: nominalUp,
+    typicalEveningSpeed: typicalDown,
+    monthlyPrice: promoPrice || ongoingPrice,
+    promoValue,
+    promoDuration,
+    ongoingPrice,
+    networkType,
+  };
 }
