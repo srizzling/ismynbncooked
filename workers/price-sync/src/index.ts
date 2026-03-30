@@ -381,11 +381,23 @@ export default {
       });
     }
 
-    // Accept plan submissions from the website (no GitHub account needed)
-    // Creates a JSON file in community-sources/ via a PR + a linked issue
+    // Creates a JSON file in community-sources/ via a GitHub pull request
     if (url.pathname === '/submit-plan' && request.method === 'POST') {
+      // Validate origin when ALLOWED_ORIGINS is configured
+      const origin = request.headers.get('Origin') ?? '';
+      const allowedOrigin = env.ALLOWED_ORIGINS
+        ? (env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).includes(origin) ? origin : null)
+        : '*';
+
+      if (env.ALLOWED_ORIGINS && !allowedOrigin) {
+        return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       const corsHeaders = {
-        'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS ?? '*',
+        'Access-Control-Allow-Origin': allowedOrigin ?? '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Content-Type': 'application/json',
@@ -455,11 +467,12 @@ export default {
           });
         }
 
-        // Also check for open PRs with the same label+provider
-        const openPRs = await fetch(`https://api.github.com/repos/${repo}/pulls?state=open&head=${repo.split('/')[0]}:plan-submission/${slug}`, { headers: ghHeaders });
+        // Check for open PRs that modify the same file
+        const openPRs = await fetch(`https://api.github.com/repos/${repo}/pulls?state=open&labels=plan-submission`, { headers: ghHeaders });
         if (openPRs.ok) {
-          const prs = await openPRs.json() as { number: number }[];
-          if (prs.length > 0) {
+          const prs = await openPRs.json() as { title: string; number: number }[];
+          const duplicate = prs.find(pr => pr.title.includes(provider) && pr.title.includes(networkType.toUpperCase()));
+          if (duplicate) {
             return new Response(JSON.stringify({ ok: false, error: 'This plan is already pending review. Thanks though!' }), {
               status: 409, headers: corsHeaders,
             });
@@ -542,9 +555,13 @@ export default {
 
     // Handle CORS preflight for submit-plan
     if (url.pathname === '/submit-plan' && request.method === 'OPTIONS') {
+      const origin = request.headers.get('Origin') ?? '';
+      const allowedOrigin = env.ALLOWED_ORIGINS
+        ? (env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).includes(origin) ? origin : null)
+        : '*';
       return new Response(null, {
         headers: {
-          'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS ?? '*',
+          'Access-Control-Allow-Origin': allowedOrigin ?? '*',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
         },
