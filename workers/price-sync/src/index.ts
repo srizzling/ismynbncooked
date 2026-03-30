@@ -640,7 +640,19 @@ export default {
         }
 
         // Cross-reference against R2 data to find plans missing from NetBargains
+        // Build list of provider name variants to check (submission name + common aliases)
         const fallbackNetwork = body.networkType === 'opticomm' ? 'opticomm' : 'nbn';
+        const providerAliases = new Set<string>();
+        if (body.provider) providerAliases.add(body.provider.toLowerCase());
+        // Add known aliases
+        if (provider === 'origin energy' || provider === 'origin' || provider === 'origin broadband') {
+          providerAliases.add('origin energy');
+          providerAliases.add('origin broadband');
+          providerAliases.add('origin');
+        }
+        if (provider === 'leaptel') {
+          providerAliases.add('leaptel');
+        }
         const missingPlans: ParsedPlan[] = [];
 
         for (const plan of scrapedPlans) {
@@ -651,7 +663,7 @@ export default {
             if (tierObj) {
               const tierData = await tierObj.json() as TierData;
               const hasProvider = tierData.plans.some(
-                p => p.providerName.toLowerCase() === (body.provider || 'leaptel').toLowerCase()
+                p => providerAliases.has(p.providerName.toLowerCase())
               );
               if (!hasProvider) missingPlans.push(plan);
             } else {
