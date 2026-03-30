@@ -2,6 +2,7 @@ import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, Netwo
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
+import { scrapeLeaptelPlans } from './community-scrapers';
 
 function normalizeNetworkType(raw: string): NetworkType {
   const lower = raw.toLowerCase();
@@ -204,6 +205,29 @@ export default {
         console.log(`[price-sync] ${downloadSpeed} Mbps: ${plans.length} plans across ${groups.size} tier(s)`);
       } catch (err) {
         console.error(`[price-sync] Failed for ${downloadSpeed} Mbps:`, err);
+      }
+    }
+
+    // --- Community scrapers: merge plans missing from NetBargains ---
+    if (env.FIRECRAWL_API_KEY) {
+      try {
+        const leaptelPlans = await scrapeLeaptelPlans(env.FIRECRAWL_API_KEY);
+        let added = 0;
+        for (const plan of leaptelPlans) {
+          const tierKey = buildTierKey(plan.networkType, plan.downloadSpeed, plan.uploadSpeed);
+          const existing = allTierGroups.get(tierKey);
+          // Only add if Leaptel doesn't already appear in this tier (from NetBargains)
+          if (existing?.some(p => p.providerName.toLowerCase() === 'leaptel')) continue;
+          if (existing) {
+            existing.push(plan);
+          } else {
+            allTierGroups.set(tierKey, [plan]);
+          }
+          added++;
+        }
+        console.log(`[price-sync] Leaptel community scraper: ${leaptelPlans.length} scraped, ${added} new plans merged`);
+      } catch (err) {
+        console.error('[price-sync] Leaptel scraper failed:', err);
       }
     }
 
@@ -536,10 +560,15 @@ export default {
         if (!prRes.ok) throw new Error('Failed to create PR');
         const pr = await prRes.json() as { html_url: string; number: number };
 
-        // 5. Add label to PR
+        // 5. Add label and assign to PR
         await fetch(`https://api.github.com/repos/${repo}/issues/${pr.number}/labels`, {
           method: 'POST', headers: ghHeaders,
           body: JSON.stringify({ labels: ['plan-submission'] }),
+        });
+
+        await fetch(`https://api.github.com/repos/${repo}/issues/${pr.number}/assignees`, {
+          method: 'POST', headers: ghHeaders,
+          body: JSON.stringify({ assignees: ['srizzling'] }),
         });
 
         return new Response(JSON.stringify({ ok: true, prNumber: pr.number, prUrl: pr.html_url }), {

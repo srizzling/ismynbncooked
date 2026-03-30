@@ -15,6 +15,7 @@ export default function PlanSubmission() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [isDuplicate, setIsDuplicate] = useState(false);
 
   const inputClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent";
   const selectClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-accent appearance-none";
@@ -25,6 +26,7 @@ export default function PlanSubmission() {
 
     setSubmitting(true);
     setError('');
+    setIsDuplicate(false);
 
     try {
       const res = await fetch(SUBMIT_URL, {
@@ -44,7 +46,12 @@ export default function PlanSubmission() {
       const data = await res.json() as { ok: boolean; error?: string };
 
       if (!data.ok) {
-        setError(data.error || 'Something went wrong. Please try again.');
+        if (res.status === 409) {
+          setIsDuplicate(true);
+          setError(data.error || 'This plan has already been submitted.');
+        } else {
+          setError(data.error || 'Something went wrong. Please try again.');
+        }
         return;
       }
 
@@ -67,6 +74,8 @@ export default function PlanSubmission() {
         <button
           onClick={() => {
             setSubmitted(false);
+            setIsDuplicate(false);
+            setError('');
             setProviderName('');
             setDownloadSpeed('');
             setUploadSpeed('');
@@ -90,11 +99,16 @@ export default function PlanSubmission() {
         If you're unsure about any field, leave it blank and we'll figure it out during review.
       </p>
 
-      {error && (
+      {error && isDuplicate ? (
+        <div class="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-sm text-amber-400">
+          <p class="font-medium mb-1">Already submitted</p>
+          <p>{error}</p>
+        </div>
+      ) : error ? (
         <div class="mb-4 bg-cooked-red/10 border border-cooked-red/30 rounded-lg px-4 py-3 text-sm text-cooked-red">
           {error}
         </div>
-      )}
+      ) : null}
 
       <form onSubmit={handleSubmit} class="space-y-4">
         {/* Plan URL — the only required field */}

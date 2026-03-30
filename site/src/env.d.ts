@@ -4,6 +4,8 @@ type R2Bucket = import('@cloudflare/workers-types').R2Bucket;
 
 interface Env {
   DATA_BUCKET: R2Bucket;
+  GITHUB_TOKEN?: string;
+  SUBMISSIONS_ENABLED?: string;
 }
 
 declare namespace App {

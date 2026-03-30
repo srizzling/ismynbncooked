@@ -3,6 +3,7 @@ export interface Env {
   NETBARGAINS_API_KEY: string;
   GITHUB_TOKEN?: string;
   ALLOWED_ORIGINS?: string;
+  FIRECRAWL_API_KEY?: string;
 }
 
 // Download speeds we query from the NetBargains API

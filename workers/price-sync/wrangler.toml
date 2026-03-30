@@ -17,3 +17,4 @@ bucket_name = "ismynbncooked-data"
 # NETBARGAINS_API_KEY set via `wrangler secret put NETBARGAINS_API_KEY`
 # GITHUB_TOKEN set via `wrangler secret put GITHUB_TOKEN`
 # ALLOWED_ORIGINS set via `wrangler secret put ALLOWED_ORIGINS` (e.g. "https://amigettingrorted.au")
+# FIRECRAWL_API_KEY set via `wrangler secret put FIRECRAWL_API_KEY`

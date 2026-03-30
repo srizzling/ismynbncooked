@@ -7,5 +7,9 @@
       "binding": "DATA_BUCKET",
       "bucket_name": "ismynbncooked-data"
     }
-  ]
+  ],
+  "vars": {
+    "SUBMISSIONS_ENABLED": "true"
+  }
+  // GITHUB_TOKEN set via `wrangler pages secret put GITHUB_TOKEN`
 }

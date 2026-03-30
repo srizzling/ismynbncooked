@@ -1,6 +1,53 @@
 ---
 import Base from '../layouts/Base.astro';
 import PlanSubmission from '../components/PlanSubmission';
+
+const runtime = Astro.locals.runtime;
+
+// --- Feature toggle: SUBMISSIONS_ENABLED env var ---
+const testBypass = Astro.url.searchParams.get('test') === 'true';
+const showSubmissionForm = testBypass || runtime.env.SUBMISSIONS_ENABLED !== 'false';
+
+// --- Fetch recent plan submission PRs ---
+interface SubmissionPR {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  merged: boolean;
+  createdAt: string;
+  htmlUrl: string;
+}
+
+let submissions: SubmissionPR[] = [];
+const ghToken = runtime.env.GITHUB_TOKEN;
+
+if (ghToken) {
+  try {
+    const res = await fetch(
+      'https://api.github.com/repos/srizzling/ismynbncooked/pulls?state=all&labels=plan-submission&per_page=20&sort=created&direction=desc',
+      {
+        headers: {
+          'Authorization': `Bearer ${ghToken}`,
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'ismynbncooked-site/1.0',
+        },
+      }
+    );
+    if (res.ok) {
+      const prs = await res.json() as any[];
+      submissions = prs.map((pr: any) => ({
+        number: pr.number,
+        title: (pr.title as string).replace('[Plan Submission] ', ''),
+        state: pr.state,
+        merged: pr.merged_at !== null,
+        createdAt: pr.created_at,
+        htmlUrl: pr.html_url,
+      }));
+    }
+  } catch (e) {
+    console.error('Failed to fetch submissions:', e);
+  }
+}
 ---
 
 <Base
@@ -23,25 +70,67 @@ import PlanSubmission from '../components/PlanSubmission';
     </p>
   </section>
 
-  <section class="mb-12">
-    <PlanSubmission client:load />
-  </section>
+  {showSubmissionForm ? (
+    <section class="mb-12">
+      <PlanSubmission client:load />
+    </section>
+  ) : (
+    <section class="mb-12">
+      <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center">
+        <h2 class="font-display font-bold text-2xl mb-2">Plan submissions are currently closed</h2>
+        <p class="text-neutral-400">
+          We're not accepting new plan submissions right now. Check back later!
+        </p>
+      </div>
+    </section>
+  )}
 
-  <section>
-    <h2 class="font-display font-bold text-xl mb-3">How it works</h2>
-    <div class="space-y-3 text-sm text-neutral-400">
-      <div class="flex gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">1</span>
-        <p>Fill in the plan details above. Make sure to include a link to the provider's plan page so we can verify the information.</p>
+  {showSubmissionForm && (
+    <section>
+      <h2 class="font-display font-bold text-xl mb-3">How it works</h2>
+      <div class="space-y-3 text-sm text-neutral-400">
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">1</span>
+          <p>Fill in the plan details above. Make sure to include a link to the provider's plan page so we can verify the information.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">2</span>
+          <p>Clicking "Submit plan" sends your submission directly to our system. No account needed.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">3</span>
+          <p>We'll review the submission, verify the plan details, and add it to the database. New plans typically appear within a few days.</p>
+        </div>
       </div>
-      <div class="flex gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">2</span>
-        <p>Clicking "Submit plan" sends your submission directly to our system. No account needed.</p>
+    </section>
+  )}
+
+  {submissions.length > 0 && (
+    <section class="mt-12">
+      <h2 class="font-display font-bold text-xl mb-4">Recent submissions</h2>
+      <div class="space-y-2">
+        {submissions.map((sub) => (
+          <a
+            href={sub.htmlUrl}
+            target="_blank"
+            rel="noopener"
+            class="flex items-center justify-between bg-surface border border-surface-border rounded-lg px-4 py-3 hover:border-accent/50 transition-colors"
+          >
+            <span class="text-sm text-white">{sub.title}</span>
+            <span
+              class={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ml-3 ${
+                sub.merged
+                  ? 'bg-green-500/20 text-green-400'
+                  : sub.state === 'open'
+                    ? 'bg-yellow-500/20 text-yellow-400'
+                    : 'bg-neutral-500/20 text-neutral-400'
+              }`}
+            >
+              {sub.merged ? 'Added' : sub.state === 'open' ? 'Under review' : 'Closed'}
+            </span>
+          </a>
+        ))}
       </div>
-      <div class="flex gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">3</span>
-        <p>We'll review the submission, verify the plan details, and add it to the database. New plans typically appear within a few days.</p>
-      </div>
-    </div>
-  </section>
+    </section>
+  )}
 </Base>
