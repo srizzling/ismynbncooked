@@ -11,7 +11,7 @@ interface Props {
 function monthLabel(monthsFromNow: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() + monthsFromNow);
-  return d.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' });
 }
 
 export default function RortTimeline({ promoPrice, fullPrice, promoMonthsLeft, cheapest }: Props) {
@@ -28,89 +28,60 @@ export default function RortTimeline({ promoPrice, fullPrice, promoMonthsLeft, c
     <div class="bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
       <div class="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">Your rort timeline</div>
 
-      <ul class="relative space-y-0">
+      {/* Horizontal timeline */}
+      <ol class="flex items-start w-full">
         {/* Step 1: Now */}
-        <li class="relative pl-8 pb-6">
-          {/* Vertical line */}
-          <div class="absolute left-[9px] top-5 bottom-0 w-0.5" style={{ backgroundColor: currentLevel.color }} />
-          {/* Dot */}
-          <div class="absolute left-0 top-1 w-5 h-5 rounded-full border-2 flex items-center justify-center"
-            style={{ backgroundColor: currentLevel.color, borderColor: currentLevel.color }}>
-            <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          {/* Content */}
-          <div>
-            <div class="flex items-center justify-between gap-2 mb-1">
-              <span class="font-bold" style={{ color: currentLevel.color }}>{currentResult.label}</span>
-              <span class="text-xs text-neutral-500">{nowLabel}</span>
+        <li class="flex-1">
+          <div class="flex items-center">
+            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 z-10"
+              style={{ backgroundColor: currentLevel.color, borderColor: currentLevel.color }}>
+              <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
             </div>
-            <p class="text-sm text-neutral-400">
-              You're paying <span class="text-white font-medium">${promoPrice.toFixed(2)}/mo</span> on your promo rate.
-              {currentResult.monthlySavings > 0 ? (
-                <> That's <span class="text-white">${currentResult.monthlySavings.toFixed(2)}/mo</span> more than the cheapest plan.</>
-              ) : (
-                <> You're beating the cheapest available plan — nice.</>
-              )}
-            </p>
+            <div class="flex-1 h-1" style={{ backgroundColor: currentLevel.color }} />
+          </div>
+          <div class="mt-2 pr-4">
+            <div class="text-[10px] text-neutral-500">{nowLabel}</div>
+            <div class="text-sm font-bold" style={{ color: currentLevel.color }}>{currentResult.label}</div>
+            <div class="text-xs text-neutral-400">${promoPrice.toFixed(0)}/mo</div>
+            <div class="text-[10px] text-neutral-600 mt-0.5">You are here</div>
           </div>
         </li>
 
         {/* Step 2: Promo ends */}
-        <li class="relative pl-8 pb-6">
-          {/* Vertical line */}
-          <div class="absolute left-[9px] top-5 bottom-0 w-0.5" style={{ backgroundColor: postLevel.color + '60' }} />
-          {/* Dot */}
-          <div class="absolute left-0 top-1 w-5 h-5 rounded-full border-2 flex items-center justify-center"
-            style={{ backgroundColor: 'transparent', borderColor: postLevel.color }}>
-            <div class="w-2 h-2 rounded-full" style={{ backgroundColor: postLevel.color }} />
-          </div>
-          {/* Content */}
-          <div>
-            <div class="flex items-center justify-between gap-2 mb-1">
-              <span class="font-medium text-accent">Promo ends</span>
-              <span class="text-xs text-neutral-500">{endLabel} ({promoMonthsLeft}mo from now)</span>
+        <li class="flex-1">
+          <div class="flex items-center">
+            <div class="w-6 h-6 rounded-full border-2 bg-surface flex items-center justify-center shrink-0 z-10"
+              style={{ borderColor: postLevel.color }}>
+              <div class="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: postLevel.color }} />
             </div>
-            <p class="text-sm text-neutral-400">
-              Your price jumps to <span class="text-white font-medium">${fullPrice.toFixed(2)}/mo</span>.
-              {postResult.monthlySavings > 0 ? (
-                <> That's <span style={{ color: postLevel.color }} class="font-medium">{(postResult.overpayPercent * 100).toFixed(0)}% above</span> the cheapest plan.</>
-              ) : (
-                <> Still a fair price — no need to churn.</>
-              )}
-            </p>
+            <div class="flex-1 h-1" style={{ backgroundColor: postLevel.color + '60' }} />
+          </div>
+          <div class="mt-2 pr-4">
+            <div class="text-[10px] text-neutral-500">{endLabel} ({promoMonthsLeft}mo)</div>
+            <div class="text-sm font-medium text-accent">Promo ends</div>
+            <div class="text-xs text-neutral-400">→ ${fullPrice.toFixed(0)}/mo</div>
           </div>
         </li>
 
-        {/* Step 3: After promo */}
-        <li class="relative pl-8">
-          {/* Dot */}
-          <div class="absolute left-0 top-1 w-5 h-5 rounded-full border-2 flex items-center justify-center"
-            style={{ backgroundColor: postLevel.color + '20', borderColor: postLevel.color + '60' }}>
-          </div>
-          {/* Content */}
-          <div>
-            <div class="flex items-center justify-between gap-2 mb-1">
-              <span class="font-bold" style={{ color: postLevel.color }}>{postResult.label}</span>
-              <span class="text-xs text-neutral-500">Ongoing</span>
+        {/* Step 3: Ongoing */}
+        <li class="shrink-0">
+          <div class="flex items-center">
+            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 z-10"
+              style={{ backgroundColor: postLevel.color + '20', borderColor: postLevel.color + '60' }}>
             </div>
-            {postResult.monthlySavings > 0 ? (
-              <p class="text-sm text-neutral-400">
-                At full price you'll be paying <span class="text-white font-medium">${postResult.monthlySavings.toFixed(2)}/mo</span> more
-                than the cheapest plan (${cheapest.toFixed(0)}/mo).
-                <span class="block mt-1 text-accent font-medium">
-                  Start looking for a new deal before {endLabel}.
-                </span>
-              </p>
-            ) : (
-              <p class="text-sm text-neutral-400">
-                Even at full price you're still on a good deal. No rush to switch.
-              </p>
+          </div>
+          <div class="mt-2">
+            <div class="text-[10px] text-neutral-500">Ongoing</div>
+            <div class="text-sm font-bold" style={{ color: postLevel.color }}>{postResult.label}</div>
+            <div class="text-xs text-neutral-400">${fullPrice.toFixed(0)}/mo</div>
+            {postResult.monthlySavings > 0 && (
+              <div class="text-[10px] text-accent mt-0.5">Churn before {endLabel}</div>
             )}
           </div>
         </li>
-      </ul>
+      </ol>
     </div>
   );
 }
