@@ -1,0 +1,10 @@
+{
+  "provider": "Superloop",
+  "url": "https://www.superloop.com/internet/nbn/",
+  "networkType": "nbn",
+  "cisUrl": "https://files.superloop.com/cis/residential/nbn/2025-09/SL_CIS_Residential_nbn.pdf",
+  "downloadSpeed": 100,
+  "uploadSpeed": 40,
+  "notes": "I cant link to the actual product page as it just shows all the plans available for my address (not opticomm) and 100/40 is $85 on promo for 6 months and $99 ongoing.",
+  "submittedAt": "2026-03-31T06:51:05.539Z"
+}
