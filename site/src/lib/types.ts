@@ -77,6 +77,11 @@ export function buildTierLabel(network: NetworkType, download: number, upload: n
   return `${prefix} ${download}/${upload}`;
 }
 
+export function buildGroupedTierLabel(network: NetworkType, download: number): string {
+  const prefix = network === 'nbn' ? 'NBN' : 'Opticomm';
+  return `${prefix} ${download}`;
+}
+
 // Default upload speed for each download speed (used for backward compat migration)
 export const DEFAULT_UPLOAD_MAP: Record<number, string> = {
   25: 'nbn-25-5',
