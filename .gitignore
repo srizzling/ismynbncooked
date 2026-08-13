@@ -16,3 +16,10 @@ site/public/data/
 # Migration script output
 scripts/output/
 .playwright-mcp/
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
