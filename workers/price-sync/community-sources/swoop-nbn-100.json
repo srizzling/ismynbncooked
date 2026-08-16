@@ -1,0 +1,8 @@
+{
+  "provider": "Swoop",
+  "url": "https://www.swoop.com.au/nbn/nbn-100-plan",
+  "networkType": "nbn",
+  "downloadSpeed": 100,
+  "notes": "Swoop NBN 100 plan - user reported missing from NetBargains. They also have other speed tiers.",
+  "submittedAt": "2026-03-30T05:11:36.347Z"
+}
