@@ -1,0 +1,9 @@
+{
+  "provider": "Vodafone",
+  "url": "https://www.vodafone.com.au/home-internet/opticomm?srsltid=AfmBOoolwdMglmFlO1F_fZGyVmArIm_g60m2UR533fxCVhdyZgmgXBdG",
+  "networkType": "opticomm",
+  "cisUrl": "https://www.vodafone.com.au/cis/opticomm-plans/month-to-month-plans/au13023-au13024-au13025-au13026-au13027-au13028-july2026.pdf",
+  "downloadSpeed": 500,
+  "uploadSpeed": 50,
+  "submittedAt": "2026-09-12T10:27:32.716Z"
+}
