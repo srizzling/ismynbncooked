@@ -4,11 +4,16 @@ interface Props {
   imagePath: string;
   pagePath: string;
   label?: string;
+  /** Optional chart-only page; adds a "Copy embed code" button for sites that allow iframes */
+  embedPath?: string;
 }
-const { imagePath, pagePath, label = 'Share this' } = Astro.props;
+const { imagePath, pagePath, label = 'Share this', embedPath } = Astro.props;
 const origin = Astro.site ?? Astro.url.origin;
 const imageUrl = new URL(imagePath, origin).href;
 const pageUrl = new URL(pagePath, origin).href;
+const embedCode = embedPath
+  ? `<iframe src="${new URL(embedPath, origin).href}" width="100%" height="520" style="border:0;border-radius:12px;background:#0a0a0a" loading="lazy" title="NBN price trends"></iframe>`
+  : null;
 ---
 
 <div class="flex flex-wrap items-center gap-2 text-sm" data-share-bar>
@@ -21,6 +26,12 @@ const pageUrl = new URL(pagePath, origin).href;
           class="inline-flex items-center gap-1.5 bg-surface-raised border border-surface-border rounded-lg px-3 py-1.5 text-neutral-200 hover:border-accent transition-colors">
     Copy link
   </button>
+  {embedCode && (
+    <button type="button" data-copy={embedCode}
+            class="inline-flex items-center gap-1.5 bg-surface-raised border border-surface-border rounded-lg px-3 py-1.5 text-neutral-200 hover:border-accent transition-colors">
+      Copy embed code
+    </button>
+  )}
   <a href={`https://www.reddit.com/submit?url=${encodeURIComponent(pageUrl)}`} target="_blank" rel="noopener"
      class="inline-flex items-center gap-1.5 bg-surface-raised border border-surface-border rounded-lg px-3 py-1.5 text-neutral-200 hover:border-accent transition-colors">
     Post to Reddit

@@ -4,7 +4,7 @@ import { loadData } from '../lib/load';
 import { getFixtureManifest, groupTiersByDownload } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
 
-const STATIC_PAGES = ['/', '/how-it-works', '/submit', '/privacy', '/providers', '/reports'];
+const STATIC_PAGES = ['/', '/how-it-works', '/submit', '/privacy', '/providers', '/reports', '/trends'];
 
 export const GET: APIRoute = async ({ locals, site, url }) => {
   const origin = (site ?? url).origin;

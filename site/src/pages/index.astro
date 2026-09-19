@@ -133,7 +133,11 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
     opticommTiers={manifest.tiers.filter(t => t.network === 'opticomm')}
   />
 
-  <section class="mt-10 grid sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
+  <section class="mt-10 grid sm:grid-cols-3 gap-3 max-w-4xl mx-auto">
+    <a href="/trends" class="block bg-surface-raised border border-surface-border rounded-xl px-5 py-4 hover:border-accent transition-colors">
+      <div class="font-display font-semibold text-white">Prices through the year</div>
+      <div class="text-sm text-neutral-400 mt-1">Line graphs of every tier's cheapest and average price, day by day.</div>
+    </a>
     <a href="/reports" class="block bg-surface-raised border border-surface-border rounded-xl px-5 py-4 hover:border-accent transition-colors">
       <div class="font-display font-semibold text-white">Monthly price report</div>
       <div class="text-sm text-neutral-400 mt-1">Who raised prices, who dropped them, who's new. Every tier, every month.</div>

@@ -1,0 +1,90 @@
+---
+import Base from '../layouts/Base.astro';
+import AdSlot from '../components/AdSlot.astro';
+import ShareBar from '../components/ShareBar.astro';
+import TrendsChart from '../components/TrendsChart';
+import TierTrendGrid from '../components/TierTrendGrid';
+import { loadTrends } from '../lib/trends';
+import { money } from '../lib/chart';
+
+const { series, totals, busiest, firstDate, lastDate, months } = await loadTrends(Astro.locals);
+const year = new Date(lastDate || Date.now()).getFullYear();
+const origin = Astro.site ?? Astro.url.origin;
+
+const main = ['nbn-50-20', 'nbn-100-20', 'nbn-500-50', 'nbn-1000-50'];
+const fmt = (d: string) => new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+
+// Headline: how the mainstream tier (NBN 100/20) moved
+const hundred = series.find(s => s.key === 'nbn-100-20');
+const h0 = hundred?.points[0], h1 = hundred?.points[hundred.points.length - 1];
+const headline = h0 && h1
+  ? `The cheapest NBN 100/20 plan went from ${money(h0.cheapest, 0)} to ${money(h1.cheapest, 0)} a month between ${fmt(h0.date)} and ${fmt(h1.date)}.`
+  : 'Price history builds up daily.';
+
+const dearer = series.filter(s => s.points[s.points.length - 1].cheapest > s.points[0].cheapest).length;
+const cheaper = series.filter(s => s.points[s.points.length - 1].cheapest < s.points[0].cheapest).length;
+const busiestLabel = busiest ? new Date(Date.UTC(Number(busiest.month.slice(0, 4)), Number(busiest.month.slice(5, 7)) - 1, 1)).toLocaleDateString('en-AU', { month: 'long', timeZone: 'UTC' }) : null;
+---
+
+<Base
+  title={`NBN prices in ${year}: every tier, every day — Am I Getting Rorted?`}
+  description={`Line graphs of Australian NBN and Opticomm plan prices through ${year}. Cheapest and average price per speed tier since ${fmt(firstDate)}, updated daily.`}
+  canonicalPath="/trends"
+  ogImage={new URL('/og/trends.png', origin).href}
+  jsonLd={{
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": `Australian NBN plan prices ${year}`,
+    "description": `Daily cheapest and average monthly price for every NBN and Opticomm speed tier, ${fmt(firstDate)} to ${fmt(lastDate)}.`,
+    "url": new URL('/trends', origin).href,
+    "temporalCoverage": `${firstDate}/${lastDate}`,
+    "creator": { "@type": "Organization", "name": "Am I Getting Rorted?", "url": origin.toString() },
+  }}
+>
+  <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">&larr; Home</a>
+
+  <header class="mb-8">
+    <p class="text-accent text-sm font-medium mb-2">{year} so far</p>
+    <h1 class="text-4xl sm:text-5xl font-display font-bold">NBN prices through {year}</h1>
+    <p class="text-neutral-400 mt-3 max-w-3xl">{headline}</p>
+    <div class="mt-4"><ShareBar imagePath="/og/trends.png" pagePath="/trends" label="Share the year" embedPath="/embed/trends" /></div>
+  </header>
+
+  <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+    <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+      <div class="text-3xl font-display font-bold tabular-nums text-cooked-red">{totals.rises}</div>
+      <div class="text-sm text-neutral-500">price rises tracked</div>
+    </div>
+    <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+      <div class="text-3xl font-display font-bold tabular-nums text-cooked-green">{totals.drops}</div>
+      <div class="text-sm text-neutral-500">price drops tracked</div>
+    </div>
+    <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+      <div class="text-3xl font-display font-bold tabular-nums">{dearer}<span class="text-neutral-600"> / </span>{cheaper}</div>
+      <div class="text-sm text-neutral-500">tiers dearer / cheaper than in March</div>
+    </div>
+    <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+      <div class="text-3xl font-display font-bold">{busiestLabel ?? '—'}</div>
+      <div class="text-sm text-neutral-500">busiest month for changes</div>
+    </div>
+  </section>
+
+  <section class="mb-8 bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
+    <h2 class="font-display font-bold text-xl mb-1">Price lines</h2>
+    <p class="text-xs text-neutral-500 mb-4">Pick up to four tiers. Daily points for the last 90 days, weekly before that. Hover for exact values.</p>
+    <TrendsChart client:load series={series} defaultSelected={main} />
+  </section>
+
+  <section class="mb-8">
+    <h2 class="font-display font-bold text-2xl mb-1">Every tier at a glance</h2>
+    <p class="text-sm text-neutral-500 mb-4">Cheapest plan in orange, average in grey, since tracking began. Click a tile for the tier.</p>
+    <TierTrendGrid client:visible series={series} />
+  </section>
+
+  <p class="text-xs text-neutral-600">
+    Data from {fmt(firstDate)} to {fmt(lastDate)} across {months} monthly reports. Prices are ongoing monthly prices scraped daily from NetBargains plus community-tracked providers.
+    See the <a href="/reports" class="underline hover:text-white">monthly reports</a> for who moved.
+  </p>
+
+  <AdSlot placement="content" />
+</Base>
