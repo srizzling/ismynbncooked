@@ -5,6 +5,7 @@ import { calculateCooked } from '../lib/cooked';
 import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit, getDefaultHorizon, saveDefaultHorizon, type HorizonPreference } from '../lib/storage';
 import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHorizon, HORIZONS, type Horizon } from '../lib/costs';
 import CookedRating from './CookedRating';
+import AlertSignup from './AlertSignup';
 import SavingsComparison from './SavingsComparison';
 import PlanTable from './PlanTable';
 import PriceChart from './PriceChart';
@@ -37,7 +38,12 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   const [cookedResult, setCookedResult] = useState<CookedResult | null>(null);
   const [otherTierPlan, setOtherTierPlan] = useState<{ tierKey: string; label: string; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
-  const [horizonPref, setHorizonPref] = useState<HorizonPreference>(() => getDefaultHorizon());
+  // Start with the server-rendered default and read the saved preference after mount,
+  // otherwise the SSR HTML and the first client render disagree (hydration mismatch).
+  const [horizonPref, setHorizonPref] = useState<HorizonPreference>(6); // matches getDefaultHorizon() on the server
+  useEffect(() => {
+    setHorizonPref(getDefaultHorizon());
+  }, []);
 
   // Find the best horizon (cheapest effective, tie-break by longest commitment)
   const best = useMemo(() => bestHorizon(tierData.plans), [tierData.plans]);
@@ -258,6 +264,21 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         manifest={manifest}
         onCookedChange={handleCookedChange}
       />
+
+      {/* Email alerts for this tier (exact tiers only; grouped pages cover several) */}
+      {!isGrouped && (
+        <AlertSignup
+          tierKey={tierKey}
+          label={label}
+          defaultPrice={userPlan?.fullPrice ?? userPlan?.price}
+          defaultProvider={userPlan?.provider}
+          defaultPromoEndsAt={userPlan?.promoMonthsLeft ? (() => {
+            const d = new Date(userPlan.savedAt);
+            d.setMonth(d.getMonth() + userPlan.promoMonthsLeft);
+            return d.toISOString().split('T')[0];
+          })() : undefined}
+        />
+      )}
 
       {/* Savings Comparison — only shows when user has savings */}
       {cookedResult && cookedResult.monthlySavings > 0 && comparisons && (() => {
