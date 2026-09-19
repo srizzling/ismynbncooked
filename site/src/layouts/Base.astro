@@ -1,5 +1,5 @@
 ---
-import { ADSENSE_CLIENT } from '../lib/site';
+import { ADSENSE_CLIENT, SUPPORT_URL, GITHUB_URL } from '../lib/site';
 
 interface Props {
   title: string;
@@ -62,15 +62,18 @@ const ogImageUrl = ogImage ?? new URL('/og-share.png', origin).href;
     {jsonLd && (
       <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     )}
+    <slot name="head" />
   </head>
   <body class="min-h-screen">
     <header class="max-w-6xl mx-auto px-4 pt-4 pb-2 flex items-center justify-between">
       <a href="/" class="text-sm font-display font-bold text-neutral-300 hover:text-white transition-colors">
         amigettingrorted.au
       </a>
-      <a href="/how-it-works" class="text-sm text-neutral-500 hover:text-accent transition-colors">
-        How the rating works
-      </a>
+      <nav class="flex items-center gap-4 text-sm text-neutral-500">
+        <a href="/providers" class="hover:text-accent transition-colors">Providers</a>
+        <a href="/reports" class="hover:text-accent transition-colors">Price reports</a>
+        <a href="/how-it-works" class="hover:text-accent transition-colors hidden sm:inline">How the rating works</a>
+      </nav>
     </header>
     <main class="max-w-6xl mx-auto px-4 py-6 sm:py-10">
       <slot />
@@ -88,16 +91,21 @@ const ogImageUrl = ogImage ?? new URL('/og-share.png', origin).href;
         It's just built by a bloke who's trying to buy a house and reckons everyone's paying too much for internet.
       </p>
       <p>
-        <span class="text-neutral-300 font-medium">No affiliate links, no sponsored placements.</span>
-        Rankings are by price and nothing else. A single small ad at the bottom of some pages helps cover hosting
-        and scraping costs. If you want to support the data, chuck a few bucks at
+        <span class="text-neutral-300 font-medium">Rankings are by price and nothing else.</span>
+        No sponsored placements. Some "Go to provider" buttons are labelled referral links, which pay a small fee if you
+        sign up and change nothing about where a plan sits. A single small ad at the bottom of some pages and
+        {SUPPORT_URL && (<><a href={SUPPORT_URL} class="underline hover:text-white" target="_blank" rel="noopener">the odd coffee</a> </>)}
+        cover hosting and scraping. If you want to support the data itself, chuck a few bucks at
         <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a> —
         the legends who actually maintain it.
       </p>
       <p>
-        Know of a plan that's missing? <a href="/submit" class="underline hover:text-white">Submit it here</a>.
-        Building an AI agent? There's an <a href="/llms.txt" class="underline hover:text-white">MCP server</a> for this data.
-        <a href="/privacy" class="underline hover:text-white">Privacy</a>.
+        <a href="/providers" class="underline hover:text-white">All providers</a> ·
+        <a href="/reports" class="underline hover:text-white">Monthly price reports</a> ·
+        <a href="/submit" class="underline hover:text-white">Submit a missing plan</a> ·
+        <a href="/llms.txt" class="underline hover:text-white">MCP server for AI agents</a> ·
+        <a href={GITHUB_URL} class="underline hover:text-white" target="_blank" rel="noopener">Source</a> ·
+        <a href="/privacy" class="underline hover:text-white">Privacy</a>
       </p>
     </footer>
   </body>

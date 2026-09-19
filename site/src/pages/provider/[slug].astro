@@ -1,0 +1,166 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import ProviderPriceHistory from '../../components/ProviderPriceHistory';
+import type { ProviderData } from '../../lib/types';
+import { loadData } from '../../lib/load';
+import { calculateCooked } from '../../lib/cooked';
+import { displayProviderName, resolveProviderLink, slugifyProvider } from '../../lib/providers';
+
+const { slug } = Astro.params;
+if (!slug || slug !== slugifyProvider(slug)) return new Response(null, { status: 404 });
+
+const provider = await loadData<ProviderData>(Astro.locals, `providers/${slug}.json`);
+if (!provider) return new Response(null, { status: 404 });
+
+const name = displayProviderName(provider.name);
+const link = resolveProviderLink(provider.name, provider.website);
+const origin = Astro.site ?? Astro.url.origin;
+const pageUrl = new URL(`/provider/${slug}`, origin).href;
+
+const rows = provider.tiers.map(t => {
+  const cooked = calculateCooked(t.plan.monthlyPrice, t.tierCheapest);
+  return { ...t, cooked, diff: t.plan.monthlyPrice - t.tierCheapest };
+});
+const cheapestTiers = rows.filter(r => r.rank === 1).length;
+const rortTiers = rows.filter(r => r.cooked.level === 'taking-the-piss' || r.cooked.level === 'absolute-rort').length;
+const cheapest = Math.min(...rows.map(r => r.plan.monthlyPrice));
+
+const verdict = cheapestTiers > 0 && rortTiers === 0
+  ? `${name} is the cheapest option in ${cheapestTiers} of ${rows.length} tiers and never more than 15% above the cheapest.`
+  : rortTiers === rows.length
+    ? `${name} is 15% or more above the cheapest plan in every tier it sells. You can almost certainly do better.`
+    : `${name} is competitive in some tiers and expensive in others. Check the tier you actually need below.`;
+
+const title = `${name} NBN plans ${new Date().getFullYear()}: prices, price history and is it a rort?`;
+const description = `${name} sells ${provider.planCount} NBN/Opticomm plans from $${cheapest.toFixed(0)}/mo. See how each ranks against every other provider in its tier and how the price has changed.`;
+---
+
+<Base
+  title={title}
+  description={description}
+  canonicalPath={`/provider/${slug}`}
+  jsonLd={[
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": name,
+      ...(provider.website ? { "url": provider.website } : {}),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": title,
+      "url": pageUrl,
+      "dateModified": provider.updatedAt,
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": origin.toString() },
+          { "@type": "ListItem", "position": 2, "name": "Providers", "item": new URL('/providers', origin).href },
+          { "@type": "ListItem", "position": 3, "name": name, "item": pageUrl },
+        ],
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": `${name} plans`,
+      "itemListElement": rows.map((r, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "Product",
+          "name": r.plan.planName,
+          "brand": { "@type": "Organization", "name": name },
+          "offers": { "@type": "Offer", "price": r.plan.monthlyPrice.toFixed(2), "priceCurrency": "AUD", "url": pageUrl },
+        },
+      })),
+    },
+  ]}
+>
+  <a href="/providers" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">&larr; All providers</a>
+
+  <section class="mb-8">
+    <h1 class="text-4xl sm:text-5xl font-display font-bold">{name}</h1>
+    <p class="text-neutral-400 mt-2 max-w-3xl">{verdict}</p>
+    <div class="flex flex-wrap gap-6 mt-5">
+      <div>
+        <div class="text-3xl font-display font-bold tabular-nums">${cheapest.toFixed(0)}</div>
+        <div class="text-sm text-neutral-500">cheapest plan/mo</div>
+      </div>
+      <div>
+        <div class="text-3xl font-display font-bold tabular-nums text-neutral-300">{rows.length}</div>
+        <div class="text-sm text-neutral-500">speed tiers</div>
+      </div>
+      <div>
+        <div class="text-3xl font-display font-bold tabular-nums text-cooked-green">{cheapestTiers}</div>
+        <div class="text-sm text-neutral-500">tiers where it's cheapest</div>
+      </div>
+      <div>
+        <div class="text-3xl font-display font-bold tabular-nums text-cooked-red">{rortTiers}</div>
+        <div class="text-sm text-neutral-500">tiers where it's a rort</div>
+      </div>
+    </div>
+    {link && (
+      <a href={link.url} target="_blank" rel={link.isReferral ? 'sponsored noopener' : 'noopener'}
+         class="inline-flex items-center gap-2 mt-5 text-sm bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-accent hover:border-accent transition-colors">
+        Go to {name} &rarr;
+        {link.isReferral && <span class="text-[10px] uppercase tracking-wider text-neutral-500" title="We may earn a referral fee. It never affects rankings.">Referral link</span>}
+      </a>
+    )}
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="font-display font-bold text-2xl">Plans by tier</h2>
+    {rows.map(r => (
+      <article class="bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div>
+            <a href={`/${r.tierKey}`} class="font-display font-semibold text-lg text-white hover:text-accent transition-colors">{r.label}</a>
+            <div class="text-sm text-neutral-400">{r.plan.planName}{r.plan.typicalEveningSpeed ? ` · ${r.plan.typicalEveningSpeed} Mbps typical evening` : ''}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-2xl font-display font-bold tabular-nums">${r.plan.monthlyPrice.toFixed(2)}<span class="text-sm text-neutral-500 font-body font-normal">/mo</span></div>
+            {r.plan.promoValue && r.plan.promoDuration ? (
+              <div class="text-xs text-accent">${(r.plan.monthlyPrice - r.plan.promoValue).toFixed(2)} for the first {r.plan.promoDuration} months</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-sm">
+          <div>
+            <div class="text-neutral-500 text-xs">Rank in tier</div>
+            <div class="text-white tabular-nums">#{r.rank} of {r.planCount}</div>
+          </div>
+          <div>
+            <div class="text-neutral-500 text-xs">Tier cheapest</div>
+            <div class="text-white tabular-nums">${r.tierCheapest.toFixed(2)}</div>
+          </div>
+          <div>
+            <div class="text-neutral-500 text-xs">Above cheapest</div>
+            <div class={`tabular-nums ${r.diff <= 0 ? 'text-cooked-green' : 'text-white'}`}>{r.diff <= 0 ? 'Cheapest' : '+$' + r.diff.toFixed(2) + ' (' + Math.round(r.cooked.overpayPercent * 100) + '%)'}</div>
+          </div>
+          <div>
+            <div class="text-neutral-500 text-xs">Rort Scale</div>
+            <div class="font-medium" style={`color:${r.cooked.color}`}>{r.cooked.label}</div>
+          </div>
+        </div>
+
+        {r.history.length > 0 && (
+          <div class="mt-4">
+            <ProviderPriceHistory client:visible history={r.history} lastSeen={r.lastSeen} />
+          </div>
+        )}
+      </article>
+    ))}
+  </section>
+
+  <p class="text-xs text-neutral-600 mt-6">
+    Prices are ongoing monthly prices as scraped on {new Date(provider.updatedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}.
+    Rort Scale compares this provider's ongoing price with the cheapest ongoing price in the same tier.
+    <a href="/how-it-works" class="underline hover:text-white">How the rating works.</a>
+  </p>
+
+  <AdSlot placement="content" />
+</Base>

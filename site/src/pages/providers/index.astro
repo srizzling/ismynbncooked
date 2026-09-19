@@ -1,0 +1,58 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import type { ProviderIndex } from '../../lib/types';
+import { loadData } from '../../lib/load';
+import { displayProviderName } from '../../lib/providers';
+
+const index = await loadData<ProviderIndex>(Astro.locals, 'providers/index.json');
+const providers = index?.providers ?? [];
+const nbnCount = providers.filter(p => p.networks.includes('nbn')).length;
+const opticommCount = providers.filter(p => p.networks.includes('opticomm')).length;
+---
+
+<Base
+  title={`All ${providers.length} Australian NBN & Opticomm providers compared — Am I Getting Rorted?`}
+  description={`Every NBN and Opticomm provider we track, with plan counts, cheapest prices and price history. ${nbnCount} NBN providers, ${opticommCount} Opticomm providers, updated daily.`}
+  canonicalPath="/providers"
+  jsonLd={{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Australian NBN and Opticomm providers",
+    "url": new URL('/providers', Astro.site ?? Astro.url.origin).href,
+    "numberOfItems": providers.length,
+  }}
+>
+  <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">&larr; Home</a>
+
+  <section class="mb-8">
+    <h1 class="text-4xl sm:text-5xl font-display font-bold">Every provider</h1>
+    <p class="text-neutral-400 mt-2">
+      {providers.length} providers, {providers.reduce((s, p) => s + p.planCount, 0)} plans. Click one to see all its plans,
+      how each is ranked against the rest of its tier, and how the price has moved.
+    </p>
+  </section>
+
+  {providers.length === 0 ? (
+    <p class="text-neutral-500">Provider data hasn't been generated yet. It appears after the next daily sync.</p>
+  ) : (
+    <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {providers.map(p => (
+        <li>
+          <a href={`/provider/${p.slug}`} class="block bg-surface-raised border border-surface-border rounded-xl px-4 py-3 hover:border-accent transition-colors">
+            <div class="flex items-baseline justify-between gap-3">
+              <span class="font-display font-semibold text-white">{displayProviderName(p.name)}</span>
+              <span class="text-sm text-neutral-400 tabular-nums whitespace-nowrap">from ${p.cheapest.toFixed(0)}/mo</span>
+            </div>
+            <div class="text-xs text-neutral-500 mt-1">
+              {p.planCount} plan{p.planCount === 1 ? '' : 's'} across {p.tierCount} tier{p.tierCount === 1 ? '' : 's'}
+              {p.networks.includes('opticomm') && <span class="ml-2 text-neutral-400">· Opticomm</span>}
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <AdSlot placement="content" />
+</Base>

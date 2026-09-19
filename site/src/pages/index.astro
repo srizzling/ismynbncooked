@@ -131,6 +131,17 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
     opticommTiers={manifest.tiers.filter(t => t.network === 'opticomm')}
   />
 
+  <section class="mt-10 grid sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
+    <a href="/reports" class="block bg-surface-raised border border-surface-border rounded-xl px-5 py-4 hover:border-accent transition-colors">
+      <div class="font-display font-semibold text-white">Monthly price report</div>
+      <div class="text-sm text-neutral-400 mt-1">Who raised prices, who dropped them, who's new. Every tier, every month.</div>
+    </a>
+    <a href="/providers" class="block bg-surface-raised border border-surface-border rounded-xl px-5 py-4 hover:border-accent transition-colors">
+      <div class="font-display font-semibold text-white">Every provider, rated</div>
+      <div class="text-sm text-neutral-400 mt-1">Is your provider a rort in every tier or just yours? Plans, ranks and price history per provider.</div>
+    </a>
+  </section>
+
   <!-- SEO FAQ section — visible to users, crawlers, and AI -->
   <section class="mt-16 max-w-3xl mx-auto">
     <h2 class="font-display font-bold text-2xl mb-6 text-center">Frequently asked questions</h2>
@@ -183,9 +194,10 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
         </summary>
         <div class="px-5 pb-4 text-neutral-400 text-sm">
           <p>
-            No affiliate links and no sponsored placements, ever. Rankings are based purely on price.
-            A single small ad at the bottom of some pages helps cover hosting and scraping costs, and it never
-            influences what you see. Plan data is sourced from
+            No sponsored placements, ever. Rankings are based purely on price. Some "Go to provider" buttons are
+            referral links, clearly labelled, which pay a small fee if you sign up. Providers without a referral
+            program get a plain link and rank exactly the same way. A single small ad at the bottom of some pages
+            also helps cover hosting and scraping costs. Plan data is sourced from
             <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a>
             plus community-submitted providers, and updated daily.
             <a href="/privacy" class="underline hover:text-white">Privacy details.</a>

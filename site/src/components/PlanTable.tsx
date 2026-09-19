@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks';
 import ProviderPriceHistory from './ProviderPriceHistory';
+import { resolveProviderLink } from '../lib/providers';
 import type { NBNPlan, ProviderHistory } from '../lib/types';
 import { calcCosts, type Horizon, HORIZONS } from '../lib/costs';
 
@@ -512,6 +513,21 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                               )}
                             </div>
 
+                            {(() => {
+                              const link = resolveProviderLink(plan.providerName, plan.providerWebsite);
+                              return link ? (
+                                <a
+                                  href={link.url}
+                                  target="_blank"
+                                  rel={link.isReferral ? 'sponsored noopener' : 'noopener'}
+                                  class="inline-flex items-center gap-2 text-sm bg-accent text-black font-medium rounded-lg px-3 py-2 hover:bg-orange-400 transition-colors mr-2"
+                                  title={link.isReferral ? 'Referral link: we may earn a fee if you sign up. It never affects rankings.' : undefined}
+                                >
+                                  Go to {plan.providerName} &rarr;
+                                  {link.isReferral && <span class="text-[10px] uppercase tracking-wider opacity-70">Referral</span>}
+                                </a>
+                              ) : null;
+                            })()}
                             {plan.cisUrl && (
                               <a
                                 href={plan.cisUrl}

@@ -12,6 +12,8 @@ providers. Rankings are never influenced by advertising or affiliate deals.
 - [Home](https://amigettingrorted.au/): plan checker and all speed tiers
 - [How the rating works](https://amigettingrorted.au/how-it-works): Rort Scale thresholds, promo maths, commitment periods
 - [Submit a missing plan](https://amigettingrorted.au/submit)
+- [Every provider](https://amigettingrorted.au/providers): per-provider pages at /provider/<slug> with plans, tier ranks, Rort Scale and price history
+- [Monthly price reports](https://amigettingrorted.au/reports): /reports/YYYY-MM with every price rise and drop; RSS at /reports/feed.xml
 - [Sitemap](https://amigettingrorted.au/sitemap.xml): every tier page, e.g. /nbn-100-20, /opticomm-500-50, /nbn-100 (grouped)
 
 ## For AI agents
