@@ -98,6 +98,10 @@ export interface NBNPlan {
   downloadSpeed: number;
   uploadSpeed: number;
   networkType: NetworkType;
+  /** Provider's website (from NetBargains or the community scraper) */
+  providerWebsite?: string | null;
+  /** Promo end date if the provider publishes one (YYYY-MM-DD) */
+  promoEndDate?: string | null;
 }
 
 export interface TierData {
@@ -122,8 +126,8 @@ export interface DailySummary {
 
 export interface TierHistory {
   providers: Record<string, {
-    current: { monthlyPrice: number; planName: string; yearlyCost: number };
-    history: { date: string; monthlyPrice: number; yearlyCost: number }[];
+    current: { monthlyPrice: number; planName: string; yearlyCost: number; lastSeen?: string };
+    history: HistoryEntry[];
   }>;
   daily: DailySummary[];
 }
@@ -132,4 +136,112 @@ export interface MetaData {
   lastPriceSync: string;
   lastTermsSync: string;
   lastComparisonSync: string;
+}
+
+/** One recorded price point for a provider within a tier */
+export interface HistoryEntry {
+  date: string;
+  monthlyPrice: number;
+  yearlyCost: number;
+}
+
+// ─── Provider pages ──────────────────────────────────────────────────────────
+
+export interface ProviderTierEntry {
+  tierKey: string;
+  label: string;
+  network: NetworkType;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  /** The provider's cheapest plan in this tier */
+  plan: NBNPlan;
+  /** 1-based rank of that plan by ongoing monthly price within the tier */
+  rank: number;
+  planCount: number;
+  tierCheapest: number;
+  tierAverage: number;
+  history: HistoryEntry[];
+  lastSeen?: string;
+}
+
+export interface ProviderData {
+  slug: string;
+  name: string;
+  website: string | null;
+  updatedAt: string;
+  planCount: number;
+  tiers: ProviderTierEntry[];
+}
+
+export interface ProviderIndexEntry {
+  slug: string;
+  name: string;
+  website: string | null;
+  planCount: number;
+  tierCount: number;
+  cheapest: number;
+  networks: NetworkType[];
+}
+
+export interface ProviderIndex {
+  updatedAt: string;
+  providers: ProviderIndexEntry[];
+}
+
+// ─── Monthly price reports ───────────────────────────────────────────────────
+
+export interface ReportPriceChange {
+  provider: string;
+  from: number;
+  to: number;
+  date: string;
+}
+
+export interface ReportTier {
+  tierKey: string;
+  label: string;
+  network: NetworkType;
+  planCountStart: number;
+  planCountEnd: number;
+  cheapestStart: number;
+  cheapestEnd: number;
+  averageStart: number;
+  averageEnd: number;
+  cheapestProvider: string | null;
+  changes: ReportPriceChange[];
+  newProviders: string[];
+  goneProviders: string[];
+}
+
+export interface MonthlyReport {
+  /** YYYY-MM */
+  month: string;
+  generatedAt: string;
+  /** true once the month is over and the numbers will not change */
+  final: boolean;
+  tiers: ReportTier[];
+  summary: {
+    rises: number;
+    drops: number;
+    tiersCheaper: number;
+    tiersDearer: number;
+    newProviders: string[];
+    goneProviders: string[];
+    biggestRise: (ReportPriceChange & { tierKey: string; label: string }) | null;
+    biggestDrop: (ReportPriceChange & { tierKey: string; label: string }) | null;
+  };
+}
+
+export interface ReportIndexEntry {
+  month: string;
+  generatedAt: string;
+  final: boolean;
+  rises: number;
+  drops: number;
+  newProviders: number;
+}
+
+export interface ReportIndex {
+  updatedAt: string;
+  reports: ReportIndexEntry[];
 }

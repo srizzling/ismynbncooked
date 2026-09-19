@@ -74,7 +74,9 @@ export async function scrapeCommunityPlans(
       } else if (providerKey === 'origin energy' || providerKey === 'origin broadband' || providerKey === 'origin' || providerSources[0].url.includes('originenergy.com.au')) {
         plans = await scrapeOriginPlans(firecrawlApiKey);
       } else if (providerKey === 'swoop' || providerSources[0].url.includes('swoop.com.au')) {
-        plans = await scrapeSwoopPlans(firecrawlApiKey, providerSources[0].url);
+        plans = await scrapeSwoopPlans(firecrawlApiKey, providerSources[0].url, providerSources[0].cisUrl);
+      } else if (providerKey === 'vodafone' || providerSources[0].url.includes('vodafone.com.au')) {
+        plans = await scrapeVodafonePlans(firecrawlApiKey, providerSources[0].url, providerSources[0].cisUrl);
       } else {
         console.log(`[community] No scraper for provider "${providerSources[0].provider}" — skipping`);
         continue;
@@ -204,6 +206,7 @@ function toNBNPlan(parsed: ParsedPlan): NBNPlan {
     downloadSpeed: parsed.downloadSpeed,
     uploadSpeed: parsed.uploadSpeed,
     networkType: 'nbn',
+    providerWebsite: 'https://leaptel.com.au',
   };
 }
 
@@ -428,6 +431,7 @@ function toOriginNBNPlan(parsed: ParsedPlan): NBNPlan {
     downloadSpeed: parsed.downloadSpeed,
     uploadSpeed: parsed.uploadSpeed,
     networkType: parsed.networkType || 'nbn',
+    providerWebsite: 'https://www.originenergy.com.au/internet/',
   };
 }
 
@@ -574,7 +578,7 @@ export async function scrapeSwoopRaw(firecrawlApiKey: string, url: string): Prom
   return plans;
 }
 
-export async function scrapeSwoopPlans(firecrawlApiKey: string, url: string): Promise<NBNPlan[]> {
+export async function scrapeSwoopPlans(firecrawlApiKey: string, url: string, cisUrl?: string): Promise<NBNPlan[]> {
   const rawPlans = await scrapeSwoopRaw(firecrawlApiKey, url);
   return rawPlans.map(p => ({
     id: `swoop-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${p.downloadSpeed}-${p.uploadSpeed}`,
@@ -588,13 +592,14 @@ export async function scrapeSwoopPlans(firecrawlApiKey: string, url: string): Pr
     promoDuration: p.promoDuration,
     typicalEveningSpeed: p.typicalEveningSpeed,
     contractLength: 0,
-    cisUrl: SWOOP_URL,
+    cisUrl: cisUrl || url,
     minimumTerm: null,
     cancellationFees: null,
     noticePeriod: null,
     downloadSpeed: p.downloadSpeed,
     uploadSpeed: p.uploadSpeed,
     networkType: 'nbn',
+    providerWebsite: 'https://swoop.com.au',
   }));
 }
 
@@ -704,4 +709,183 @@ function parseSwoopPlanBlock(
     ongoingPrice,
     networkType: 'nbn',
   };
+}
+
+// ─── Vodafone Opticomm Scraper ────────────────────────────────────────────────
+
+const VODAFONE_OPTICOMM_URL = 'https://www.vodafone.com.au/home-internet/opticomm';
+const VODAFONE_OPTICOMM_CIS_URL =
+  'https://www.vodafone.com.au/cis/opticomm-plans/month-to-month-plans/au13023-au13024-au13025-au13026-au13027-au13028-july2026.pdf';
+
+// Nominal (wholesale) speed tiers per plan name, from the Vodafone Opticomm CIS.
+// The plans page only shows typical evening speeds, so nominal speeds are mapped by name.
+const VODAFONE_OPTICOMM_TIERS: Record<string, { download: number; upload: number }> = {
+  '25': { download: 25, upload: 10 },
+  '50': { download: 50, upload: 20 },
+  '100': { download: 100, upload: 20 },
+  '500': { download: 500, upload: 50 },
+  'Superfast': { download: 750, upload: 50 },
+  'Ultrafast': { download: 1000, upload: 100 },
+};
+
+/** Normalise a submitted Vodafone URL: drop tracking params, fall back to the Opticomm page. */
+function normaliseVodafoneUrl(url?: string): string {
+  if (!url) return VODAFONE_OPTICOMM_URL;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.endsWith('vodafone.com.au')) return VODAFONE_OPTICOMM_URL;
+    u.search = '';
+    u.hash = '';
+    return u.toString();
+  } catch {
+    return VODAFONE_OPTICOMM_URL;
+  }
+}
+
+/** Scrapes Vodafone Opticomm plans via firecrawl and returns raw parsed plans. */
+export async function scrapeVodafoneRaw(firecrawlApiKey: string, url?: string): Promise<ParsedPlan[]> {
+  const target = normaliseVodafoneUrl(url);
+  console.log(`[vodafone-scraper] Fetching plans from ${target} via firecrawl...`);
+
+  const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${firecrawlApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url: target,
+      waitFor: 4000,
+      formats: ['markdown'],
+      onlyMainContent: true,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Firecrawl API error: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json() as { success: boolean; data?: { markdown?: string }; error?: string };
+  if (!data.success || !data.data?.markdown) {
+    throw new Error(`Firecrawl scrape failed: ${data.error || 'no markdown returned'}`);
+  }
+
+  const plans = parseVodafoneMarkdown(data.data.markdown);
+  console.log(`[vodafone-scraper] Parsed ${plans.length} plans`);
+  return plans;
+}
+
+export async function scrapeVodafonePlans(firecrawlApiKey: string, url?: string, cisUrl?: string): Promise<NBNPlan[]> {
+  const rawPlans = await scrapeVodafoneRaw(firecrawlApiKey, url);
+  return rawPlans.map(p => {
+    const yearlyCost = computeYearlyCost(p.monthlyPrice, p.promoValue, p.promoDuration);
+    return {
+      id: `vodafone-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${p.downloadSpeed}-${p.uploadSpeed}`,
+      providerName: 'Vodafone',
+      planName: `Vodafone ${p.name}`,
+      monthlyPrice: p.ongoingPrice,
+      yearlyCost: Math.round(yearlyCost * 100) / 100,
+      effectiveMonthly: Math.round((yearlyCost / 12) * 100) / 100,
+      setupFee: 0,
+      promoValue: p.promoValue,
+      promoDuration: p.promoDuration,
+      typicalEveningSpeed: p.typicalEveningSpeed,
+      contractLength: 0,
+      cisUrl: cisUrl || VODAFONE_OPTICOMM_CIS_URL,
+      minimumTerm: null,
+      cancellationFees: null,
+      noticePeriod: null,
+      downloadSpeed: p.downloadSpeed,
+      uploadSpeed: p.uploadSpeed,
+      networkType: p.networkType || 'opticomm',
+      providerWebsite: 'https://www.vodafone.com.au/home-internet',
+    };
+  });
+}
+
+// Parses Vodafone Opticomm markdown. Each plan card renders as:
+//   - **{typicalDown} Mbps**
+//   Typical evening speed(7pm-11pm)          (or "Estimated typical evening speed…")
+//   **${promo}**
+//   per mth for 12 mths, then ${ongoing}     (or "per month for …"; no "then" when there is no promo)
+//   ...
+//   Opticomm {name}                          (plan name)
+//   ...
+//   **{typicalDown}Mbps download and {typicalUp}Mbps upload**
+export function parseVodafoneMarkdown(markdown: string): ParsedPlan[] {
+  const lines = markdown.split('\n').map(l => l.trim());
+  const plans: ParsedPlan[] = [];
+  const seen = new Set<string>();
+
+  const isHeader = (line: string) => /^-\s+\*\*(\d+)\s*Mbps\*\*$/.test(line);
+  const nextNonEmpty = (from: number, max: number): string => {
+    for (let j = from; j < max; j++) {
+      if (lines[j] !== '') return lines[j];
+    }
+    return '';
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const headerMatch = lines[i].match(/^-\s+\*\*(\d+)\s*Mbps\*\*$/);
+    if (!headerMatch) continue;
+    if (!/typical evening speed/i.test(nextNonEmpty(i + 1, i + 6))) continue;
+
+    let typicalDown: number | null = parseInt(headerMatch[1]);
+    let price = 0;
+    let ongoingPrice = 0;
+    let promoDuration = 0;
+    let name = '';
+
+    // Scan until the next plan header
+    let end = lines.length;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (isHeader(lines[j])) { end = j; break; }
+    }
+
+    for (let j = i + 1; j < end; j++) {
+      const line = lines[j];
+      if (line === '') continue;
+
+      const priceMatch = line.match(/^\*\*\$(\d+(?:\.\d{2})?)\*\*$/);
+      if (priceMatch && !price) { price = parseFloat(priceMatch[1]); continue; }
+
+      const promoMatch = line.match(/^per (?:mth|month) for (\d+) mths?,?\s*then \$(\d+(?:\.\d{2})?)/i);
+      if (promoMatch && !ongoingPrice) {
+        promoDuration = parseInt(promoMatch[1]);
+        ongoingPrice = parseFloat(promoMatch[2]);
+        continue;
+      }
+
+      const nameMatch = line.match(/^\*{0,2}Opticomm ([A-Za-z0-9]+)\*{0,2}$/);
+      if (nameMatch && !name && VODAFONE_OPTICOMM_TIERS[nameMatch[1]]) { name = `Opticomm ${nameMatch[1]}`; continue; }
+
+      const tesMatch = line.match(/(\d+)\s*Mbps download and (\d+)\s*Mbps upload/i);
+      if (tesMatch) { typicalDown = parseInt(tesMatch[1]); continue; }
+    }
+
+    if (!name || !price) continue;
+    const tier = VODAFONE_OPTICOMM_TIERS[name.replace('Opticomm ', '')];
+    if (!tier) continue;
+    if (!ongoingPrice) { ongoingPrice = price; promoDuration = 0; }
+    const promoValue = ongoingPrice > price ? Math.round((ongoingPrice - price) * 100) / 100 : 0;
+    if (!promoValue) promoDuration = 0;
+
+    const key = `${tier.download}-${tier.upload}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    plans.push({
+      name,
+      downloadSpeed: tier.download,
+      uploadSpeed: tier.upload,
+      typicalEveningSpeed: typicalDown,
+      monthlyPrice: price,
+      promoValue,
+      promoDuration,
+      ongoingPrice,
+      networkType: 'opticomm',
+    });
+  }
+
+  return plans;
 }

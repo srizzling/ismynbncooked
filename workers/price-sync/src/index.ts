@@ -1,8 +1,9 @@
-import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, NetworkType, TierInfo, TierManifest } from './types';
+import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, NetworkType, TierInfo, TierManifest, HistoryEntry } from './types';
+import { buildProviderFiles, buildMonthlyReports } from './derived';
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
-import { scrapeCommunityPlans, scrapeLeaptelRaw, scrapeOriginRaw, scrapeSwoopRaw, type ParsedPlan } from './community-scrapers';
+import { scrapeCommunityPlans, scrapeLeaptelRaw, scrapeOriginRaw, scrapeSwoopRaw, scrapeVodafoneRaw, type ParsedPlan } from './community-scrapers';
 
 function normalizeNetworkType(raw: string): NetworkType {
   const lower = raw.toLowerCase();
@@ -40,6 +41,8 @@ function transformPlan(raw: import('./types').NetBargainsPlan): NBNPlan {
     downloadSpeed: raw.download_speed,
     uploadSpeed: raw.upload_speed,
     networkType: normalizeNetworkType(raw.network_type),
+    providerWebsite: raw.provider_website || null,
+    promoEndDate: raw.promo_end_date || null,
   };
 }
 
@@ -65,12 +68,22 @@ async function mergeTerms(plans: NBNPlan[], bucket: R2Bucket): Promise<NBNPlan[]
   }
 }
 
+/** Keep only the entries where the price differs from the previous kept entry (always keeps the first). */
+function compactHistory(entries: HistoryEntry[]): HistoryEntry[] {
+  const out: HistoryEntry[] = [];
+  for (const e of entries) {
+    const prev = out[out.length - 1];
+    if (!prev || prev.monthlyPrice !== e.monthlyPrice || prev.yearlyCost !== e.yearlyCost) out.push(e);
+  }
+  return out;
+}
+
 async function updateHistory(
   bucket: R2Bucket,
   tierKey: string,
   plans: NBNPlan[],
   today: string
-): Promise<void> {
+): Promise<TierHistory> {
   let history: TierHistory = { providers: {}, daily: [] };
 
   try {
@@ -80,7 +93,10 @@ async function updateHistory(
     // Start fresh
   }
 
-  // Update provider history (top 20 by cheapest price)
+  // Update provider history for every provider in the tier.
+  // Only price *changes* are stored (plus the first sighting), so the file stays
+  // small no matter how many days pass. `current.lastSeen` records the latest
+  // sync that still listed the provider, which the sparkline uses as its end date.
   const byProvider = new Map<string, NBNPlan>();
   for (const plan of plans) {
     const existing = byProvider.get(plan.providerName);
@@ -89,26 +105,29 @@ async function updateHistory(
     }
   }
 
-  const topProviders = [...byProvider.entries()]
-    .sort((a, b) => a[1].monthlyPrice - b[1].monthlyPrice)
-    .slice(0, 20);
-
-  for (const [name, plan] of topProviders) {
+  for (const [name, plan] of byProvider) {
     if (!history.providers[name]) {
       history.providers[name] = { current: { monthlyPrice: 0, planName: '', yearlyCost: 0 }, history: [] };
     }
-    history.providers[name].current = {
+    const entry = history.providers[name];
+    entry.current = {
       monthlyPrice: plan.monthlyPrice,
       planName: plan.planName,
       yearlyCost: plan.yearlyCost,
+      lastSeen: today,
     };
-    // Avoid duplicate entries for today
-    if (!history.providers[name].history.some((h) => h.date === today)) {
-      history.providers[name].history.push({
-        date: today,
-        monthlyPrice: plan.monthlyPrice,
-        yearlyCost: plan.yearlyCost,
-      });
+
+    // Compact legacy day-by-day histories down to change points
+    entry.history = compactHistory(entry.history);
+
+    const last = entry.history[entry.history.length - 1];
+    const changed = !last || last.monthlyPrice !== plan.monthlyPrice || last.yearlyCost !== plan.yearlyCost;
+    if (!changed) continue;
+    if (last && last.date === today) {
+      last.monthlyPrice = plan.monthlyPrice;
+      last.yearlyCost = plan.yearlyCost;
+    } else {
+      entry.history.push({ date: today, monthlyPrice: plan.monthlyPrice, yearlyCost: plan.yearlyCost });
     }
   }
 
@@ -154,6 +173,7 @@ async function updateHistory(
   await bucket.put(`data/history/${tierKey}.json`, JSON.stringify(history), {
     httpMetadata: { contentType: 'application/json' },
   });
+  return history;
 }
 
 /** Group plans by (network, download, upload) and return a map of tierKey -> plans */
@@ -217,6 +237,7 @@ export default {
 
     // Store each discovered tier
     const manifestTiers: TierInfo[] = [];
+    const builtTiers: { data: TierData; history: TierHistory }[] = [];
 
     for (const [tierKey, plans] of allTierGroups) {
       // Sort by monthly price
@@ -249,7 +270,8 @@ export default {
       });
 
       // Update history
-      await updateHistory(env.DATA_BUCKET, tierKey, plans, today);
+      const tierHistory = await updateHistory(env.DATA_BUCKET, tierKey, plans, today);
+      builtTiers.push({ data: tierData, history: tierHistory });
 
       const cheapestEffective = plans.length
         ? Math.min(...plans.map(p => p.effectiveMonthly))
@@ -298,6 +320,20 @@ export default {
     });
 
     console.log(`[price-sync] Manifest: ${manifestTiers.length} tiers, ${providers.length} providers discovered`);
+
+    // Derived data: per-provider pages and monthly price reports
+    try {
+      const providerCount = await buildProviderFiles(env.DATA_BUCKET, builtTiers);
+      console.log(`[price-sync] Provider files: ${providerCount} written`);
+    } catch (err) {
+      console.error('[price-sync] Provider files failed:', err);
+    }
+    try {
+      const months = await buildMonthlyReports(env.DATA_BUCKET, builtTiers, today);
+      console.log(`[price-sync] Monthly reports: ${months.join(', ')}`);
+    } catch (err) {
+      console.error('[price-sync] Monthly reports failed:', err);
+    }
 
     // Update meta
     let meta: MetaData = { lastPriceSync: '', lastTermsSync: '', lastComparisonSync: '' };
@@ -614,6 +650,9 @@ export default {
         } else if (provider === 'swoop' || body.url.includes('swoop.com.au')) {
           scrapedPlans = await scrapeSwoopRaw(env.FIRECRAWL_API_KEY, body.url.trim());
           planUrlReachable = scrapedPlans.length > 0;
+        } else if (provider === 'vodafone' || body.url.includes('vodafone.com.au')) {
+          scrapedPlans = await scrapeVodafoneRaw(env.FIRECRAWL_API_KEY, body.url.trim());
+          planUrlReachable = scrapedPlans.length > 0;
         } else {
           // Unsupported provider — just check if URL is reachable
           try {
@@ -659,6 +698,10 @@ export default {
         if (provider === 'swoop') {
           providerAliases.add('swoop');
           providerAliases.add('swoop broadband');
+        }
+        if (provider === 'vodafone') {
+          providerAliases.add('vodafone');
+          providerAliases.add('vodafone australia');
         }
         const missingPlans: ParsedPlan[] = [];
 
