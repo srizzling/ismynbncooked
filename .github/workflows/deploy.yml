@@ -99,7 +99,8 @@ jobs:
             [ -f "$file" ] || continue
             filename=$(basename "$file")
             echo "Uploading $filename to R2..."
-            npx wrangler r2 object put "ismynbncooked-data/data/community-sources/$filename" --file "$file" --content-type "application/json"
+            # --remote is required: Wrangler 4 defaults r2 object commands to local storage
+            npx wrangler r2 object put "ismynbncooked-data/data/community-sources/$filename" --file "$file" --content-type "application/json" --remote
           done
 
   deploy-site:
