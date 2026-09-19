@@ -91,6 +91,18 @@ export async function buildProviderFiles(
 
 // ─── Monthly reports ─────────────────────────────────────────────────────────
 
+/**
+ * Date the worker started tracking every provider's price (before this only the 20
+ * cheapest per tier were tracked). First sightings on this date are not "new
+ * providers", and a price difference recorded on this date against an entry from
+ * before the gap cannot be dated, so it is left out of rises/drops.
+ */
+const FULL_TRACKING_SINCE = '2026-09-19';
+
+function daysBetween(a: string, b: string): number {
+  return Math.abs(new Date(a).getTime() - new Date(b).getTime()) / 86400000;
+}
+
 function monthOf(date: string): string {
   return date.slice(0, 7);
 }
@@ -127,13 +139,15 @@ function buildReportForMonth(
       const h: HistoryEntry[] = entry.history;
       if (h.length === 0) continue;
 
-      if (monthOf(h[0].date) === month && trackedBefore && h[0].date > first.date) {
+      if (monthOf(h[0].date) === month && trackedBefore && h[0].date > first.date && h[0].date > FULL_TRACKING_SINCE) {
         newProviders.push(provider);
       }
 
       for (let i = 1; i < h.length; i++) {
         if (monthOf(h[i].date) !== month) continue;
         if (h[i].monthlyPrice === h[i - 1].monthlyPrice) continue;
+        // A change spanning a tracking gap (previous entry more than 2 days earlier) can't be dated
+        if (daysBetween(h[i].date, h[i - 1].date) > 2) continue;
         changes.push({ provider, from: h[i - 1].monthlyPrice, to: h[i].monthlyPrice, date: h[i].date });
       }
 
