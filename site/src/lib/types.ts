@@ -304,6 +304,8 @@ export interface MonthlyReport {
   month: string;
   generatedAt: string;
   final: boolean;
+  /** Provider-level detail covers only the 20 cheapest providers per tier for this month */
+  partialTracking?: boolean;
   tiers: ReportTier[];
   summary: {
     rises: number;

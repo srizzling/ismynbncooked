@@ -1,5 +1,5 @@
 import type { Env, NBNPlan, TierData, TierHistory, MetaData, DailySummary, NetworkType, TierInfo, TierManifest, HistoryEntry } from './types';
-import { buildProviderFiles, buildMonthlyReports } from './derived';
+import { buildProviderFiles, buildMonthlyReports, trackedMonths } from './derived';
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
@@ -275,6 +275,11 @@ export default {
       await env.DATA_BUCKET.put(`data/plans/${tierKey}.json`, JSON.stringify(tierData), {
         httpMetadata: { contentType: 'application/json' },
       });
+      // Immutable daily snapshot (about 36 small files a day) so any future
+      // history feature can be backfilled instead of starting from zero.
+      await env.DATA_BUCKET.put(`data/snapshots/${today}/${tierKey}.json`, JSON.stringify(tierData), {
+        httpMetadata: { contentType: 'application/json' },
+      });
 
       // Update history
       const tierHistory = await updateHistory(env.DATA_BUCKET, tierKey, plans, today);
@@ -391,6 +396,26 @@ export default {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    // Rebuild every monthly report from the retained tier histories (POST /rebuild-reports?force=1)
+    if (url.pathname === '/rebuild-reports' && request.method === 'POST') {
+      const today = new Date().toISOString().split('T')[0];
+      const manifestObj = await env.DATA_BUCKET.get('data/manifest.json');
+      if (!manifestObj) return new Response(JSON.stringify({ ok: false, error: 'no manifest' }), { status: 500 });
+      const manifest = await manifestObj.json() as TierManifest;
+      const tiers: { data: TierData; history: TierHistory }[] = [];
+      for (const t of manifest.tiers) {
+        const [d, h] = await Promise.all([
+          env.DATA_BUCKET.get(`data/plans/${t.key}.json`),
+          env.DATA_BUCKET.get(`data/history/${t.key}.json`),
+        ]);
+        if (!d) continue;
+        tiers.push({ data: await d.json() as TierData, history: h ? await h.json() as TierHistory : { providers: {}, daily: [] } });
+      }
+      const months = trackedMonths(tiers, today);
+      const written = await buildMonthlyReports(env.DATA_BUCKET, tiers, today, { months, force: url.searchParams.get('force') === '1' });
+      return new Response(JSON.stringify({ ok: true, months, written }, null, 2), { headers: { 'Content-Type': 'application/json' } });
     }
 
     // Diagnostics: what community sources exist in R2, and (POST) a dry run of every scraper

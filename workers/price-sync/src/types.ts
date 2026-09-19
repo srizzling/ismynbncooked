@@ -225,6 +225,8 @@ export interface MonthlyReport {
   generatedAt: string;
   /** true once the month is over and the numbers will not change */
   final: boolean;
+  /** Set for months before every provider was tracked: provider-level detail covers the 20 cheapest per tier only */
+  partialTracking?: boolean;
   tiers: ReportTier[];
   summary: {
     rises: number;

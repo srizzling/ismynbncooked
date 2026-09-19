@@ -139,6 +139,7 @@ function buildReportForMonth(
       const h: HistoryEntry[] = entry.history;
       if (h.length === 0) continue;
 
+      // Before full tracking, a first sighting usually just means the provider entered the 20 cheapest
       if (monthOf(h[0].date) === month && trackedBefore && h[0].date > first.date && h[0].date > FULL_TRACKING_SINCE) {
         newProviders.push(provider);
       }
@@ -152,7 +153,7 @@ function buildReportForMonth(
       }
 
       const lastSeen = entry.current.lastSeen;
-      if (lastSeen && monthOf(lastSeen) === month && lastSeen < today && !currentProviders.has(provider)) {
+      if (lastSeen && monthOf(lastSeen) === month && lastSeen < today && lastSeen > FULL_TRACKING_SINCE && !currentProviders.has(provider)) {
         goneProviders.push(provider);
       }
     }
@@ -206,6 +207,7 @@ function buildReportForMonth(
     month,
     generatedAt: new Date().toISOString(),
     final: month < monthOf(today),
+    partialTracking: month <= monthOf(FULL_TRACKING_SINCE),
     tiers: reportTiers,
     summary: {
       rises, drops, tiersCheaper, tiersDearer,
@@ -216,14 +218,34 @@ function buildReportForMonth(
   };
 }
 
-/** Writes the report for the current month and, so it ends up final, the previous month. */
+/** Every month from the earliest daily summary up to today. */
+export function trackedMonths(tiers: { history: TierHistory }[], today: string): string[] {
+  const dates = tiers.flatMap(t => t.history.daily.map(d => d.date)).sort();
+  if (dates.length === 0) return [monthOf(today)];
+  const months: string[] = [];
+  let m = monthOf(dates[0]);
+  const last = monthOf(today);
+  while (m <= last) {
+    months.push(m);
+    const [y, mm] = m.split('-').map(Number);
+    const d = new Date(Date.UTC(y, mm, 1));
+    m = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+  return months;
+}
+
+/**
+ * Writes the report for the current month and, so it ends up final, the previous month.
+ * Pass `opts.months` to (re)build specific months and `opts.force` to overwrite final ones.
+ */
 export async function buildMonthlyReports(
   bucket: R2Bucket,
   tiers: { data: TierData; history: TierHistory }[],
   today: string,
+  opts: { months?: string[]; force?: boolean } = {},
 ): Promise<string[]> {
   const current = monthOf(today);
-  const months = [previousMonth(current), current];
+  const months = opts.months ?? [previousMonth(current), current];
   const written: string[] = [];
 
   let index: ReportIndex = { updatedAt: '', reports: [] };
@@ -233,9 +255,9 @@ export async function buildMonthlyReports(
   } catch {}
 
   for (const month of months) {
-    // Don't rewrite a report that is already final
+    // Don't rewrite a report that is already final unless forced
     const known = index.reports.find(r => r.month === month);
-    if (known?.final) continue;
+    if (known?.final && !opts.force) continue;
 
     const report = buildReportForMonth(month, tiers, today);
     if (!report) continue;
