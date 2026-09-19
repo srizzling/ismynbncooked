@@ -1,0 +1,42 @@
+---
+/** "Share this" row: opens the social card image and copies the page link. */
+interface Props {
+  imagePath: string;
+  pagePath: string;
+  label?: string;
+}
+const { imagePath, pagePath, label = 'Share this' } = Astro.props;
+const origin = Astro.site ?? Astro.url.origin;
+const imageUrl = new URL(imagePath, origin).href;
+const pageUrl = new URL(pagePath, origin).href;
+---
+
+<div class="flex flex-wrap items-center gap-2 text-sm" data-share-bar>
+  <span class="text-neutral-500">{label}:</span>
+  <a href={imageUrl} target="_blank" rel="noopener" download
+     class="inline-flex items-center gap-1.5 bg-surface-raised border border-surface-border rounded-lg px-3 py-1.5 text-neutral-200 hover:border-accent transition-colors">
+    Open image
+  </a>
+  <button type="button" data-copy={pageUrl}
+          class="inline-flex items-center gap-1.5 bg-surface-raised border border-surface-border rounded-lg px-3 py-1.5 text-neutral-200 hover:border-accent transition-colors">
+    Copy link
+  </button>
+  <a href={`https://www.reddit.com/submit?url=${encodeURIComponent(pageUrl)}`} target="_blank" rel="noopener"
+     class="inline-flex items-center gap-1.5 bg-surface-raised border border-surface-border rounded-lg px-3 py-1.5 text-neutral-200 hover:border-accent transition-colors">
+    Post to Reddit
+  </a>
+  <span class="text-xs text-neutral-600">Pasting the link anywhere shows the image automatically.</span>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-share-bar] [data-copy]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy!);
+        const prev = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = prev; }, 1500);
+      } catch {}
+    });
+  });
+</script>

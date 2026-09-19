@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import AdSlot from '../../components/AdSlot.astro';
 import ProviderPriceHistory from '../../components/ProviderPriceHistory';
 import { TierPositionChart, RortDistribution, ProviderTrendChart } from '../../components/ProviderCharts';
+import ShareBar from '../../components/ShareBar.astro';
 import type { ProviderData } from '../../lib/types';
 import { loadData } from '../../lib/load';
 import { calculateCooked, summariseRort } from '../../lib/cooked';
@@ -47,6 +48,7 @@ const description = `${name} sells ${provider.planCount} NBN/Opticomm plans from
   title={title}
   description={description}
   canonicalPath={`/provider/${slug}`}
+  ogImage={new URL(`/og/provider/${slug}.png`, origin).href}
   jsonLd={[
     {
       "@context": "https://schema.org",
@@ -127,6 +129,7 @@ const description = `${name} sells ${provider.planCount} NBN/Opticomm plans from
         </div>
       </div>
     )}
+    <div class="mt-5"><ShareBar imagePath={`/og/provider/${slug}.png`} pagePath={`/provider/${slug}`} label={`Share ${name}'s report card`} /></div>
     {link && (
       <a href={link.url} target="_blank" rel={link.isReferral ? 'sponsored noopener' : 'noopener'}
          class="inline-flex items-center gap-2 mt-5 text-sm bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-accent hover:border-accent transition-colors">

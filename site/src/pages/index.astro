@@ -5,6 +5,7 @@ import PlanChecker from '../components/PlanChecker';
 import DataFreshness from '../components/DataFreshness';
 import TierGrid from '../components/TierGrid';
 import AdSlot from '../components/AdSlot.astro';
+import ShareBar from '../components/ShareBar.astro';
 import { type MetaData, type TierManifest } from '../lib/types';
 import { getFixtureTierSummaries, getFixtureManifest, groupTiersByDownload, type TierSummary } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
@@ -63,6 +64,7 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
   title="Am I Getting Rorted? — Compare Australian NBN Internet Plans & Prices"
   description="Compare every Australian NBN internet plan side-by-side. Find the cheapest NBN 25, 50, 100, 250, 500, 1000 plans across all ISPs. Prices updated daily."
   canonicalPath="/"
+  ogImage={new URL('/og/cheapest.png', Astro.site ?? Astro.url.origin).href}
   jsonLd={[
     {
       "@context": "https://schema.org",
@@ -211,6 +213,7 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
     <p class="text-neutral-500 text-sm">
       Prices updated daily. All plans are month-to-month unless noted. Comparing {totalPlans} plans across Australia.
     </p>
+    <div class="mt-4 flex justify-center"><ShareBar imagePath="/og/cheapest.png" pagePath="/" label="Share today's cheapest plans" /></div>
   </section>
 
   <AdSlot placement="home" />

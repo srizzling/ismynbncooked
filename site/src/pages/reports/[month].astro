@@ -5,6 +5,7 @@ import type { MonthlyReport } from '../../lib/types';
 import { loadData } from '../../lib/load';
 import { displayProviderName, slugifyProvider } from '../../lib/providers';
 import { TierDeltaChart, ProviderChangesChart, ChangesTimeline } from '../../components/ReportCharts';
+import ShareBar from '../../components/ShareBar.astro';
 
 const { month } = Astro.params;
 if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return new Response(null, { status: 404 });
@@ -36,6 +37,7 @@ const description = `${s.tiersDearer} tiers got dearer and ${s.tiersCheaper} got
   title={`${headline} — Am I Getting Rorted?`}
   description={description}
   canonicalPath={`/reports/${month}`}
+  ogImage={new URL(`/og/report/${month}.png`, origin).href}
   jsonLd={{
     "@context": "https://schema.org",
     "@type": "Article",
@@ -55,6 +57,7 @@ const description = `${s.tiersDearer} tiers got dearer and ${s.tiersCheaper} got
       <p class="text-accent text-sm font-medium mb-2">Monthly price report{!report.final && ' · in progress, updated daily'}</p>
       <h1 class="text-4xl sm:text-5xl font-display font-bold">{headline}</h1>
       <p class="text-neutral-400 mt-3 max-w-3xl">{description}</p>
+      <div class="mt-4"><ShareBar imagePath={`/og/report/${month}.png`} pagePath={`/reports/${month}`} label="Share this report" /></div>
     </header>
 
     <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
