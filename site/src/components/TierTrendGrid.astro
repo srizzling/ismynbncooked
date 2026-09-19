@@ -1,0 +1,78 @@
+---
+/**
+ * Small multiples, rendered on the server: one tile per tier with the cheapest
+ * line in the accent and the average in context grey. A tiny inline script
+ * toggles NBN / Opticomm; no data is shipped to the client.
+ */
+import type { TrendSeries } from '../lib/trends';
+import { CHART, money, shortDate } from '../lib/chart';
+
+interface Props { series: TrendSeries[] }
+const { series } = Astro.props;
+
+const w = 160, h = 48;
+function tile(s: TrendSeries) {
+  const pts = s.points;
+  const first = pts[0], last = pts[pts.length - 1];
+  const t0 = new Date(first.date).getTime(), t1 = new Date(last.date).getTime() || t0 + 1;
+  const vals = pts.flatMap(p => [p.cheapest, p.average]).filter(v => v > 0);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const x = (d: string) => ((new Date(d).getTime() - t0) / (t1 - t0 || 1)) * w;
+  const y = (v: number) => h - ((v - lo) / (hi - lo || 1)) * (h - 6) - 3;
+  const path = (get: (p: TrendSeries['points'][number]) => number) => pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.date).toFixed(1)},${y(get(p)).toFixed(1)}`).join(' ');
+  const delta = last.cheapest - first.cheapest;
+  const pct = first.cheapest > 0 ? (delta / first.cheapest) * 100 : 0;
+  return { s, first, last, cheapestPath: path(p => p.cheapest), averagePath: path(p => p.average), delta, pct };
+}
+const groups = {
+  nbn: series.filter(s => s.key.startsWith('nbn') && s.points.length > 1).map(tile),
+  opticomm: series.filter(s => s.key.startsWith('opticomm') && s.points.length > 1).map(tile),
+};
+---
+
+<div data-trend-grid>
+  <div class="flex gap-1 mb-4">
+    <button type="button" data-network="nbn" class="text-xs px-3 py-1 rounded-full transition-colors bg-accent text-black">NBN</button>
+    <button type="button" data-network="opticomm" class="text-xs px-3 py-1 rounded-full transition-colors bg-surface border border-surface-border text-neutral-400 hover:text-white">Opticomm</button>
+  </div>
+  {(['nbn', 'opticomm'] as const).map(network => (
+    <div data-grid={network} class:list={['grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3', { hidden: network !== 'nbn' }]}>
+      {groups[network].map(t => (
+        <a href={`/${t.s.key}`} class="block bg-surface-raised border border-surface-border rounded-xl p-3 hover:border-accent transition-colors">
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="text-sm font-medium text-white">{t.s.label}</span>
+            <span class="text-sm tabular-nums text-white">{money(t.last.cheapest, 0)}</span>
+          </div>
+          <svg viewBox={`0 0 ${w} ${h}`} class="w-full mt-1" preserveAspectRatio="none" aria-hidden="true">
+            <path d={t.averagePath} fill="none" stroke={CHART.context} stroke-width="1.5" stroke-linejoin="round" />
+            <path d={t.cheapestPath} fill="none" stroke={CHART.accent} stroke-width="2" stroke-linejoin="round" />
+          </svg>
+          <div class="flex justify-between text-[11px] mt-1">
+            <span class="text-neutral-500">{shortDate(t.first.date)} → {shortDate(t.last.date)}</span>
+            <span class:list={['tabular-nums', t.delta > 0 ? 'text-cooked-red' : t.delta < 0 ? 'text-cooked-green' : 'text-neutral-500']}>
+              {t.delta === 0 ? 'no change' : `${t.delta > 0 ? '+' : '−'}${money(Math.abs(t.delta), 0)} (${t.pct > 0 ? '+' : ''}${t.pct.toFixed(0)}%)`}
+            </span>
+          </div>
+        </a>
+      ))}
+    </div>
+  ))}
+  <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-neutral-400">
+    <span class="inline-flex items-center gap-1.5"><span class="inline-block w-4 h-0.5" style={`background:${CHART.accent}`}></span> cheapest plan</span>
+    <span class="inline-flex items-center gap-1.5"><span class="inline-block w-4 h-0.5" style={`background:${CHART.context}`}></span> average price</span>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-trend-grid]').forEach(root => {
+    const buttons = root.querySelectorAll<HTMLButtonElement>('[data-network]');
+    buttons.forEach(btn => btn.addEventListener('click', () => {
+      const net = btn.dataset.network;
+      buttons.forEach(b => {
+        const on = b === btn;
+        b.className = `text-xs px-3 py-1 rounded-full transition-colors ${on ? 'bg-accent text-black' : 'bg-surface border border-surface-border text-neutral-400 hover:text-white'}`;
+      });
+      root.querySelectorAll<HTMLElement>('[data-grid]').forEach(g => g.classList.toggle('hidden', g.dataset.grid !== net));
+    }));
+  });
+</script>

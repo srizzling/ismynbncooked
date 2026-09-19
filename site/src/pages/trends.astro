@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import AdSlot from '../components/AdSlot.astro';
 import ShareBar from '../components/ShareBar.astro';
 import TrendsChart from '../components/TrendsChart';
-import TierTrendGrid from '../components/TierTrendGrid';
+import TierTrendGrid from '../components/TierTrendGrid.astro';
 import { loadTrends } from '../lib/trends';
 import { money } from '../lib/chart';
 
@@ -12,6 +12,10 @@ const year = new Date(lastDate || Date.now()).getFullYear();
 const origin = Astro.site ?? Astro.url.origin;
 
 const main = ['nbn-50-20', 'nbn-100-20', 'nbn-500-50', 'nbn-1000-50'];
+// Only the default lines are serialised into the island; everything else sits in one compact JSON block
+const compact = series.map(s => ({ key: s.key, label: s.label, points: s.points.map(p => ({ date: p.date, cheapest: p.cheapest, average: p.average })) }));
+const initialSeries = compact.filter(s => main.includes(s.key));
+const catalogue = compact.map(s => ({ key: s.key, label: s.label }));
 const fmt = (d: string) => new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
 
 // Headline: how the mainstream tier (NBN 100/20) moved
@@ -72,13 +76,18 @@ const busiestLabel = busiest ? new Date(Date.UTC(Number(busiest.month.slice(0, 4
   <section class="mb-8 bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
     <h2 class="font-display font-bold text-xl mb-1">Price lines</h2>
     <p class="text-xs text-neutral-500 mb-4">Pick up to four tiers. Daily points for the last 90 days, weekly before that. Hover for exact values.</p>
-    <TrendsChart client:load series={series} defaultSelected={main} />
+    <TrendsChart client:load series={initialSeries} defaultSelected={main} catalogue={catalogue} dataId="trends-data" />
+    <script type="application/json" id="trends-data" set:html={JSON.stringify(compact)} />
   </section>
 
   <section class="mb-8">
     <h2 class="font-display font-bold text-2xl mb-1">Every tier at a glance</h2>
-    <p class="text-sm text-neutral-500 mb-4">Cheapest plan in orange, average in grey, since tracking began. Click a tile for the tier.</p>
-    <TierTrendGrid client:visible series={series} />
+    <p class="text-sm text-neutral-500 mb-3">Cheapest plan in orange, average in grey, since tracking began. Click a tile for the tier.</p>
+    <div class="mb-4 flex flex-wrap gap-x-6 gap-y-2">
+      <ShareBar imagePath="/og/tiers.png" pagePath="/trends" label="Share the NBN table" />
+      <ShareBar imagePath="/og/tiers.png?network=opticomm" pagePath="/trends" label="Opticomm table" />
+    </div>
+    <TierTrendGrid series={series} />
   </section>
 
   <p class="text-xs text-neutral-600">

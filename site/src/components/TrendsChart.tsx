@@ -4,7 +4,7 @@ import { CHART, money, shortDate, longDate, niceTicks } from '../lib/chart';
 export interface TrendSeriesData {
   key: string;
   label: string;
-  points: { date: string; cheapest: number; average: number; planCount: number }[];
+  points: { date: string; cheapest: number; average: number; planCount?: number }[];
 }
 
 /** Fixed categorical order, validated for colour-vision deficiency on the dark surface. */
@@ -16,9 +16,14 @@ type Metric = 'cheapest' | 'average';
 type Range = 'all' | '90d' | '30d';
 
 interface Props {
+  /** Series rendered on the server (the default selection) */
   series: TrendSeriesData[];
   /** Tier keys selected on first render */
   defaultSelected: string[];
+  /** Labels of every available tier, in master order (colour follows this order) */
+  catalogue: { key: string; label: string }[];
+  /** id of a <script type="application/json"> holding every series, read on first use */
+  dataId?: string;
 }
 
 /**
@@ -26,16 +31,28 @@ interface Props {
  * follows the tier (never its position), direct end labels, a legend, hover
  * crosshair with every selected value, and a table view underneath.
  */
-export default function TrendsChart({ series, defaultSelected }: Props) {
-  const [selected, setSelected] = useState<string[]>(defaultSelected.filter(k => series.some(s => s.key === k)).slice(0, MAX_SERIES));
+export default function TrendsChart({ series: initial, defaultSelected, catalogue, dataId }: Props) {
+  const [series, setSeries] = useState<TrendSeriesData[]>(initial);
+  const [selected, setSelected] = useState<string[]>(defaultSelected.filter(k => initial.some(s => s.key === k)).slice(0, MAX_SERIES));
+
+  // Pull the full dataset from the page the first time another tier is wanted
+  const ensureAll = () => {
+    if (!dataId || series.length >= catalogue.length) return;
+    const el = document.getElementById(dataId);
+    if (!el) return;
+    try {
+      const all = JSON.parse(el.textContent || '[]') as TrendSeriesData[];
+      if (all.length) setSeries(all);
+    } catch {}
+  };
   const [metric, setMetric] = useState<Metric>('cheapest');
   const [range, setRange] = useState<Range>('all');
   const [hoverT, setHoverT] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Colour is assigned by the tier's position in the master list so it never changes when the selection changes
-  const colorOf = (key: string) => SERIES_COLORS[series.findIndex(s => s.key === key) % MAX_SERIES];
+  // Colour is assigned by the tier's position in the master catalogue so it never changes when the selection changes
+  const colorOf = (key: string) => SERIES_COLORS[Math.max(0, catalogue.findIndex(s => s.key === key)) % MAX_SERIES];
 
   const now = Date.now();
   const rangeStart = range === '30d' ? now - 30 * DAY : range === '90d' ? now - 90 * DAY : 0;
@@ -86,6 +103,7 @@ export default function TrendsChart({ series, defaultSelected }: Props) {
   }
 
   const toggle = (key: string) => {
+    ensureAll();
     setSelected(sel => sel.includes(key) ? sel.filter(k => k !== key) : sel.length >= MAX_SERIES ? sel : [...sel, key]);
   };
 
@@ -157,7 +175,7 @@ export default function TrendsChart({ series, defaultSelected }: Props) {
 
       {/* Legend doubles as the selector */}
       <div class="flex flex-wrap gap-2 mt-3">
-        {series.map(s => {
+        {catalogue.map(s => {
           const on = selected.includes(s.key);
           const full = !on && selected.length >= MAX_SERIES;
           return (

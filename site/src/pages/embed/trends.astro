@@ -4,6 +4,7 @@ import { loadTrends } from '../../lib/trends';
 
 const { series, firstDate, lastDate } = await loadTrends(Astro.locals);
 const selected = (Astro.url.searchParams.get('tiers') ?? 'nbn-50-20,nbn-100-20,nbn-500-50,nbn-1000-50').split(',').map(s => s.trim()).filter(Boolean);
+const compact = series.map(s => ({ key: s.key, label: s.label, points: s.points.map(p => ({ date: p.date, cheapest: p.cheapest, average: p.average })) }));
 const fmt = (d: string) => new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 ---
 
@@ -21,6 +22,7 @@ const fmt = (d: string) => new Date(d).toLocaleDateString('en-AU', { day: 'numer
       <span class="font-display font-bold text-sm">NBN prices, {fmt(firstDate)} to {fmt(lastDate)}</span>
       <a href="/trends" target="_blank" rel="noopener" class="text-xs text-accent hover:underline">amigettingrorted.au/trends ↗</a>
     </div>
-    <TrendsChart client:load series={series} defaultSelected={selected} />
+    <TrendsChart client:load series={compact.filter(s => selected.includes(s.key))} defaultSelected={selected} catalogue={compact.map(s => ({ key: s.key, label: s.label }))} dataId="trends-data" />
+    <script type="application/json" id="trends-data" set:html={JSON.stringify(compact)} />
   </body>
 </html>
