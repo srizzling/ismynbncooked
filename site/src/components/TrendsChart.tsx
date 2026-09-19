@@ -7,9 +7,10 @@ export interface TrendSeriesData {
   points: { date: string; cheapest: number; average: number; planCount?: number }[];
 }
 
-/** Fixed categorical order, validated for colour-vision deficiency on the dark surface. */
+/** Fixed categorical set, validated for colour-vision deficiency on the dark surface. */
 export const SERIES_COLORS = ['#f97316', '#22d3ee', '#a78bfa', '#4ade80'];
-const MAX_SERIES = SERIES_COLORS.length;
+/** Only this many tiers get a colour at once; any others draw as grey context lines. */
+const MAX_COLOURED = SERIES_COLORS.length;
 const DAY = 86400000;
 
 type Metric = 'cheapest' | 'average';
@@ -33,7 +34,11 @@ interface Props {
  */
 export default function TrendsChart({ series: initial, defaultSelected, catalogue, dataId }: Props) {
   const [series, setSeries] = useState<TrendSeriesData[]>(initial);
-  const [selected, setSelected] = useState<string[]>(defaultSelected.filter(k => initial.some(s => s.key === k)).slice(0, MAX_SERIES));
+  const initialKeys = defaultSelected.filter(k => initial.some(s => s.key === k));
+  const [selected, setSelected] = useState<string[]>(initialKeys);
+  // A colour sticks to a tier for as long as it is selected; the first four picks get one, the rest are grey
+  const [colours, setColours] = useState<Record<string, string>>(() =>
+    Object.fromEntries(initialKeys.slice(0, MAX_COLOURED).map((k, i) => [k, SERIES_COLORS[i]])));
 
   // Pull the full dataset from the page the first time another tier is wanted
   const ensureAll = () => {
@@ -51,8 +56,7 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
   const [showTable, setShowTable] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Colour is assigned by the tier's position in the master catalogue so it never changes when the selection changes
-  const colorOf = (key: string) => SERIES_COLORS[Math.max(0, catalogue.findIndex(s => s.key === key)) % MAX_SERIES];
+  const colorOf = (key: string): string | null => colours[key] ?? null;
 
   const now = Date.now();
   const rangeStart = range === '30d' ? now - 30 * DAY : range === '90d' ? now - 90 * DAY : 0;
@@ -62,12 +66,15 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
     .filter(Boolean)
     .map(s => ({
       ...s,
-      color: colorOf(s.key),
+      color: colorOf(s.key) ?? CHART.context,
+      coloured: colorOf(s.key) != null,
       pts: s.points
         .map(p => ({ t: new Date(p.date).getTime(), v: metric === 'cheapest' ? p.cheapest : p.average, date: p.date }))
         .filter(p => p.t >= rangeStart && Number.isFinite(p.v) && p.v > 0),
     }))
-    .filter(s => s.pts.length > 1), [selected, series, metric, range]);
+    .filter(s => s.pts.length > 1)
+    // Grey context lines first so the coloured ones draw on top
+    .sort((a, b) => Number(a.coloured) - Number(b.coloured)), [selected, series, metric, range, colours]);
 
   const padL = 48, padR = 96, padT = 14, padB = 26, plotW = 640, plotH = 240;
   const w = padL + plotW + padR, h = padT + plotH + padB;
@@ -96,8 +103,8 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
   }) : null;
   const hoverX = hover ? x(hover[0].pt.t) : 0;
 
-  // Keep direct end labels from colliding: sort by y and push apart
-  const endLabels = active.map(s => ({ key: s.key, label: s.label, color: s.color, y: y(s.pts[s.pts.length - 1].v), v: s.pts[s.pts.length - 1].v }))
+  // Direct end labels only for coloured lines; keep them from colliding by pushing apart
+  const endLabels = active.filter(s => s.coloured).map(s => ({ key: s.key, label: s.label, color: s.color, y: y(s.pts[s.pts.length - 1].v), v: s.pts[s.pts.length - 1].v }))
     .sort((a, b) => a.y - b.y);
   for (let i = 1; i < endLabels.length; i++) {
     if (endLabels[i].y - endLabels[i - 1].y < 14) endLabels[i].y = endLabels[i - 1].y + 14;
@@ -105,8 +112,19 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
 
   const toggle = (key: string) => {
     ensureAll();
-    setSelected(sel => sel.includes(key) ? sel.filter(k => k !== key) : sel.length >= MAX_SERIES ? sel : [...sel, key]);
+    const isOn = selected.includes(key);
+    setSelected(sel => isOn ? sel.filter(k => k !== key) : [...sel, key]);
+    setColours(cur => {
+      const next = { ...cur };
+      if (isOn) {
+        delete next[key];
+      } else if (Object.keys(next).length < MAX_COLOURED) {
+        next[key] = SERIES_COLORS.find(c => !Object.values(next).includes(c)) ?? SERIES_COLORS[0];
+      }
+      return next;
+    });
   };
+  const greyCount = active.filter(s => !s.coloured).length;
 
   return (
     <div>
@@ -143,9 +161,9 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
             <text x={x(t)} y={h - 8} fill={CHART.textMuted} font-size="10" text-anchor={i === 0 ? 'start' : i === xTickCount ? 'end' : 'middle'}>{shortDate(new Date(t).toISOString())}</text>
           ))}
           {active.map(s => (
-            <path d={s.pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.t)},${y(p.v)}`).join(' ')} fill="none" stroke={s.color} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+            <path d={s.pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.t)},${y(p.v)}`).join(' ')} fill="none" stroke={s.color} stroke-width={s.coloured ? 2 : 1.5} stroke-linejoin="round" stroke-linecap="round" />
           ))}
-          {active.map(s => {
+          {active.filter(s => s.coloured).map(s => {
             const last = s.pts[s.pts.length - 1];
             return <circle cx={x(last.t)} cy={y(last.v)} r={4} fill={s.color} stroke={CHART.surface} stroke-width="2" />;
           })}
@@ -155,7 +173,7 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
           {hover && (
             <g>
               <line x1={hoverX} y1={padT} x2={hoverX} y2={padT + plotH} stroke={CHART.textMuted} stroke-width="1" />
-              {hover.map(s => <circle cx={x(s.pt.t)} cy={y(s.pt.v)} r={4.5} fill={s.color} stroke={CHART.surface} stroke-width="2" />)}
+              {hover.filter(s => s.coloured).map(s => <circle cx={x(s.pt.t)} cy={y(s.pt.v)} r={4.5} fill={s.color} stroke={CHART.surface} stroke-width="2" />)}
             </g>
           )}
         </svg>
@@ -163,31 +181,36 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
           <div class="absolute pointer-events-none bg-surface border border-surface-border rounded-lg px-3 py-2 shadow-lg text-xs z-10 whitespace-nowrap"
                style={{ left: `${(hoverX / w) * 100}%`, top: '0%', transform: `translate(${hoverX > w / 2 ? '-110%' : '10%'}, 0)` }}>
             <div class="text-neutral-400 mb-1">{longDate(new Date(hover[0].pt.t).toISOString())}</div>
-            {hover.map(s => (
+            {[...hover].reverse().map(s => (
               <div class="flex items-center gap-2">
                 <span class="inline-block w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
-                <span class="text-neutral-300">{s.label}</span>
-                <span class="text-white tabular-nums ml-auto">{money(s.pt.v)}</span>
+                <span class={s.coloured ? 'text-neutral-300' : 'text-neutral-500'}>{s.label}</span>
+                <span class={`tabular-nums ml-auto ${s.coloured ? 'text-white' : 'text-neutral-400'}`}>{money(s.pt.v)}</span>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Legend doubles as the selector */}
+      {/* Legend doubles as the selector. The first four picks get a colour; the rest draw in grey. */}
       <div class="flex flex-wrap gap-2 mt-3">
         {catalogue.map(s => {
           const on = selected.includes(s.key);
-          const full = !on && selected.length >= MAX_SERIES;
+          const colour = on ? colorOf(s.key) : null;
           return (
-            <button type="button" onClick={() => toggle(s.key)} disabled={full} title={full ? `Up to ${MAX_SERIES} tiers at once` : undefined}
-                    class={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? 'border-surface-border bg-surface-raised text-white' : 'border-transparent text-neutral-500 hover:text-neutral-300'} ${full ? 'opacity-40 cursor-not-allowed' : ''}`}>
-              <span class="inline-block w-2.5 h-2.5 rounded-full" style={{ background: on ? colorOf(s.key) : '#3f3f46' }} />
+            <button type="button" onClick={() => toggle(s.key)}
+                    title={on && !colour ? 'Drawn in grey. Deselect a coloured tier to free up a colour.' : undefined}
+                    class={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? 'border-surface-border bg-surface-raised text-white' : 'border-transparent text-neutral-500 hover:text-neutral-300'}`}>
+              <span class={`inline-block w-2.5 h-2.5 rounded-full ${on && !colour ? 'ring-1 ring-neutral-500' : ''}`} style={{ background: colour ?? (on ? CHART.context : '#27272a') }} />
               {s.label}
             </button>
           );
         })}
       </div>
+      <p class="text-xs text-neutral-600 mt-2">
+        The first four tiers you pick get a colour; any more draw as grey context lines and still show up on hover and in the table.
+        {greyCount > 0 && ` ${greyCount} in grey now.`}
+      </p>
 
       <button type="button" onClick={() => setShowTable(v => !v)} class="mt-3 text-xs text-neutral-500 hover:text-white underline">
         {showTable ? 'Hide' : 'Show'} the numbers
