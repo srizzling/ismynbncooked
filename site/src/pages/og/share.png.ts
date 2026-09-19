@@ -1,19 +1,8 @@
 import type { APIRoute } from 'astro';
-import satori from 'satori';
-import { Resvg } from '@resvg/resvg-wasm';
 import { decodeShareData, getLevelInfo } from '../../lib/share';
-import { ensureResvg } from '../../lib/og';
+import { renderSvg, svgToPng } from '../../lib/og';
 import { parseTierKey, buildTierLabel } from '../../lib/types';
 
-async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuffer> {
-  const url = `https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`;
-  const cssRes = await fetch(url);
-  const css = await cssRes.text();
-  const match = css.match(/src:\s*url\(([^)]+)\)/);
-  if (!match?.[1]) throw new Error(`Could not find font URL for ${family}:${weight}`);
-  const fontRes = await fetch(match[1]);
-  return fontRes.arrayBuffer();
-}
 
 export const GET: APIRoute = async ({ url }) => {
   const encoded = url.searchParams.get('d');
@@ -46,10 +35,6 @@ export const GET: APIRoute = async ({ url }) => {
     : '0';
   const savings = Math.max(0, userEffective - cheapestEffective);
 
-  const [fontBold, fontRegular] = await Promise.all([
-    loadGoogleFont('Inter', 700),
-    loadGoogleFont('Inter', 400),
-  ]);
 
   const isWinning = data.l === 'winning';
   const isCooked = savings > 0;
@@ -61,7 +46,7 @@ export const GET: APIRoute = async ({ url }) => {
     { label: 'Netflix months', price: 20.99 },
   ];
 
-  const svg = await satori(
+  const svg = await renderSvg(
     {
       type: 'div',
       props: {
@@ -315,24 +300,8 @@ export const GET: APIRoute = async ({ url }) => {
         ],
       },
     },
-    {
-      width: 1200,
-      height: 630,
-      fonts: [
-        { name: 'Inter', data: fontBold, weight: 700, style: 'normal' as const },
-        { name: 'Inter', data: fontRegular, weight: 400, style: 'normal' as const },
-      ],
-    }
   );
-
-  await ensureResvg();
-
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: 'width', value: 1200 },
-  });
-  const pngData = resvg.render();
-  const pngBuffer = pngData.asPng();
-
+  const pngBuffer = await svgToPng(svg);
   return new Response(pngBuffer, {
     headers: {
       'Content-Type': 'image/png',

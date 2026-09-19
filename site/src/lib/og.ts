@@ -2,12 +2,16 @@
  * Shared social-card renderer (satori → resvg → PNG). Used by the /og/*.png endpoints.
  * Cards are 1200×630 so they unfurl on Reddit, X, Slack, Discord and Facebook.
  */
-import satori from 'satori';
+// Workers refuse to compile wasm from bytes at runtime ("Wasm code generation
+// disallowed by embedder"), so both wasm dependencies are imported as modules,
+// which the Cloudflare adapter bundles as precompiled WebAssembly.Module objects.
+// The default `satori` entry embeds yoga as base64 and compiles it, so it can't be used here.
+import satori, { init as initSatori } from 'satori/standalone';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
-// Bundled as a WebAssembly.Module by the Cloudflare adapter (cloudflareModules).
-// Workers refuse to compile wasm fetched at runtime ("Wasm code generation disallowed by embedder").
-// @ts-ignore - .wasm module import is resolved by the adapter's Vite plugin
+// @ts-ignore - .wasm module imports are resolved by the adapter's Vite plugin
 import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
+// @ts-ignore
+import yogaWasm from 'satori/yoga.wasm';
 
 export const OG_W = 1200;
 export const OG_H = 630;
@@ -26,6 +30,28 @@ export const OG = {
 };
 
 let wasmReady = false;
+let yogaReady: Promise<void> | null = null;
+
+/** Initialise satori's layout engine once per isolate from the bundled wasm module. */
+export function ensureSatori(): Promise<void> {
+  if (!yogaReady) yogaReady = initSatori(yogaWasm as unknown as WebAssembly.Module);
+  return yogaReady;
+}
+
+/** Render a satori element tree to SVG with the Inter font pair loaded. */
+export async function renderSvg(node: unknown, width = OG_W, height = OG_H): Promise<string> {
+  await ensureSatori();
+  const [bold, regular] = await Promise.all([loadGoogleFont('Inter', 700), loadGoogleFont('Inter', 400)]);
+  return satori(node as any, {
+    width,
+    height,
+    fonts: [
+      { name: 'Inter', data: bold, weight: 700, style: 'normal' },
+      { name: 'Inter', data: regular, weight: 400, style: 'normal' },
+    ],
+  });
+}
+
 // Cache finished font bytes only. Caching a pending fetch across requests is not
 // allowed on Workers ("Cannot perform I/O on behalf of a different request").
 const fontCache = new Map<string, ArrayBuffer>();
@@ -34,9 +60,8 @@ async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuff
   const key = `${family}:${weight}`;
   const cached = fontCache.get(key);
   if (cached) return cached;
-  const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36' },
-  })).text();
+  // No browser User-Agent on purpose: Google then serves TTF, which satori can parse (it cannot read woff2).
+  const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`)).text();
   const match = css.match(/src:\s*url\(([^)]+)\)/);
   if (!match?.[1]) throw new Error(`Could not find font URL for ${key}`);
   const buf = await (await fetch(match[1])).arrayBuffer();
@@ -91,16 +116,14 @@ export async function renderPng(node: unknown): Promise<Response> {
   }
 }
 
+/** SVG → PNG for a rendered card. */
+export async function svgToPng(svg: string): Promise<Uint8Array> {
+  await ensureResvg();
+  return new Resvg(svg, { fitTo: { mode: 'width', value: OG_W } }).render().asPng();
+}
+
 async function renderPngInner(node: unknown): Promise<Response> {
-  const [bold, regular] = await Promise.all([loadGoogleFont('Inter', 700), loadGoogleFont('Inter', 400)]);
-  const svg = await satori(node as any, {
-    width: OG_W,
-    height: OG_H,
-    fonts: [
-      { name: 'Inter', data: bold, weight: 700, style: 'normal' },
-      { name: 'Inter', data: regular, weight: 400, style: 'normal' },
-    ],
-  });
+  const svg = await renderSvg(node);
   await ensureResvg();
   const png = new Resvg(svg, { fitTo: { mode: 'width', value: OG_W } }).render().asPng();
   return new Response(png, {
