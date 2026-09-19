@@ -22,19 +22,22 @@ export const OG = {
 };
 
 let wasmReady = false;
-const fontCache = new Map<string, Promise<ArrayBuffer>>();
+// Cache finished font bytes only. Caching a pending fetch across requests is not
+// allowed on Workers ("Cannot perform I/O on behalf of a different request").
+const fontCache = new Map<string, ArrayBuffer>();
 
 async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuffer> {
   const key = `${family}:${weight}`;
-  if (!fontCache.has(key)) {
-    fontCache.set(key, (async () => {
-      const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`)).text();
-      const match = css.match(/src:\s*url\(([^)]+)\)/);
-      if (!match?.[1]) throw new Error(`Could not find font URL for ${key}`);
-      return (await fetch(match[1])).arrayBuffer();
-    })());
-  }
-  return fontCache.get(key)!;
+  const cached = fontCache.get(key);
+  if (cached) return cached;
+  const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36' },
+  })).text();
+  const match = css.match(/src:\s*url\(([^)]+)\)/);
+  if (!match?.[1]) throw new Error(`Could not find font URL for ${key}`);
+  const buf = await (await fetch(match[1])).arrayBuffer();
+  fontCache.set(key, buf);
+  return buf;
 }
 
 /** Minimal element helper so card code stays readable. */
@@ -62,6 +65,17 @@ export function frame(kicker: string, body: unknown[], footerRight = 'amigetting
 }
 
 export async function renderPng(node: unknown): Promise<Response> {
+  try {
+    return await renderPngInner(node);
+  } catch (err) {
+    console.error('[og] render failed:', err);
+    return new Response(`Image render failed: ${err instanceof Error ? err.stack || err.message : String(err)}`, {
+      status: 500, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
+}
+
+async function renderPngInner(node: unknown): Promise<Response> {
   const [bold, regular] = await Promise.all([loadGoogleFont('Inter', 700), loadGoogleFont('Inter', 400)]);
   const svg = await satori(node as any, {
     width: OG_W,
