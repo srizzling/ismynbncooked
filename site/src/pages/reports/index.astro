@@ -1,0 +1,52 @@
+---
+import Base from '../../layouts/Base.astro';
+import type { ReportIndex } from '../../lib/types';
+import { loadData } from '../../lib/load';
+
+const index = await loadData<ReportIndex>(Astro.locals, 'reports/index.json');
+const reports = index?.reports ?? [];
+
+function monthLabel(month: string) {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-AU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+---
+
+<Base
+  title="Monthly NBN price reports — who raised prices, who dropped them"
+  description="A monthly summary of every NBN and Opticomm price change we tracked: cheapest plan per tier, price rises, price drops, new providers and providers that left."
+  canonicalPath="/reports"
+>
+  <link slot="head" rel="alternate" type="application/rss+xml" title="NBN price reports" href="/reports/feed.xml" />
+  <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">&larr; Home</a>
+
+  <section class="mb-8">
+    <h1 class="text-4xl sm:text-5xl font-display font-bold">Monthly price reports</h1>
+    <p class="text-neutral-400 mt-2 max-w-2xl">
+      Every price change across every tier, one page per month. The current month updates daily and is marked final once it ends.
+      <a href="/reports/feed.xml" class="underline hover:text-white">RSS feed</a>.
+    </p>
+  </section>
+
+  {reports.length === 0 ? (
+    <p class="text-neutral-500">No reports yet. The first one appears after the next daily sync.</p>
+  ) : (
+    <ul class="space-y-3">
+      {reports.map(r => (
+        <li>
+          <a href={`/reports/${r.month}`} class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-surface-raised border border-surface-border rounded-xl px-5 py-4 hover:border-accent transition-colors">
+            <span class="font-display font-semibold text-lg text-white">
+              {monthLabel(r.month)}
+              {!r.final && <span class="ml-2 text-xs font-body font-normal text-accent">in progress</span>}
+            </span>
+            <span class="text-sm text-neutral-400 tabular-nums">
+              <span class="text-cooked-red">{r.rises} rise{r.rises === 1 ? '' : 's'}</span> ·
+              <span class="text-cooked-green">{r.drops} drop{r.drops === 1 ? '' : 's'}</span> ·
+              {r.newProviders} new provider{r.newProviders === 1 ? '' : 's'}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+</Base>

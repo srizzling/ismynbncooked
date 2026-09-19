@@ -1,0 +1,190 @@
+---
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import type { MonthlyReport } from '../../lib/types';
+import { loadData } from '../../lib/load';
+import { displayProviderName, slugifyProvider } from '../../lib/providers';
+
+const { month } = Astro.params;
+if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return new Response(null, { status: 404 });
+
+const report = await loadData<MonthlyReport>(Astro.locals, `reports/${month}.json`);
+if (!report) return new Response(null, { status: 404 });
+
+const [y, m] = month.split('-').map(Number);
+const monthLabel = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-AU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const origin = Astro.site ?? Astro.url.origin;
+const pageUrl = new URL(`/reports/${month}`, origin).href;
+const s = report.summary;
+
+const tiersWithActivity = report.tiers.filter(t => t.changes.length || t.newProviders.length || t.goneProviders.length || t.cheapestStart !== t.cheapestEnd);
+const quietTiers = report.tiers.filter(t => !tiersWithActivity.includes(t));
+
+const cheapestOverall = report.tiers.reduce((min, t) => t.cheapestEnd < min.cheapestEnd ? t : min, report.tiers[0]);
+const providerLink = (name: string) => `/provider/${slugifyProvider(name)}`;
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+const money = (n: number) => `$${n.toFixed(2)}`;
+
+const headline = s.rises + s.drops === 0
+  ? `No NBN price changes in ${monthLabel}${report.final ? '' : ' so far'}`
+  : `${monthLabel} NBN prices: ${s.rises} rise${s.rises === 1 ? '' : 's'}, ${s.drops} drop${s.drops === 1 ? '' : 's'} across ${report.tiers.length} tiers`;
+const description = `${s.tiersDearer} tiers got dearer and ${s.tiersCheaper} got cheaper in ${monthLabel}. ${s.newProviders.length} new providers. Cheapest plan overall: ${cheapestOverall.label} at ${money(cheapestOverall.cheapestEnd)}/mo from ${cheapestOverall.cheapestProvider ?? 'n/a'}.`;
+---
+
+<Base
+  title={`${headline} — Am I Getting Rorted?`}
+  description={description}
+  canonicalPath={`/reports/${month}`}
+  jsonLd={{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": headline,
+    "description": description,
+    "datePublished": `${month}-01`,
+    "dateModified": report.generatedAt,
+    "url": pageUrl,
+    "author": { "@type": "Organization", "name": "Am I Getting Rorted?", "url": origin.toString() },
+    "publisher": { "@type": "Organization", "name": "Am I Getting Rorted?", "url": origin.toString() },
+  }}
+>
+  <a href="/reports" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">&larr; All reports</a>
+
+  <article>
+    <header class="mb-8">
+      <p class="text-accent text-sm font-medium mb-2">Monthly price report{!report.final && ' · in progress, updated daily'}</p>
+      <h1 class="text-4xl sm:text-5xl font-display font-bold">{headline}</h1>
+      <p class="text-neutral-400 mt-3 max-w-3xl">{description}</p>
+    </header>
+
+    <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+        <div class="text-3xl font-display font-bold tabular-nums text-cooked-red">{s.rises}</div>
+        <div class="text-sm text-neutral-500">price rises</div>
+      </div>
+      <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+        <div class="text-3xl font-display font-bold tabular-nums text-cooked-green">{s.drops}</div>
+        <div class="text-sm text-neutral-500">price drops</div>
+      </div>
+      <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+        <div class="text-3xl font-display font-bold tabular-nums">{s.tiersDearer}<span class="text-neutral-600"> / </span>{s.tiersCheaper}</div>
+        <div class="text-sm text-neutral-500">tiers dearer / cheaper</div>
+      </div>
+      <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+        <div class="text-3xl font-display font-bold tabular-nums">{s.newProviders.length}</div>
+        <div class="text-sm text-neutral-500">new providers</div>
+      </div>
+    </section>
+
+    {(s.biggestRise || s.biggestDrop) && (
+      <section class="grid sm:grid-cols-2 gap-3 mb-8">
+        {s.biggestRise && (
+          <div class="bg-cooked-red/10 border border-cooked-red/30 rounded-xl p-4">
+            <div class="text-xs uppercase tracking-wider text-cooked-red mb-1">Biggest rise</div>
+            <div class="text-white">
+              <a href={providerLink(s.biggestRise.provider)} class="font-medium hover:text-accent">{displayProviderName(s.biggestRise.provider)}</a>
+              on <a href={`/${s.biggestRise.tierKey}`} class="underline hover:text-white">{s.biggestRise.label}</a>:
+              {money(s.biggestRise.from)} → {money(s.biggestRise.to)}
+              <span class="text-neutral-400">(+{money(s.biggestRise.to - s.biggestRise.from)}/mo, {fmtDate(s.biggestRise.date)})</span>
+            </div>
+          </div>
+        )}
+        {s.biggestDrop && (
+          <div class="bg-cooked-green/10 border border-cooked-green/30 rounded-xl p-4">
+            <div class="text-xs uppercase tracking-wider text-cooked-green mb-1">Biggest drop</div>
+            <div class="text-white">
+              <a href={providerLink(s.biggestDrop.provider)} class="font-medium hover:text-accent">{displayProviderName(s.biggestDrop.provider)}</a>
+              on <a href={`/${s.biggestDrop.tierKey}`} class="underline hover:text-white">{s.biggestDrop.label}</a>:
+              {money(s.biggestDrop.from)} → {money(s.biggestDrop.to)}
+              <span class="text-neutral-400">({money(s.biggestDrop.to - s.biggestDrop.from)}/mo, {fmtDate(s.biggestDrop.date)})</span>
+            </div>
+          </div>
+        )}
+      </section>
+    )}
+
+    {(s.newProviders.length > 0 || s.goneProviders.length > 0) && (
+      <section class="mb-8 text-sm text-neutral-300 space-y-1">
+        {s.newProviders.length > 0 && (
+          <p><span class="text-neutral-500">New this month:</span> {s.newProviders.map((p, i) => (
+            <><a href={providerLink(p)} class="underline hover:text-white">{displayProviderName(p)}</a>{i < s.newProviders.length - 1 ? ', ' : ''}</>
+          ))}</p>
+        )}
+        {s.goneProviders.length > 0 && (
+          <p><span class="text-neutral-500">Dropped out of a tier:</span> {s.goneProviders.map((p, i) => (
+            <><span>{displayProviderName(p)}</span>{i < s.goneProviders.length - 1 ? ', ' : ''}</>
+          ))}</p>
+        )}
+      </section>
+    )}
+
+    <section class="mb-8">
+      <h2 class="font-display font-bold text-2xl mb-4">Tier by tier</h2>
+      <div class="overflow-x-auto -mx-4 sm:mx-0">
+        <table class="w-full text-sm min-w-[640px]">
+          <thead>
+            <tr class="text-left text-neutral-400 border-b border-surface-border">
+              <th class="px-4 sm:px-3 py-2 font-medium">Tier</th>
+              <th class="px-3 py-2 font-medium text-right">Cheapest start</th>
+              <th class="px-3 py-2 font-medium text-right">Cheapest end</th>
+              <th class="px-3 py-2 font-medium text-right">Average</th>
+              <th class="px-3 py-2 font-medium text-right">Plans</th>
+              <th class="px-3 py-2 font-medium">Cheapest provider</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.tiers.map(t => {
+              const delta = t.cheapestEnd - t.cheapestStart;
+              return (
+                <tr class="border-b border-surface-border/50">
+                  <td class="px-4 sm:px-3 py-2"><a href={`/${t.tierKey}`} class="text-white hover:text-accent">{t.label}</a></td>
+                  <td class="px-3 py-2 text-right tabular-nums text-neutral-400">{money(t.cheapestStart)}</td>
+                  <td class={`px-3 py-2 text-right tabular-nums ${delta > 0 ? 'text-cooked-red' : delta < 0 ? 'text-cooked-green' : 'text-white'}`}>
+                    {money(t.cheapestEnd)}{delta !== 0 && <span class="text-xs ml-1">({delta > 0 ? '+' : ''}{money(delta)})</span>}
+                  </td>
+                  <td class="px-3 py-2 text-right tabular-nums text-neutral-400">{money(t.averageStart)} → {money(t.averageEnd)}</td>
+                  <td class="px-3 py-2 text-right tabular-nums text-neutral-400">{t.planCountStart === t.planCountEnd ? t.planCountEnd : `${t.planCountStart} → ${t.planCountEnd}`}</td>
+                  <td class="px-3 py-2 text-neutral-300">{t.cheapestProvider ? <a href={providerLink(t.cheapestProvider)} class="hover:text-accent">{displayProviderName(t.cheapestProvider)}</a> : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="font-display font-bold text-2xl mb-4">Every price change</h2>
+      {tiersWithActivity.filter(t => t.changes.length).length === 0 ? (
+        <p class="text-neutral-500 text-sm">No provider changed an ongoing price{report.final ? ' this month' : ' so far this month'}.</p>
+      ) : (
+        <div class="space-y-4">
+          {tiersWithActivity.filter(t => t.changes.length).map(t => (
+            <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
+              <a href={`/${t.tierKey}`} class="font-display font-semibold text-white hover:text-accent">{t.label}</a>
+              <ul class="mt-2 space-y-1 text-sm">
+                {t.changes.map(c => (
+                  <li class="flex flex-wrap gap-x-3">
+                    <span class="text-neutral-500 tabular-nums w-14">{fmtDate(c.date)}</span>
+                    <a href={providerLink(c.provider)} class="text-white hover:text-accent">{displayProviderName(c.provider)}</a>
+                    <span class="tabular-nums">{money(c.from)} → <span class={c.to > c.from ? 'text-cooked-red' : 'text-cooked-green'}>{money(c.to)}</span></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+      {quietTiers.length > 0 && (
+        <p class="text-xs text-neutral-600 mt-3">No changes in: {quietTiers.map(t => t.label).join(', ')}.</p>
+      )}
+    </section>
+
+    <footer class="text-xs text-neutral-600">
+      Generated {new Date(report.generatedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })} from daily scrapes of
+      NetBargains plus community-tracked providers. "Cheapest" is the lowest ongoing monthly price in the tier on the first and last day we have data for.
+      Share this page freely.
+    </footer>
+  </article>
+
+  <AdSlot placement="content" />
+</Base>
