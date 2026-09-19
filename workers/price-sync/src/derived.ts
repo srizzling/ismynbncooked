@@ -147,8 +147,10 @@ function buildReportForMonth(
       for (let i = 1; i < h.length; i++) {
         if (monthOf(h[i].date) !== month) continue;
         if (h[i].monthlyPrice === h[i - 1].monthlyPrice) continue;
-        // A change spanning a tracking gap (previous entry more than 2 days earlier) can't be dated
-        if (daysBetween(h[i].date, h[i - 1].date) > 2) continue;
+        // Legacy histories were recorded daily, so a long stretch between change points still means
+        // "unchanged". The one real gap is the migration day: a provider that had dropped out of the
+        // 20 cheapest and reappears on FULL_TRACKING_SINCE at a new price can't have that change dated.
+        if (h[i].date === FULL_TRACKING_SINCE && daysBetween(h[i].date, h[i - 1].date) > 2) continue;
         changes.push({ provider, from: h[i - 1].monthlyPrice, to: h[i].monthlyPrice, date: h[i].date });
       }
 
