@@ -171,6 +171,8 @@ export interface ProviderData {
   updatedAt: string;
   planCount: number;
   tiers: ProviderTierEntry[];
+  /** Overall Rort Scale across tiers (null when the provider has no tiers) */
+  rort: import('./cooked').ProviderRort | null;
 }
 
 export interface ProviderIndexEntry {
@@ -181,6 +183,10 @@ export interface ProviderIndexEntry {
   tierCount: number;
   cheapest: number;
   networks: NetworkType[];
+  /** Overall Rort Scale level and median overpay fraction */
+  rortLevel?: import('./cooked').CookedLevel;
+  rortLabel?: string;
+  medianOverpay?: number;
 }
 
 export interface ProviderIndex {

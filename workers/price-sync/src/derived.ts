@@ -8,6 +8,7 @@ import type {
   ProviderData, ProviderIndex, ProviderIndexEntry, ProviderTierEntry,
   MonthlyReport, ReportIndex, ReportIndexEntry, ReportTier, ReportPriceChange,
 } from './types';
+import { summariseRort } from './cooked';
 
 export function slugifyProvider(name: string): string {
   return name.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -34,7 +35,7 @@ export async function buildProviderFiles(
       const slug = slugifyProvider(plan.providerName);
       let entry = byProvider.get(slug);
       if (!entry) {
-        entry = { slug, name: plan.providerName, website: plan.providerWebsite ?? null, updatedAt, planCount: 0, tiers: [] };
+        entry = { slug, name: plan.providerName, website: plan.providerWebsite ?? null, updatedAt, planCount: 0, tiers: [], rort: null };
         byProvider.set(slug, entry);
       }
       if (!entry.website && plan.providerWebsite) entry.website = plan.providerWebsite;
@@ -66,6 +67,7 @@ export async function buildProviderFiles(
   for (const entry of byProvider.values()) {
     entry.tiers.sort((a, b) =>
       a.network.localeCompare(b.network) || a.downloadSpeed - b.downloadSpeed || a.uploadSpeed - b.uploadSpeed);
+    entry.rort = summariseRort(entry.tiers.map(t => t.tierCheapest > 0 ? (t.plan.monthlyPrice - t.tierCheapest) / t.tierCheapest : 0));
     await bucket.put(`data/providers/${entry.slug}.json`, JSON.stringify(entry), JSON_META);
     index.push({
       slug: entry.slug,
@@ -75,6 +77,9 @@ export async function buildProviderFiles(
       tierCount: entry.tiers.length,
       cheapest: Math.min(...entry.tiers.map(t => t.plan.monthlyPrice)),
       networks: [...new Set(entry.tiers.map(t => t.network))] as NetworkType[],
+      rortLevel: entry.rort?.level,
+      rortLabel: entry.rort?.label,
+      medianOverpay: entry.rort?.medianOverpay,
     });
   }
   index.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
