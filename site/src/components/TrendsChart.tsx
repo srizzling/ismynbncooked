@@ -82,7 +82,8 @@ export default function TrendsChart({ series: initial, defaultSelected, catalogu
   const vLo = Math.min(...vs), vHi = Math.max(...vs);
   const pad = Math.max((vHi - vLo) * 0.12, 2);
   const yTicks = niceTicks(vLo - pad, vHi + pad, 5);
-  const yMin = yTicks[0], yMax = yTicks[yTicks.length - 1];
+  // Ticks are rounded; the domain must still contain every point
+  const yMin = Math.min(yTicks[0], vLo - pad), yMax = Math.max(yTicks[yTicks.length - 1], vHi + pad);
   const x = (t: number) => padL + ((t - tMin) / (tMax - tMin || 1)) * plotW;
   const y = (v: number) => padT + plotH - ((v - yMin) / (yMax - yMin || 1)) * plotH;
 

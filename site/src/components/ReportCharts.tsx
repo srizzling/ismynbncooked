@@ -30,7 +30,7 @@ export function TierDeltaChart({ tiers, final }: { tiers: ReportTier[]; final: b
   const h = padT + Math.max(rows.length, 1) * rowH + padB;
   const maxAbs = Math.max(1, ...rows.map(r => Math.abs(r.delta)));
   const ticks = niceTicks(-maxAbs, maxAbs, 4);
-  const lim = Math.max(Math.abs(ticks[0]), Math.abs(ticks[ticks.length - 1]));
+  const lim = Math.max(Math.abs(ticks[0]), Math.abs(ticks[ticks.length - 1]), maxAbs * 1.05);
   const x = (v: number) => labelW + ((v + lim) / (2 * lim)) * plotW;
   const a = active != null ? rows[active] : null;
 
@@ -185,7 +185,8 @@ export function ChangesTimeline({ tiers, month }: { tiers: ReportTier[]; month: 
   const barW = Math.min(24, slot - 3);
   const maxN = Math.max(1, ...perDay.map(d => d.rises + d.drops));
   const ticks = niceTicks(0, maxN, 3).filter(t => t <= maxN + 1e-9);
-  const yOf = (v: number) => padT + plotH - (v / (ticks[ticks.length - 1] || 1)) * plotH;
+  const yTop = Math.max(ticks[ticks.length - 1] || 0, maxN) || 1;
+  const yOf = (v: number) => padT + plotH - (v / yTop) * plotH;
   const xOf = (i: number) => padL + i * slot + (slot - barW) / 2;
   const total = perDay.reduce((n, d) => n + d.rises + d.drops, 0);
   const a = active != null ? perDay[active] : null;
