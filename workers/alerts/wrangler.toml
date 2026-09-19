@@ -1,0 +1,21 @@
+name = "ismynbncooked-alerts"
+main = "src/index.ts"
+compatibility_date = "2026-03-01"
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+# Runs after the 06:00 UTC price sync
+[triggers]
+crons = ["30 7 * * *"]
+
+[[r2_buckets]]
+binding = "DATA_BUCKET"
+bucket_name = "ismynbncooked-data"
+
+[vars]
+SITE_URL = "https://amigettingrorted.au"
+ALERTS_FROM = "Am I Getting Rorted? <alerts@amigettingrorted.au>"
+# RESEND_API_KEY   set via `wrangler secret put RESEND_API_KEY` (emails are logged, not sent, until this exists)
+# ALLOWED_ORIGINS  set via `wrangler secret put ALLOWED_ORIGINS` (e.g. "https://amigettingrorted.au")

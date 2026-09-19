@@ -53,6 +53,10 @@ jobs:
             path: workers/terms-sync
           - name: prices-sync
             path: workers/prices-sync
+          - name: mcp
+            path: workers/mcp
+          - name: alerts
+            path: workers/alerts
     steps:
       - uses: actions/checkout@v4
 
@@ -118,6 +122,16 @@ jobs:
 
       - name: Build Astro site
         working-directory: site
+        # Ads stay off until these repository variables are set (Settings → Secrets and variables → Actions → Variables):
+        #   ADSENSE_CLIENT        e.g. ca-pub-1234567890123456
+        #   ADSENSE_SLOT_HOME     numeric ad unit ID for the home page
+        #   ADSENSE_SLOT_TIER     numeric ad unit ID for tier pages
+        #   ADSENSE_SLOT_CONTENT  numeric ad unit ID for the how-it-works page
+        env:
+          PUBLIC_ADSENSE_CLIENT: ${{ vars.ADSENSE_CLIENT }}
+          PUBLIC_ADSENSE_SLOT_HOME: ${{ vars.ADSENSE_SLOT_HOME }}
+          PUBLIC_ADSENSE_SLOT_TIER: ${{ vars.ADSENSE_SLOT_TIER }}
+          PUBLIC_ADSENSE_SLOT_CONTENT: ${{ vars.ADSENSE_SLOT_CONTENT }}
         run: pnpm build
 
       - name: Deploy to Cloudflare Pages

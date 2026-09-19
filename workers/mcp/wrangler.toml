@@ -1,0 +1,18 @@
+name = "ismynbncooked-mcp"
+main = "src/index.ts"
+compatibility_date = "2026-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[[r2_buckets]]
+binding = "DATA_BUCKET"
+bucket_name = "ismynbncooked-data"
+
+# Optional custom domain. Requires the amigettingrorted.au zone to be on this
+# Cloudflare account. Uncomment to serve the MCP server at mcp.amigettingrorted.au.
+# routes = [
+#   { pattern = "mcp.amigettingrorted.au", custom_domain = true }
+# ]
