@@ -1,10 +1,9 @@
 import type { APIRoute } from 'astro';
 import satori from 'satori';
-import { Resvg, initWasm } from '@resvg/resvg-wasm';
+import { Resvg } from '@resvg/resvg-wasm';
 import { decodeShareData, getLevelInfo } from '../../lib/share';
+import { ensureResvg } from '../../lib/og';
 import { parseTierKey, buildTierLabel } from '../../lib/types';
-
-let wasmInitialized = false;
 
 async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuffer> {
   const url = `https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`;
@@ -326,16 +325,7 @@ export const GET: APIRoute = async ({ url }) => {
     }
   );
 
-  // Initialize resvg WASM if needed
-  if (!wasmInitialized) {
-    try {
-      await initWasm(fetch('https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm'));
-      wasmInitialized = true;
-    } catch {
-      // May already be initialized
-      wasmInitialized = true;
-    }
-  }
+  await ensureResvg();
 
   const resvg = new Resvg(svg, {
     fitTo: { mode: 'width', value: 1200 },

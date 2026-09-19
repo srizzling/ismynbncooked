@@ -4,6 +4,10 @@
  */
 import satori from 'satori';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
+// Bundled as a WebAssembly.Module by the Cloudflare adapter (cloudflareModules).
+// Workers refuse to compile wasm fetched at runtime ("Wasm code generation disallowed by embedder").
+// @ts-ignore - .wasm module import is resolved by the adapter's Vite plugin
+import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
 
 export const OG_W = 1200;
 export const OG_H = 630;
@@ -64,6 +68,18 @@ export function frame(kicker: string, body: unknown[], footerRight = 'amigetting
   ]);
 }
 
+/** Initialise resvg once per isolate from the bundled wasm module. */
+export async function ensureResvg(): Promise<void> {
+  if (wasmReady) return;
+  try {
+    await initWasm(resvgWasm as unknown as WebAssembly.Module);
+  } catch (err) {
+    // A second init throws "Already initialized"; anything else is real
+    if (!String(err).includes('lready')) throw err;
+  }
+  wasmReady = true;
+}
+
 export async function renderPng(node: unknown): Promise<Response> {
   try {
     return await renderPngInner(node);
@@ -85,10 +101,7 @@ async function renderPngInner(node: unknown): Promise<Response> {
       { name: 'Inter', data: regular, weight: 400, style: 'normal' },
     ],
   });
-  if (!wasmReady) {
-    try { await initWasm(fetch('https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm')); } catch { /* already initialised */ }
-    wasmReady = true;
-  }
+  await ensureResvg();
   const png = new Resvg(svg, { fitTo: { mode: 'width', value: OG_W } }).render().asPng();
   return new Response(png, {
     headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600, s-maxage=3600' },
