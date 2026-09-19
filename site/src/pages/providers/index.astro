@@ -4,9 +4,17 @@ import AdSlot from '../../components/AdSlot.astro';
 import type { ProviderIndex } from '../../lib/types';
 import { loadData } from '../../lib/load';
 import { displayProviderName } from '../../lib/providers';
+import { LEVELS } from '../../lib/cooked';
+
+const LEVEL_COLOR = Object.fromEntries(LEVELS.map(l => [l.level, l.color])) as Record<string, string>;
+const sort = Astro.url.searchParams.get('sort') === 'rort' ? 'rort' : Astro.url.searchParams.get('sort') === 'price' ? 'price' : 'name';
 
 const index = await loadData<ProviderIndex>(Astro.locals, 'providers/index.json');
-const providers = index?.providers ?? [];
+const providers = [...(index?.providers ?? [])].sort((a, b) =>
+  sort === 'rort' ? (b.medianOverpay ?? -1) - (a.medianOverpay ?? -1) || a.name.localeCompare(b.name)
+  : sort === 'price' ? a.cheapest - b.cheapest || a.name.localeCompare(b.name)
+  : a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+const hasRort = providers.some(p => p.rortLevel);
 const nbnCount = providers.filter(p => p.networks.includes('nbn')).length;
 const opticommCount = providers.filter(p => p.networks.includes('opticomm')).length;
 ---
@@ -15,6 +23,7 @@ const opticommCount = providers.filter(p => p.networks.includes('opticomm')).len
   title={`All ${providers.length} Australian NBN & Opticomm providers compared — Am I Getting Rorted?`}
   description={`Every NBN and Opticomm provider we track, with plan counts, cheapest prices and price history. ${nbnCount} NBN providers, ${opticommCount} Opticomm providers, updated daily.`}
   canonicalPath="/providers"
+  noindex={sort !== 'name'}
   jsonLd={{
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -33,6 +42,16 @@ const opticommCount = providers.filter(p => p.networks.includes('opticomm')).len
     </p>
   </section>
 
+  {hasRort && (
+    <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
+      <span class="text-neutral-500">Sort:</span>
+      {([['name', 'A–Z'], ['rort', 'Most rorted first'], ['price', 'Cheapest first']] as const).map(([k, label]) => (
+        <a href={k === 'name' ? '/providers' : `/providers?sort=${k}`}
+           class={`px-3 py-1 rounded-full border transition-colors ${sort === k ? 'bg-accent text-black border-accent' : 'border-surface-border text-neutral-400 hover:text-white'}`}>{label}</a>
+      ))}
+    </div>
+  )}
+
   {providers.length === 0 ? (
     <p class="text-neutral-500">Provider data hasn't been generated yet. It appears after the next daily sync.</p>
   ) : (
@@ -44,9 +63,15 @@ const opticommCount = providers.filter(p => p.networks.includes('opticomm')).len
               <span class="font-display font-semibold text-white">{displayProviderName(p.name)}</span>
               <span class="text-sm text-neutral-400 tabular-nums whitespace-nowrap">from ${p.cheapest.toFixed(0)}/mo</span>
             </div>
-            <div class="text-xs text-neutral-500 mt-1">
-              {p.planCount} plan{p.planCount === 1 ? '' : 's'} across {p.tierCount} tier{p.tierCount === 1 ? '' : 's'}
-              {p.networks.includes('opticomm') && <span class="ml-2 text-neutral-400">· Opticomm</span>}
+            <div class="text-xs text-neutral-500 mt-1 flex items-center gap-2 flex-wrap">
+              <span>{p.planCount} plan{p.planCount === 1 ? '' : 's'} across {p.tierCount} tier{p.tierCount === 1 ? '' : 's'}</span>
+              {p.networks.includes('opticomm') && <span class="text-neutral-400">· Opticomm</span>}
+              {p.rortLevel && (
+                <span class="inline-flex items-center gap-1.5 ml-auto">
+                  <span class="inline-block w-2 h-2 rounded-full" style={`background:${LEVEL_COLOR[p.rortLevel]}`}></span>
+                  <span class="text-neutral-300">{p.rortLabel}</span>
+                </span>
+              )}
             </div>
           </a>
         </li>

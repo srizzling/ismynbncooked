@@ -2,9 +2,10 @@
 import Base from '../../layouts/Base.astro';
 import AdSlot from '../../components/AdSlot.astro';
 import ProviderPriceHistory from '../../components/ProviderPriceHistory';
+import { TierPositionChart, RortDistribution, ProviderTrendChart } from '../../components/ProviderCharts';
 import type { ProviderData } from '../../lib/types';
 import { loadData } from '../../lib/load';
-import { calculateCooked } from '../../lib/cooked';
+import { calculateCooked, summariseRort } from '../../lib/cooked';
 import { displayProviderName, resolveProviderLink, slugifyProvider } from '../../lib/providers';
 
 const { slug } = Astro.params;
@@ -25,12 +26,18 @@ const rows = provider.tiers.map(t => {
 const cheapestTiers = rows.filter(r => r.rank === 1).length;
 const rortTiers = rows.filter(r => r.cooked.level === 'taking-the-piss' || r.cooked.level === 'absolute-rort').length;
 const cheapest = Math.min(...rows.map(r => r.plan.monthlyPrice));
+const rort = summariseRort(rows.map(r => r.tierCheapest > 0 ? r.diff / r.tierCheapest : 0));
+const positionRows = rows.map(r => ({ tierKey: r.tierKey, label: r.label, price: r.plan.monthlyPrice, cheapest: r.tierCheapest, average: r.tierAverage, rank: r.rank, planCount: r.planCount }));
+const trendSeries = rows.filter(r => r.history.length > 0).map(r => ({ tierKey: r.tierKey, label: r.label, history: r.history, lastSeen: r.lastSeen }));
 
-const verdict = cheapestTiers > 0 && rortTiers === 0
+const verdictOld = cheapestTiers > 0 && rortTiers === 0
   ? `${name} is the cheapest option in ${cheapestTiers} of ${rows.length} tiers and never more than 15% above the cheapest.`
   : rortTiers === rows.length
     ? `${name} is 15% or more above the cheapest plan in every tier it sells. You can almost certainly do better.`
     : `${name} is competitive in some tiers and expensive in others. Check the tier you actually need below.`;
+const verdict = rort
+  ? `Overall Rort Scale: ${rort.label}. ${name}'s typical plan sits ${rort.medianOverpay <= 0 ? 'at or below' : `${Math.round(rort.medianOverpay * 100)}% above`} the cheapest plan in its tier (median across ${rort.tierCount} tiers). ${verdictOld}`
+  : verdictOld;
 
 const title = `${name} NBN plans ${new Date().getFullYear()}: prices, price history and is it a rort?`;
 const description = `${name} sells ${provider.planCount} NBN/Opticomm plans from $${cheapest.toFixed(0)}/mo. See how each ranks against every other provider in its tier and how the price has changed.`;
@@ -102,12 +109,45 @@ const description = `${name} sells ${provider.planCount} NBN/Opticomm plans from
         <div class="text-sm text-neutral-500">tiers where it's a rort</div>
       </div>
     </div>
+    {rort && (
+      <div class="mt-6 bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5 max-w-3xl">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div class="sm:w-56 flex-shrink-0">
+            <div class="text-xs uppercase tracking-wider text-neutral-500">Provider Rort Scale</div>
+            <div class="font-display font-bold text-3xl leading-tight mt-1" style={`color:${rort.color}`}>{rort.label}</div>
+            <div class="text-sm text-neutral-400 mt-1">{rort.description}</div>
+          </div>
+          <div class="flex-1">
+            <div class="text-xs text-neutral-500 mb-2">
+              Median <span class="text-white tabular-nums">{rort.medianOverpay <= 0 ? '0%' : Math.round(rort.medianOverpay * 100) + '%'}</span> above tier cheapest ·
+              mean <span class="text-white tabular-nums">{Math.round(rort.meanOverpay * 100)}%</span> · {rort.tierCount} tier{rort.tierCount === 1 ? '' : 's'}
+            </div>
+            <RortDistribution client:visible rort={rort} />
+          </div>
+        </div>
+      </div>
+    )}
     {link && (
       <a href={link.url} target="_blank" rel={link.isReferral ? 'sponsored noopener' : 'noopener'}
          class="inline-flex items-center gap-2 mt-5 text-sm bg-surface-raised border border-surface-border rounded-lg px-3 py-2 text-accent hover:border-accent transition-colors">
         Go to {name} &rarr;
         {link.isReferral && <span class="text-[10px] uppercase tracking-wider text-neutral-500" title="We may earn a referral fee. It never affects rankings.">Referral link</span>}
       </a>
+    )}
+  </section>
+
+  <section class="mb-10 space-y-6">
+    <div class="bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
+      <h2 class="font-display font-bold text-xl mb-1">Where {name} sits in each tier</h2>
+      <p class="text-xs text-neutral-500 mb-3">Grey bar runs from the tier's cheapest plan to its average. The dot is {name}'s ongoing price, coloured by Rort Scale.</p>
+      <TierPositionChart client:visible rows={positionRows} />
+    </div>
+    {trendSeries.length > 0 && (
+      <div class="bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
+        <h2 class="font-display font-bold text-xl mb-1">Price movement across tiers</h2>
+        <p class="text-xs text-neutral-500 mb-3">Each line is one tier, indexed to the first price we tracked, so a flat line means no change.</p>
+        <ProviderTrendChart client:visible series={trendSeries} />
+      </div>
     )}
   </section>
 

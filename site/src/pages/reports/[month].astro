@@ -4,6 +4,7 @@ import AdSlot from '../../components/AdSlot.astro';
 import type { MonthlyReport } from '../../lib/types';
 import { loadData } from '../../lib/load';
 import { displayProviderName, slugifyProvider } from '../../lib/providers';
+import { TierDeltaChart, ProviderChangesChart, ChangesTimeline } from '../../components/ReportCharts';
 
 const { month } = Astro.params;
 if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return new Response(null, { status: 404 });
@@ -116,6 +117,25 @@ const description = `${s.tiersDearer} tiers got dearer and ${s.tiersCheaper} got
         )}
       </section>
     )}
+
+    <section class="mb-8 bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
+      <h2 class="font-display font-bold text-xl mb-1">How much each tier moved</h2>
+      <p class="text-xs text-neutral-500 mb-3">Change in the tier's cheapest plan (or average price) from the first to the last day of the month.</p>
+      <TierDeltaChart client:visible tiers={report.tiers} final={report.final} />
+    </section>
+
+    <section class="mb-8 grid lg:grid-cols-2 gap-4">
+      <div class="bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
+        <h2 class="font-display font-bold text-xl mb-1">Who moved prices</h2>
+        <p class="text-xs text-neutral-500 mb-3">Number of tiers where each provider raised or dropped an ongoing price.</p>
+        <ProviderChangesChart client:visible tiers={report.tiers} />
+      </div>
+      <div class="bg-surface-raised border border-surface-border rounded-xl p-4 sm:p-5">
+        <h2 class="font-display font-bold text-xl mb-1">When it happened</h2>
+        <p class="text-xs text-neutral-500 mb-3">Price changes per day across the month.</p>
+        <ChangesTimeline client:visible tiers={report.tiers} month={month} />
+      </div>
+    </section>
 
     <section class="mb-8">
       <h2 class="font-display font-bold text-2xl mb-4">Tier by tier</h2>

@@ -254,6 +254,7 @@ export interface ProviderData {
   updatedAt: string;
   planCount: number;
   tiers: ProviderTierEntry[];
+  rort?: { medianOverpay: number; meanOverpay: number; level: CookedLevel; label: string; counts: Record<CookedLevel, number>; tierCount: number } | null;
 }
 
 export interface ProviderIndexEntry {
@@ -264,6 +265,9 @@ export interface ProviderIndexEntry {
   tierCount: number;
   cheapest: number;
   networks: NetworkType[];
+  rortLevel?: CookedLevel;
+  rortLabel?: string;
+  medianOverpay?: number;
 }
 
 export interface ProviderIndex {
