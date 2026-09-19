@@ -1,10 +1,14 @@
 ---
+import { ADSENSE_CLIENT } from '../lib/site';
+
 interface Props {
   title: string;
   description?: string;
   canonicalPath?: string;
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
   ogImage?: string;
+  /** Keep the page out of search results (share cards, error pages). */
+  noindex?: boolean;
 }
 
 const {
@@ -13,15 +17,18 @@ const {
   canonicalPath,
   jsonLd,
   ogImage,
+  noindex = false,
 } = Astro.props;
 
+const origin = Astro.site ?? Astro.url.origin;
 const canonicalUrl = canonicalPath
-  ? new URL(canonicalPath, Astro.site ?? Astro.url.origin).href
+  ? new URL(canonicalPath, origin).href
   : Astro.url.href;
+const ogImageUrl = ogImage ?? new URL('/og-share.png', origin).href;
 ---
 
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en-AU" class="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -29,25 +36,31 @@ const canonicalUrl = canonicalPath
     <title>{title}</title>
 
     <link rel="canonical" href={canonicalUrl} />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
     <link rel="preload" href="/fonts/ClashDisplay-Bold.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/GeneralSans-Regular.woff2" as="font" type="font/woff2" crossorigin />
 
+    <meta property="og:site_name" content="Am I Getting Rorted?" />
+    <meta property="og:locale" content="en_AU" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalUrl} />
-    {ogImage && <meta property="og:image" content={ogImage} />}
-    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    {ogImage && <meta name="twitter:image" content={ogImage} />}
+    <meta name="twitter:image" content={ogImageUrl} />
 
     {jsonLd && (
-      <script type="application/ld+json" set:html={JSON.stringify(
-        Array.isArray(jsonLd) ? jsonLd : jsonLd
-      )} />
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     )}
   </head>
   <body class="min-h-screen">
@@ -64,7 +77,8 @@ const canonicalUrl = canonicalPath
     </main>
     <footer class="max-w-6xl mx-auto px-4 py-8 border-t border-surface-border text-neutral-500 text-sm space-y-3">
       <p>
-        Data sourced from <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a>.
+        Data sourced from <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a>
+        plus community-submitted providers.
         Prices, availability, and plan details may be out of date, inaccurate, or wrong.
         Always check the provider's website before signing up. This site does not guarantee plan
         availability and is <span class="text-neutral-300">not financial advice</span>.
@@ -74,13 +88,16 @@ const canonicalUrl = canonicalPath
         It's just built by a bloke who's trying to buy a house and reckons everyone's paying too much for internet.
       </p>
       <p>
-        This site will <span class="text-neutral-300 font-medium">never run ads</span> and I don't accept donations.
-        If you want to support someone, chuck a few bucks at
+        <span class="text-neutral-300 font-medium">No affiliate links, no sponsored placements.</span>
+        Rankings are by price and nothing else. A single small ad at the bottom of some pages helps cover hosting
+        and scraping costs. If you want to support the data, chuck a few bucks at
         <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a> —
-        the legends who actually maintain the plan data.
+        the legends who actually maintain it.
       </p>
       <p>
         Know of a plan that's missing? <a href="/submit" class="underline hover:text-white">Submit it here</a>.
+        Building an AI agent? There's an <a href="/llms.txt" class="underline hover:text-white">MCP server</a> for this data.
+        <a href="/privacy" class="underline hover:text-white">Privacy</a>.
       </p>
     </footer>
   </body>

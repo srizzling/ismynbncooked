@@ -87,6 +87,7 @@ const ogImageUrl = new URL(`/og/share.png?d=${encoded}`, Astro.site ?? Astro.url
   description={description}
   canonicalPath={`/share?d=${encoded}`}
   ogImage={ogImageUrl}
+  noindex
 >
   <div class="max-w-xl mx-auto">
     {/* Shared result card */}

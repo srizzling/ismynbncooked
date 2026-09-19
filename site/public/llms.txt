@@ -1,0 +1,21 @@
+# Am I Getting Rorted?
+
+> Australian NBN and Opticomm home internet plan comparison. Every plan from every
+> provider at each speed tier, ranked purely by price, refreshed daily. Tells you
+> whether the price you pay is fair using the "Rort Scale".
+
+Prices are AUD per month. Data comes from NetBargains plus community-scraped
+providers. Rankings are never influenced by advertising or affiliate deals.
+
+## Pages
+
+- [Home](https://amigettingrorted.au/): plan checker and all speed tiers
+- [How the rating works](https://amigettingrorted.au/how-it-works): Rort Scale thresholds, promo maths, commitment periods
+- [Submit a missing plan](https://amigettingrorted.au/submit)
+- [Sitemap](https://amigettingrorted.au/sitemap.xml): every tier page, e.g. /nbn-100-20, /opticomm-500-50, /nbn-100 (grouped)
+
+## For AI agents
+
+- MCP server (Streamable HTTP, no auth): https://ismynbncooked-mcp.venksriram.workers.dev/mcp
+- Tools: list_tiers, get_plans, find_cheapest, rate_plan, get_price_history, get_provider_plans
+- Claude Code: `claude mcp add --transport http amigettingrorted https://ismynbncooked-mcp.venksriram.workers.dev/mcp`

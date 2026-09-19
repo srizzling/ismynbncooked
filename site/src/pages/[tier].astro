@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import TierDashboard from '../components/TierDashboard';
+import AdSlot from '../components/AdSlot.astro';
 import { parseTierKey, parseGroupedTierKey, DEFAULT_UPLOAD_MAP, type TierData, type TierHistory, type ComparisonsData, type TierManifest, type NBNPlan } from '../lib/types';
 import { getFixtureManifest, getTierKeysForGroup } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
@@ -13,7 +14,7 @@ const parsed = tier ? parseTierKey(tier) : null;
 const parsedGroup = !parsed && tier ? parseGroupedTierKey(tier) : null;
 
 if (!parsed && !parsedGroup) {
-  return Astro.redirect('/');
+  return new Response(null, { status: 404 });
 }
 
 // Determine if this is a grouped page or a single-tier page
@@ -70,7 +71,7 @@ if (!manifest) manifest = await readLocalJson<TierManifest>('data/manifest.json'
 if (isGrouped) {
   // Grouped tier page: load and merge plans from all upload variants
   const tierKeys = getTierKeysForGroup(tier!, manifest);
-  if (tierKeys.length === 0) return Astro.redirect('/');
+  if (tierKeys.length === 0) return new Response(null, { status: 404 });
 
   // If only one variant exists, redirect to it
   if (tierKeys.length === 1) {
@@ -95,7 +96,7 @@ if (isGrouped) {
     totalPlanCount += td.planCount;
   }
 
-  if (allPlans.length === 0) return Astro.redirect('/');
+  if (allPlans.length === 0) return new Response(null, { status: 404 });
 
   const avgPrice = totalPlanCount > 0 ? totalPriceSum / totalPlanCount : 0;
 
@@ -160,10 +161,10 @@ if (isGrouped) {
   tierData = await loadTierData(tierKey, bucket);
   history = await loadTierHistory(tierKey, bucket);
 
-  if (!tierData) return Astro.redirect('/');
+  if (!tierData) return new Response(null, { status: 404 });
 }
 
-if (!tierData) return Astro.redirect('/');
+if (!tierData) return new Response(null, { status: 404 });
 
 const tierKey = tier!;
 const label = isGrouped
@@ -172,25 +173,65 @@ const label = isGrouped
 const speedDesc = isGrouped
   ? `${download} Mbps`
   : `${download}/${parsed!.upload} Mbps`;
+
+const pageUrl = new URL(`/${tierKey}`, Astro.site ?? Astro.url.origin).href;
+const topPlans = tierData.plans.slice(0, 10);
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": `${label} Plans — Australian ${networkLabel} Price Comparison`,
+    "description": `Compare ${tierData.planCount} Australian ${label} internet plans from $${tierData.cheapest.toFixed(0)}/month.`,
+    "url": pageUrl,
+    "dateModified": tierData.updatedAt,
+    "isPartOf": { "@type": "WebSite", "name": "Am I Getting Rorted?", "url": Astro.site?.href ?? Astro.url.origin },
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": Astro.site?.href ?? Astro.url.origin },
+        { "@type": "ListItem", "position": 2, "name": `${label} Plans`, "item": pageUrl },
+      ],
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": `Cheapest ${label} plans in Australia`,
+    "numberOfItems": topPlans.length,
+    "itemListOrder": "https://schema.org/ItemListOrderAscending",
+    "itemListElement": topPlans.map((plan, i) => ({
+      "@type": "ListItem",
+      "position": i + 1,
+      "item": {
+        "@type": "Product",
+        "name": plan.planName,
+        "brand": { "@type": "Organization", "name": plan.providerName },
+        "description": `${plan.providerName} ${networkLabel} ${plan.downloadSpeed}/${plan.uploadSpeed} Mbps plan${plan.typicalEveningSpeed ? `, typical evening speed ${plan.typicalEveningSpeed} Mbps` : ''}.`,
+        "offers": {
+          "@type": "Offer",
+          "price": plan.monthlyPrice.toFixed(2),
+          "priceCurrency": "AUD",
+          "availability": "https://schema.org/InStock",
+          "url": pageUrl,
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": plan.monthlyPrice.toFixed(2),
+            "priceCurrency": "AUD",
+            "unitCode": "MON",
+            "billingIncrement": 1,
+          },
+        },
+      },
+    })),
+  },
+];
 ---
 
 <Base
   title={`Cheapest ${label} Plans Australia — Compare ${tierData.planCount} ${networkLabel} ${download} Plans`}
   description={`Compare ${tierData.planCount} Australian ${label} internet plans. Cheapest from $${tierData.cheapest.toFixed(0)}/mo. See prices, promos, evening speeds, and contract terms across all ISPs.`}
   canonicalPath={`/${tierKey}`}
-  jsonLd={{
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "name": `${label} Plans — Australian ${networkLabel} Price Comparison`,
-    "description": `Compare ${tierData.planCount} Australian ${label} internet plans from $${tierData.cheapest.toFixed(0)}/month.`,
-    "breadcrumb": {
-      "@type": "BreadcrumbList",
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Home", "item": Astro.url.origin },
-        { "@type": "ListItem", "position": 2, "name": `${label} Plans` },
-      ],
-    },
-  }}
+  jsonLd={jsonLd}
 >
   <a href="/" class="inline-flex items-center gap-1 text-neutral-400 hover:text-white text-sm mb-6 transition-colors">
     &larr; All tiers
@@ -215,4 +256,6 @@ const speedDesc = isGrouped
     manifest={manifest}
     isGrouped={isGrouped}
   />
+
+  <AdSlot placement="tier" />
 </Base>
