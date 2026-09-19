@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks';
+import ProviderPriceHistory from './ProviderPriceHistory';
 import type { NBNPlan, ProviderHistory } from '../lib/types';
 import { calcCosts, type Horizon, HORIZONS } from '../lib/costs';
 
@@ -44,128 +45,6 @@ function isNoNotice(val: string | null | undefined): boolean {
   if (!val) return true;
   const lower = val.toLowerCase().trim();
   return lower === '' || lower === 'none' || lower === 'not specified' || lower === 'no notice required';
-}
-
-// Interactive sparkline for provider price history
-function ProviderSparkline({ history }: { history: { date: string; monthlyPrice: number }[] }) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  if (history.length < 2) return null;
-
-  const prices = history.map(h => h.monthlyPrice);
-  const min = Math.min(...prices) - 2;
-  const max = Math.max(...prices) + 2;
-  const range = max - min || 1;
-  const w = 400;
-  const h = 80;
-  const pad = 5;
-
-  const dataPoints = history.map((entry, i) => {
-    const x = (i / (history.length - 1)) * w;
-    const y = h - ((entry.monthlyPrice - min) / range) * h;
-    return { x, y, date: entry.date, value: entry.monthlyPrice };
-  });
-
-  const points = dataPoints.map(p => `${p.x},${p.y}`).join(' ');
-
-  const firstDate = new Date(history[0].date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
-  const lastDate = new Date(history[history.length - 1].date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
-
-  const handleMouseMove = (e: MouseEvent) => {
-    const svg = svgRef.current;
-    if (!svg || !dataPoints.length) return;
-    const rect = svg.getBoundingClientRect();
-    const svgWidth = w + pad * 2;
-    const scaleX = svgWidth / rect.width;
-    const mouseX = (e.clientX - rect.left) * scaleX - pad;
-
-    let nearest = 0;
-    let minDist = Infinity;
-    for (let i = 0; i < dataPoints.length; i++) {
-      const dist = Math.abs(dataPoints[i].x - mouseX);
-      if (dist < minDist) {
-        minDist = dist;
-        nearest = i;
-      }
-    }
-    setActiveIndex(nearest);
-  };
-
-  const handleMouseLeave = () => setActiveIndex(null);
-
-  const activePoint = activeIndex != null ? dataPoints[activeIndex] : null;
-  const svgW = w + pad * 2;
-  const svgH = h + 20 + pad;
-
-  return (
-    <div>
-      <div class="text-xs text-neutral-500 mb-1">Price history</div>
-      <div class="relative">
-        <svg
-          ref={svgRef}
-          viewBox={`-${pad} -${pad} ${svgW} ${svgH}`}
-          class="w-full"
-          preserveAspectRatio="xMidYMid meet"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-        >
-          <polyline
-            points={points}
-            fill="none"
-            stroke="#f97316"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          {activePoint && (
-            <>
-              <line
-                x1={activePoint.x}
-                y1={0}
-                x2={activePoint.x}
-                y2={h}
-                stroke="#525252"
-                stroke-width="1"
-                stroke-dasharray="4 3"
-              />
-              <circle
-                cx={activePoint.x}
-                cy={activePoint.y}
-                r="4"
-                fill="#f97316"
-                stroke="#1c1917"
-                stroke-width="2"
-              />
-            </>
-          )}
-          <text x={0} y={h + 14} fill="#737373" font-size="9">{firstDate}</text>
-          <text x={w} y={h + 14} fill="#737373" font-size="9" text-anchor="end">{lastDate}</text>
-          <text x={-2} y={6} fill="#737373" font-size="9" text-anchor="end">${max.toFixed(0)}</text>
-          <text x={-2} y={h} fill="#737373" font-size="9" text-anchor="end">${min.toFixed(0)}</text>
-        </svg>
-        {activePoint && (
-          <div
-            class="absolute pointer-events-none bg-surface border border-surface-border rounded-lg px-3 py-1.5 shadow-lg text-xs z-10"
-            style={{
-              left: `${((activePoint.x + pad) / svgW) * 100}%`,
-              top: `${((activePoint.y + pad) / svgH) * 100 - 10}%`,
-              transform: 'translate(-50%, -100%)',
-            }}
-          >
-            <div class="text-white font-medium tabular-nums">${activePoint.value.toFixed(2)}</div>
-            <div class="text-neutral-400">
-              {new Date(activePoint.date).toLocaleDateString('en-AU', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 export default function PlanTable({ plans, highlightProvider, userPrice, userFullPrice, userPromoMonthsLeft, providerHistory, horizon, onHorizonChange, showUploadSpeed }: Props) {
@@ -538,7 +417,8 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                 highlightProvider &&
                 plan.providerName.toLowerCase() === highlightProvider.toLowerCase();
               const isExpanded = expandedId === plan.id;
-              const history = providerHistory?.[plan.providerName]?.history;
+              const providerEntry = providerHistory?.[plan.providerName];
+              const history = providerEntry?.history;
               const costs = costMap.get(plan.id)!;
               const { totalCost, effectiveCost } = costs.h;
               const hasSavings = userPrice && userPrice > effectiveCost;
@@ -649,9 +529,13 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                           </div>
 
                           {/* Provider price history chart */}
-                          {history && history.length >= 2 && (
+                          {history && history.length >= 1 ? (
                             <div class="sm:w-2/3">
-                              <ProviderSparkline history={history} />
+                              <ProviderPriceHistory history={history} lastSeen={providerEntry?.current?.lastSeen} />
+                            </div>
+                          ) : (
+                            <div class="sm:w-2/3 text-xs text-neutral-600 self-end">
+                              No price history yet. Tracking starts from the next daily sync.
                             </div>
                           )}
                         </div>
