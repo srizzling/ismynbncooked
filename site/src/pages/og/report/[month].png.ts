@@ -19,30 +19,30 @@ export const GET: APIRoute = async ({ params, locals }) => {
     .map(t => ({ label: t.label, delta: Math.round((t.cheapestEnd - t.cheapestStart) * 100) / 100 }))
     .filter(t => t.delta !== 0)
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-    .slice(0, 7);
+    .slice(0, 6);
   const maxAbs = Math.max(1, ...movers.map(t => Math.abs(t.delta)));
 
   const stat = (value: string, label: string, color = OG.text) => col({ width: '230px' }, [
-    text(value, { color, fontSize: '56px', fontWeight: 700, lineHeight: 1 }),
+    text(value, { color, fontSize: '48px', fontWeight: 700, lineHeight: 1 }),
     text(label, { color: OG.muted, fontSize: '20px', marginTop: '6px' }),
   ]);
 
   const body = [
-    text(`${label} NBN price report${report.final ? '' : ' (so far)'}`, { color: OG.text, fontSize: '44px', fontWeight: 700, lineHeight: 1.1, marginBottom: '32px' }),
-    row({ gap: '16px', marginBottom: '30px' }, [
+    text(`${label} NBN price report${report.final ? '' : ' (so far)'}`, { color: OG.text, fontSize: '42px', fontWeight: 700, lineHeight: 1.1, marginBottom: '28px' }),
+    row({ gap: '16px', marginBottom: '24px' }, [
       stat(String(s.rises), 'price rises', OG.rise),
       stat(String(s.drops), 'price drops', OG.drop),
       stat(`${s.tiersDearer} / ${s.tiersCheaper}`, 'tiers dearer / cheaper'),
       stat(String(s.newProviders.length), 'new providers'),
     ]),
     movers.length > 0
-      ? col({ gap: '8px' }, [
+      ? col({ gap: '7px' }, [
           text('Biggest moves in the cheapest plan', { color: OG.secondary, fontSize: '20px', marginBottom: '2px' }),
           ...movers.map(t => row({ alignItems: 'center', gap: '12px' }, [
-            text(t.label, { color: OG.secondary, fontSize: '20px', width: '170px', justifyContent: 'flex-end' }),
-            row({ width: '560px', height: '18px', alignItems: 'center' }, [
-              row({ width: '280px', justifyContent: 'flex-end' }, t.delta < 0 ? [el(Math.abs(t.delta) / maxAbs, OG.drop)] : []),
-              row({ width: '280px', justifyContent: 'flex-start' }, t.delta > 0 ? [el(t.delta / maxAbs, OG.rise)] : []),
+            text(t.label, { color: OG.secondary, fontSize: '19px', width: '200px', justifyContent: 'flex-end', whiteSpace: 'nowrap' }),
+            row({ width: '520px', height: '18px', alignItems: 'center' }, [
+              row({ width: '260px', justifyContent: 'flex-end' }, t.delta < 0 ? [el(Math.abs(t.delta) / maxAbs, OG.drop)] : []),
+              row({ width: '260px', justifyContent: 'flex-start' }, t.delta > 0 ? [el(t.delta / maxAbs, OG.rise)] : []),
             ]),
             text(`${t.delta > 0 ? '+' : '−'}${money(Math.abs(t.delta))}`, { color: OG.text, fontSize: '20px', fontWeight: 700 }),
           ])),
@@ -56,5 +56,5 @@ export const GET: APIRoute = async ({ params, locals }) => {
 };
 
 function el(fraction: number, color: string) {
-  return { type: 'div', props: { style: { display: 'flex', width: `${Math.max(6, Math.round(fraction * 276))}px`, height: '14px', borderRadius: '4px', backgroundColor: color } } };
+  return { type: 'div', props: { style: { display: 'flex', width: `${Math.max(6, Math.round(fraction * 256))}px`, height: '14px', borderRadius: '4px', backgroundColor: color } } };
 }
