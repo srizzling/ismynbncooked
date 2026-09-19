@@ -4,6 +4,7 @@ import Hero from '../components/Hero.astro';
 import PlanChecker from '../components/PlanChecker';
 import DataFreshness from '../components/DataFreshness';
 import TierGrid from '../components/TierGrid';
+import AdSlot from '../components/AdSlot.astro';
 import { type MetaData, type TierManifest } from '../lib/types';
 import { getFixtureTierSummaries, getFixtureManifest, groupTiersByDownload, type TierSummary } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
@@ -116,7 +117,7 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
       <DataFreshness client:load meta={meta} />
     </div>
   )}
-  <Hero tagline="Prices updated daily across all Australian ISPs. No ads, no affiliate links." />
+  <Hero tagline="Prices updated daily across all Australian ISPs. No affiliate links, ranked by price only." />
 
   <section class="mb-12">
     <PlanChecker client:load manifest={manifest} />
@@ -182,10 +183,12 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
         </summary>
         <div class="px-5 pb-4 text-neutral-400 text-sm">
           <p>
-            No. This site has no ads, no affiliate links, and no sponsored placements.
-            Rankings are based purely on price. Plan data is sourced from
+            No affiliate links and no sponsored placements, ever. Rankings are based purely on price.
+            A single small ad at the bottom of some pages helps cover hosting and scraping costs, and it never
+            influences what you see. Plan data is sourced from
             <a href="https://www.netbargains.com.au" class="underline hover:text-white" target="_blank" rel="noopener">NetBargains</a>
-            and updated daily.
+            plus community-submitted providers, and updated daily.
+            <a href="/privacy" class="underline hover:text-white">Privacy details.</a>
           </p>
         </div>
       </details>
@@ -197,4 +200,6 @@ const cheapestOverall = Object.values(tierSummaries).reduce(
       Prices updated daily. All plans are month-to-month unless noted. Comparing {totalPlans} plans across Australia.
     </p>
   </section>
+
+  <AdSlot placement="home" />
 </Base>

@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import AdSlot from '../components/AdSlot.astro';
 import katex from 'katex';
 
 const title = "How It Works — Is My NBN Cooked?";
@@ -246,4 +247,5 @@ const mTotal = katex.renderToString('M', { throwOnError: false });
       </a>
     </div>
   </div>
+  <AdSlot placement="content" />
 </Base>

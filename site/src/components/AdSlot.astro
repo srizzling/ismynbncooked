@@ -1,0 +1,85 @@
+---
+/**
+ * A single, clearly labelled Google AdSense display unit, tuned to be as
+ * unintrusive as possible:
+ *
+ *  - Renders nothing unless PUBLIC_ADSENSE_CLIENT and the slot ID for this
+ *    placement are set at build time, so the site stays ad-free until configured.
+ *  - One unit per page, placed after all content, just above the footer.
+ *  - Horizontal (banner) format only, in a fixed-height container so nothing
+ *    jumps around. Never sticky, anchored, interstitial or full-width on mobile.
+ *  - The AdSense script is not loaded on page load. It is injected only when
+ *    the slot scrolls to within 600px of the viewport, so most visits that never
+ *    reach the bottom of the page never contact Google at all.
+ *  - Requests non-personalised ads by default (no interest-based targeting).
+ *    Flip NPA to 0 below if you want personalised ads for higher RPM.
+ *
+ * Keep "Auto ads" switched OFF in the AdSense dashboard, otherwise Google will
+ * inject its own overlay and anchor formats on top of this.
+ */
+import { ADSENSE_CLIENT } from '../lib/site';
+
+interface Props {
+  placement: 'home' | 'tier' | 'content';
+  class?: string;
+}
+
+const { placement, class: className = '' } = Astro.props;
+
+const client = ADSENSE_CLIENT;
+const slots: Record<Props['placement'], string | undefined> = {
+  home: import.meta.env.PUBLIC_ADSENSE_SLOT_HOME,
+  tier: import.meta.env.PUBLIC_ADSENSE_SLOT_TIER,
+  content: import.meta.env.PUBLIC_ADSENSE_SLOT_CONTENT,
+};
+const slot = slots[placement];
+const enabled = Boolean(client && slot);
+---
+
+{enabled && (
+  <aside class={`mt-14 mb-2 mx-auto max-w-3xl ${className}`} aria-label="Advertisement" data-ad-slot-container>
+    <p class="text-[10px] uppercase tracking-wider text-neutral-600 mb-1 text-center">Advertisement</p>
+    <div class="h-[100px] rounded-xl border border-surface-border bg-surface-raised/40 overflow-hidden flex items-center justify-center">
+      <ins
+        class="adsbygoogle"
+        style="display:block;width:100%;height:90px"
+        data-ad-client={client}
+        data-ad-slot={slot}
+        data-ad-format="horizontal"
+        data-full-width-responsive="false"
+      ></ins>
+    </div>
+  </aside>
+)}
+
+{enabled && (
+  <script is:inline define:vars={{ client }}>
+    (function () {
+      var NPA = 1; // 1 = non-personalised ads only
+      var container = document.querySelector('[data-ad-slot-container]');
+      if (!container || !('IntersectionObserver' in window)) return;
+
+      var loaded = false;
+      function loadAd() {
+        if (loaded) return;
+        loaded = true;
+        window.adsbygoogle = window.adsbygoogle || [];
+        window.adsbygoogle.requestNonPersonalizedAds = NPA;
+        var s = document.createElement('script');
+        s.async = true;
+        s.crossOrigin = 'anonymous';
+        s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + encodeURIComponent(client);
+        s.onload = function () { window.adsbygoogle.push({}); };
+        document.head.appendChild(s);
+      }
+
+      var observer = new IntersectionObserver(function (entries) {
+        if (entries.some(function (e) { return e.isIntersecting; })) {
+          observer.disconnect();
+          loadAd();
+        }
+      }, { rootMargin: '600px 0px' });
+      observer.observe(container);
+    })();
+  </script>
+)}
