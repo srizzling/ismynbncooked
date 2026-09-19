@@ -3,7 +3,7 @@ import { buildProviderFiles, buildMonthlyReports } from './derived';
 import { DOWNLOAD_SPEEDS, buildTierKey, buildTierLabel } from './types';
 import { fetchPlansForTier } from './api-client';
 import { applyCisOverrides } from './cis-overrides';
-import { scrapeCommunityPlans, scrapeLeaptelRaw, scrapeOriginRaw, scrapeSwoopRaw, scrapeVodafoneRaw, type ParsedPlan } from './community-scrapers';
+import { scrapeCommunityPlans, scrapeLeaptelRaw, scrapeOriginRaw, scrapeSwoopRaw, scrapeVodafoneRaw, type ParsedPlan, type CommunityScrapeResult } from './community-scrapers';
 
 function normalizeNetworkType(raw: string): NetworkType {
   const lower = raw.toLowerCase();
@@ -191,6 +191,9 @@ function groupPlansByTier(plans: NBNPlan[]): Map<string, NBNPlan[]> {
   return groups;
 }
 
+// Kept in memory only (per isolate) — a cheap way to surface the last community scrape outcome via /community-status
+let lastCommunityRun: { at: string; results: CommunityScrapeResult[]; error?: string } | null = null;
+
 export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
@@ -231,8 +234,12 @@ export default {
     // --- Community scrapers: merge plans missing from NetBargains ---
     // Reads community-sources configs from R2 and scrapes each provider
     if (env.FIRECRAWL_API_KEY) {
-      const { added } = await scrapeCommunityPlans(env.DATA_BUCKET, env.FIRECRAWL_API_KEY, allTierGroups);
-      console.log(`[price-sync] Community scrapers: ${added} new plans merged`);
+      const { added, results } = await scrapeCommunityPlans(env.DATA_BUCKET, env.FIRECRAWL_API_KEY, allTierGroups);
+      console.log(`[price-sync] Community scrapers: ${added} new plans merged`, JSON.stringify(results));
+      lastCommunityRun = { at: new Date().toISOString(), results };
+    } else {
+      console.warn('[price-sync] FIRECRAWL_API_KEY not set — community scrapers skipped');
+      lastCommunityRun = { at: new Date().toISOString(), results: [], error: 'FIRECRAWL_API_KEY not set' };
     }
 
     // Store each discovered tier
@@ -384,6 +391,38 @@ export default {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    // Diagnostics: what community sources exist in R2, and (POST) a dry run of every scraper
+    if (url.pathname === '/community-status') {
+      const listed = await env.DATA_BUCKET.list({ prefix: 'data/community-sources/' });
+      const sources: Record<string, unknown> = {};
+      for (const obj of listed.objects) {
+        try {
+          const file = await env.DATA_BUCKET.get(obj.key);
+          sources[obj.key] = file ? await file.json() : null;
+        } catch (err) {
+          sources[obj.key] = `unreadable: ${err}`;
+        }
+      }
+      let dryRun: unknown = undefined;
+      if (request.method === 'POST') {
+        if (!env.FIRECRAWL_API_KEY) {
+          dryRun = { error: 'FIRECRAWL_API_KEY not set' };
+        } else {
+          const groups = new Map<string, NBNPlan[]>();
+          const { added, results } = await scrapeCommunityPlans(env.DATA_BUCKET, env.FIRECRAWL_API_KEY, groups);
+          dryRun = { added, results, tiers: [...groups.keys()] };
+        }
+      }
+      return new Response(JSON.stringify({
+        ok: true,
+        firecrawlKeyPresent: Boolean(env.FIRECRAWL_API_KEY),
+        objectCount: listed.objects.length,
+        sources,
+        lastCommunityRun,
+        dryRun,
+      }, null, 2), { headers: { 'Content-Type': 'application/json' } });
     }
 
     // Migrate old history files: nbn-{speed}.json → nbn-{speed}-{upload}.json

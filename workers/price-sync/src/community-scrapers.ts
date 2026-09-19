@@ -24,10 +24,11 @@ export async function scrapeCommunityPlans(
   bucket: R2Bucket,
   firecrawlApiKey: string,
   allTierGroups: Map<string, NBNPlan[]>,
-): Promise<{ plans: NBNPlan[]; added: number }> {
+): Promise<{ plans: NBNPlan[]; added: number; results: CommunityScrapeResult[] }> {
   // List all community source configs in R2
   const listed = await bucket.list({ prefix: 'data/community-sources/' });
   const sources: CommunitySource[] = [];
+  const results: CommunityScrapeResult[] = [];
 
   for (const obj of listed.objects) {
     if (obj.key.endsWith('.json')) {
@@ -45,7 +46,7 @@ export async function scrapeCommunityPlans(
 
   if (sources.length === 0) {
     console.log('[community] No community sources found in R2');
-    return { plans: [], added: 0 };
+    return { plans: [], added: 0, results };
   }
 
   console.log(`[community] Found ${sources.length} community source(s)`);
@@ -79,6 +80,7 @@ export async function scrapeCommunityPlans(
         plans = await scrapeVodafonePlans(firecrawlApiKey, providerSources[0].url, providerSources[0].cisUrl);
       } else {
         console.log(`[community] No scraper for provider "${providerSources[0].provider}" — skipping`);
+        results.push({ provider: providerSources[0].provider, scraped: 0, added: 0, error: 'no scraper for this provider' });
         continue;
       }
 
@@ -97,13 +99,22 @@ export async function scrapeCommunityPlans(
         added++;
       }
       totalAdded += added;
+      results.push({ provider: providerSources[0].provider, scraped: plans.length, added });
       console.log(`[community] ${providerSources[0].provider}: ${plans.length} scraped, ${added} new plans merged`);
     } catch (err) {
       console.error(`[community] Scraper failed for ${providerSources[0].provider}:`, err);
+      results.push({ provider: providerSources[0].provider, scraped: 0, added: 0, error: String(err) });
     }
   }
 
-  return { plans: allNewPlans, added: totalAdded };
+  return { plans: allNewPlans, added: totalAdded, results };
+}
+
+export interface CommunityScrapeResult {
+  provider: string;
+  scraped: number;
+  added: number;
+  error?: string;
 }
 
 /**
