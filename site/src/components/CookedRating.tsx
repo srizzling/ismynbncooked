@@ -14,6 +14,8 @@ interface Props {
   cheapestPrice: number;
   cheapestEffective?: number;
   cheapestProviderName?: string;
+  /** What the verdict is measured against, e.g. "NBN 1000/50". sameSpeed is false when the user is comparing another speed than their own plan's. */
+  scope?: { label: string; sameSpeed: boolean; yourLabel: string };
   horizon?: number;
   manifest?: TierManifest;
   onCookedChange?: (result: CookedResult | null) => void;
@@ -112,7 +114,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, manifest, onCookedChange }: Props) {
+export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, horizon = 12, manifest, onCookedChange }: Props) {
   const ratedKey = planKey ?? tierKey;
   const parsed = parseTierKey(ratedKey);
   const grouped = !parsed ? parseGroupedTierKey(ratedKey) : null;
@@ -208,6 +210,8 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
     setUserPromoLeft(0);
   }
 
+  const periodLabel = horizon === 12 ? '1 year' : horizon === 24 ? '2 years' : `${horizon} months`;
+
   if (result) {
     const currentPrice = parseFloat(price);
     const isOnPromo = userFullPrice && userPromoLeft > 0;
@@ -215,7 +219,14 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
     return (
       <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center">
         <div class="text-sm text-neutral-400 mb-1">
-          {isOnPromo ? 'At your current promo price, your ' : 'Your '}{tierLabel} is...
+          {scope ? (
+            <>
+              {isOnPromo ? 'At your current promo price, over ' : 'Over '}{periodLabel}, against {scope.label} plans
+              {scope.sameSpeed ? '' : ` (not the speed of your ${scope.yourLabel} plan)`}, your plan is...
+            </>
+          ) : (
+            <>{isOnPromo ? 'At your current promo price, your ' : 'Your '}{tierLabel} is...</>
+          )}
         </div>
         <div class="text-4xl sm:text-5xl font-display font-bold" style={{ color: result.color }}>
           {result.label}
@@ -237,7 +248,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
         {result.monthlySavings > 0 ? (
           <div class="mt-4 space-y-1">
             <p class="text-lg text-neutral-300">
-              You're paying <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest available plan
+              You're paying <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest plan in this comparison
             </p>
             <p class="text-neutral-400">
               That's <span class="font-medium text-white">${result.monthlySavings.toFixed(2)}/mo</span> or{' '}
@@ -247,7 +258,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
         ) : result.level === 'winning' ? (
           <div class="mt-4 space-y-1">
             <p class="text-lg text-neutral-300">
-              You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan we track
+              You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan in this comparison
             </p>
             <p class="text-neutral-400">
               Whatever you did, don't change a thing.            </p>
@@ -257,8 +268,8 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
             You're on the cheapest plan. Sweet as.          </p>
         )}
 
-        <p class="mt-4 text-xs text-neutral-500">
-          Compared with the cheapest deal over {horizon === 12 ? '1 year' : horizon === 24 ? '2 years' : `${horizon} months`}:{' '}
+        <p class="mt-4 text-sm text-neutral-400">
+          The cheapest {scope ? `${scope.label} ` : ''}deal over {periodLabel} is{' '}
           ${baseline.toFixed(2)}/mo{cheapestProviderName ? ` (${cheapestProviderName})` : ''}.
           {baseline < cheapestPrice - 0.005
             ? ` That averages in intro discounts. The cheapest list price is $${cheapestPrice.toFixed(2)}/mo.`
