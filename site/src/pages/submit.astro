@@ -1,12 +1,11 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import PlanSubmission from '../components/PlanSubmission';
 
-const runtime = Astro.locals.runtime;
-
 // --- Feature toggle: SUBMISSIONS_ENABLED env var ---
 const testBypass = Astro.url.searchParams.get('test') === 'true';
-const showSubmissionForm = testBypass || runtime.env.SUBMISSIONS_ENABLED !== 'false';
+const showSubmissionForm = testBypass || env.SUBMISSIONS_ENABLED !== 'false';
 
 // --- Fetch recent plan submission PRs ---
 interface SubmissionPR {
@@ -19,7 +18,7 @@ interface SubmissionPR {
 }
 
 let submissions: SubmissionPR[] = [];
-const ghToken = runtime.env.GITHUB_TOKEN;
+const ghToken = env.GITHUB_TOKEN;
 
 if (ghToken) {
   try {

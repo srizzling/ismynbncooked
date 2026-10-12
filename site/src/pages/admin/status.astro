@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
 import { type TierData, type TierManifest, type MetaData } from '../../lib/types';
 import { getFixtureManifest } from '../../lib/data';
@@ -11,7 +12,7 @@ let tierDetails: { key: string; label: string; planCount: number; cheapest: numb
 
 // Try R2 first
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const bucket = env.DATA_BUCKET;
   const manifestObj = await bucket.get('data/manifest.json');
   if (manifestObj) {
     manifest = await manifestObj.json() as TierManifest;

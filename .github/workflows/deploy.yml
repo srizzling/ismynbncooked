@@ -34,9 +34,6 @@ jobs:
       - name: Create R2 bucket (if not exists)
         run: npx wrangler r2 bucket create ismynbncooked-data 2>&1 || true
 
-      - name: Create Pages project (if not exists)
-        run: npx wrangler pages project create ismynbncooked --production-branch main 2>&1 || true
-
       - name: Create Queue (if not exists)
         run: npx wrangler queues create ismynbncooked-terms 2>&1 || true
 
@@ -135,6 +132,6 @@ jobs:
           PUBLIC_ADSENSE_SLOT_CONTENT: ${{ vars.ADSENSE_SLOT_CONTENT }}
         run: pnpm build
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Workers
         working-directory: site
-        run: pnpm exec wrangler pages deploy dist/
+        run: pnpm exec wrangler deploy -c dist/server/wrangler.json

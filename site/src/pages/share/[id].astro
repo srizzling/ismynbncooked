@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
 import { parseTierKey, buildTierLabel, type TierData, type TierManifest, type ComparisonsData } from '../../lib/types';
 import { getFixtureManifest } from '../../lib/data';
@@ -13,7 +14,7 @@ if (!id) return Astro.redirect('/');
 // Load manifest (needed to decode the word URL)
 let manifest: TierManifest;
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const bucket = env.DATA_BUCKET;
   const manifestObj = await bucket.get('data/manifest.json');
   manifest = manifestObj ? await manifestObj.json() as TierManifest : getFixtureManifest();
 } catch {
@@ -38,7 +39,7 @@ const tierKey = data.s;
 let comparisons: ComparisonsData | null = null;
 let tierData: TierData | null = null;
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const bucket = env.DATA_BUCKET;
   const [compObj, tierObj] = await Promise.all([
     bucket.get('data/comparisons.json'),
     bucket.get(`data/plans/${tierKey}.json`),

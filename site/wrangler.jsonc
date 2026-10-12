@@ -1,7 +1,8 @@
 {
   "name": "ismynbncooked",
   "compatibility_date": "2026-03-01",
-  "pages_build_output_dir": "./dist",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
   "r2_buckets": [
     {
       "binding": "DATA_BUCKET",
@@ -11,5 +12,5 @@
   "vars": {
     "SUBMISSIONS_ENABLED": "true"
   }
-  // GITHUB_TOKEN set via `wrangler pages secret put GITHUB_TOKEN`
+  // GITHUB_TOKEN set via `wrangler secret put GITHUB_TOKEN`
 }

@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import { buildTierKey, buildTierLabel, parseTierKey, type TierData, type TierManifest, type NetworkType } from '../lib/types';
 import { getFixtureManifest } from '../lib/data';
@@ -19,7 +20,7 @@ const baseLabel = buildTierLabel(network, download, upload);
 // Load manifest
 let manifest: TierManifest;
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const bucket = env.DATA_BUCKET;
   const manifestObj = await bucket.get('data/manifest.json');
   manifest = manifestObj ? await manifestObj.json() as TierManifest : getFixtureManifest();
 } catch {
@@ -84,7 +85,7 @@ const rows: ComparisonRow[] = [];
 for (const tierKey of tierKeys) {
   let tierData: TierData | null = null;
   try {
-    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+    const bucket = env.DATA_BUCKET;
     const obj = await bucket.get(`data/plans/${tierKey}.json`);
     if (obj) tierData = await obj.json() as TierData;
   } catch {}
