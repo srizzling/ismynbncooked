@@ -1,5 +1,5 @@
 import type { UserPlan, UserPlans, AUState } from './types';
-import { DEFAULT_UPLOAD_MAP } from './types';
+import { DEFAULT_UPLOAD_MAP, parseGroupedTierKey } from './types';
 
 const STORAGE_KEY = 'ismynbncooked_plans';
 const STATE_KEY = 'ismynbncooked_state';
@@ -45,6 +45,31 @@ export function getUserPlan(tierKey: string): UserPlan | null {
   return plans[tierKey] ?? null;
 }
 
+/** True when `key` is an exact tier (nbn-1000-50) belonging to the grouped page `groupKey` (nbn-1000). */
+function isVariantOfGroup(key: string, groupKey: string): boolean {
+  return key.startsWith(`${groupKey}-`) && /^\d+$/.test(key.slice(groupKey.length + 1));
+}
+
+/**
+ * Find the user's saved plan for a page. Exact tier pages match their own key; grouped pages
+ * (nbn-1000) also match any saved variant (nbn-1000-50), picking the most recently saved.
+ */
+export function resolveUserPlan(tierKey: string): { key: string; plan: UserPlan } | null {
+  const plans = getUserPlans();
+  let best: { key: string; plan: UserPlan } | null = null;
+  const consider = (key: string) => {
+    const plan = plans[key];
+    if (plan && (!best || plan.savedAt > best.plan.savedAt)) best = { key, plan };
+  };
+  consider(tierKey);
+  if (parseGroupedTierKey(tierKey)) {
+    for (const key of Object.keys(plans)) {
+      if (isVariantOfGroup(key, tierKey)) consider(key);
+    }
+  }
+  return best;
+}
+
 export function saveUserPlan(
   tierKey: string,
   price: number,
@@ -65,6 +90,11 @@ export function saveUserPlan(
 export function clearUserPlan(tierKey: string): void {
   const plans = getUserPlans();
   delete plans[tierKey];
+  if (parseGroupedTierKey(tierKey)) {
+    for (const key of Object.keys(plans)) {
+      if (isVariantOfGroup(key, tierKey)) delete plans[key];
+    }
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
 }
 

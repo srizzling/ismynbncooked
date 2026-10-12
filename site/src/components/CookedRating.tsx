@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import type { CookedResult, TierManifest } from '../lib/types';
-import { parseTierKey, buildTierLabel } from '../lib/types';
+import { parseTierKey, parseGroupedTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { LEVELS } from '../lib/cooked';
-import { getUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
+import { resolveUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
 import { buildShareUrl, type ShareData, type ShareManifests } from '../lib/share';
 import RortTimeline from './RortTimeline';
 
 interface Props {
   tierKey: string;
+  /** Exact tier the saved plan belongs to when it differs from tierKey (grouped pages), e.g. nbn-1000-50 on /nbn-1000 */
+  planKey?: string;
   cheapestPrice: number;
   cheapestEffective?: number;
   cheapestProviderName?: string;
@@ -101,9 +103,15 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, manifest, onCookedChange }: Props) {
-  const parsed = parseTierKey(tierKey);
-  const tierLabel = parsed ? buildTierLabel(parsed.network, parsed.download, parsed.upload) : tierKey;
+export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, horizon = 12, manifest, onCookedChange }: Props) {
+  const ratedKey = planKey ?? tierKey;
+  const parsed = parseTierKey(ratedKey);
+  const grouped = !parsed ? parseGroupedTierKey(ratedKey) : null;
+  const tierLabel = parsed
+    ? buildTierLabel(parsed.network, parsed.download, parsed.upload)
+    : grouped
+      ? `${grouped.network === 'nbn' ? 'NBN' : 'Opticomm'} ${grouped.download}`
+      : ratedKey;
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [result, setResult] = useState<CookedResult | null>(null);
@@ -118,7 +126,7 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
   const handleShare = useCallback(async (currentPrice: number) => {
     if (!result) return;
     const data: ShareData = {
-      s: tierKey,
+      s: ratedKey,
       p: Math.round(currentPrice * 100),
       v: provider,
       c: Math.round(baseline * 100),
@@ -143,10 +151,10 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
     await navigator.clipboard.writeText(url);
     setShareLabel('Copied!');
     setTimeout(() => setShareLabel('Share'), 2000);
-  }, [result, tierKey, provider, baseline, cheapestProviderName, manifest]);
+  }, [result, ratedKey, provider, baseline, cheapestProviderName, manifest]);
 
   useEffect(() => {
-    const existing = getUserPlan(tierKey);
+    const existing = resolveUserPlan(tierKey)?.plan;
     if (existing) {
       setPrice(existing.price.toString());
       setProvider(existing.provider);
@@ -168,7 +176,7 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
         onCookedChange?.(r);
       }
     }
-  }, [tierKey, cheapestPrice, baseline, horizon]);
+  }, [tierKey, planKey, cheapestPrice, baseline, horizon]);
 
   function handleSubmit(e: Event) {
     e.preventDefault();
