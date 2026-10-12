@@ -15,6 +15,23 @@ export interface TierInfo {
   average?: number;
 }
 
+/** Cheapest plan summary for one speed, used to compare a user's plan against other speeds */
+export interface SpeedOptionPlan {
+  cost: number;
+  provider: string;
+  plan: string;
+}
+
+export interface SpeedOption {
+  key: string;
+  download: number;
+  upload: number;
+  /** Cheapest effective monthly cost per commitment period in months (3, 6, 12, 24) */
+  effective: Record<number, SpeedOptionPlan>;
+  /** Cheapest plain monthly price */
+  monthly: SpeedOptionPlan;
+}
+
 export interface TierManifest {
   updatedAt: string;
   tiers: TierInfo[];
