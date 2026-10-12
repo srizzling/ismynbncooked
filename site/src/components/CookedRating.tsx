@@ -14,8 +14,10 @@ interface Props {
   cheapestPrice: number;
   cheapestEffective?: number;
   cheapestProviderName?: string;
-  /** What the verdict is measured against, e.g. "NBN 1000/50". sameSpeed is false when the user is comparing another speed than their own plan's. */
-  scope?: { label: string; sameSpeed: boolean; yourLabel: string };
+  /** What the verdict is measured against. yourUpload is unknown when the plan was saved for a whole group. */
+  scope?: { yourDownload: number; yourUpload?: number; downloads: number[]; uploads: number[] };
+  /** Speed of the cheapest plan in the comparison, e.g. "1000/100" */
+  cheapestPlanSpeed?: string;
   horizon?: number;
   manifest?: TierManifest;
   onCookedChange?: (result: CookedResult | null) => void;
@@ -34,6 +36,18 @@ function computeEffectiveRate(price: number, fullPrice: number | undefined, prom
   const promoMonths = Math.min(promoMonthsLeft, months);
   const fullMonths = months - promoMonths;
   return (promoMonths * price + fullMonths * fullPrice) / months;
+}
+
+/** "your upload speed (50 Mbps)", "a slower upload speed (20 Mbps, yours is 40 Mbps)", "any upload speed (50, 100 or 400 Mbps, yours is 50 Mbps)" */
+function describeSpeed(kind: 'download' | 'upload', yours: number | undefined, compared: number[]): string {
+  const sorted = [...new Set(compared)].sort((a, b) => a - b);
+  if (sorted.length === 1) {
+    const only = sorted[0];
+    if (yours === undefined || only === yours) return `your ${kind} speed (${only} Mbps)`;
+    return `a ${only > yours ? 'faster' : 'slower'} ${kind} speed (${only} Mbps, yours is ${yours} Mbps)`;
+  }
+  const list = `${sorted.slice(0, -1).join(', ')} or ${sorted[sorted.length - 1]}`;
+  return `any ${kind} speed (${list} Mbps${yours === undefined ? '' : `, yours is ${yours} Mbps`})`;
 }
 
 function RortScale({ currentLevel }: { currentLevel: string }) {
@@ -114,7 +128,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, horizon = 12, manifest, onCookedChange }: Props) {
+export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, cheapestPlanSpeed, horizon = 12, manifest, onCookedChange }: Props) {
   const ratedKey = planKey ?? tierKey;
   const parsed = parseTierKey(ratedKey);
   const grouped = !parsed ? parseGroupedTierKey(ratedKey) : null;
@@ -221,8 +235,9 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
         <div class="text-sm text-neutral-400 mb-1">
           {scope ? (
             <>
-              {isOnPromo ? 'At your current promo price, over ' : 'Over '}{periodLabel}, against {scope.label} plans
-              {scope.sameSpeed ? '' : ` (not the speed of your ${scope.yourLabel} plan)`}, your plan is...
+              {isOnPromo ? 'At your current promo price, based' : 'Based'} on your commitment period ({periodLabel}),{' '}
+              {describeSpeed('download', scope.yourDownload, scope.downloads)} and{' '}
+              {describeSpeed('upload', scope.yourUpload, scope.uploads)}, your plan is...
             </>
           ) : (
             <>{isOnPromo ? 'At your current promo price, your ' : 'Your '}{tierLabel} is...</>
@@ -269,8 +284,9 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
         )}
 
         <p class="mt-4 text-sm text-neutral-400">
-          The cheapest {scope ? `${scope.label} ` : ''}deal over {periodLabel} is{' '}
-          ${baseline.toFixed(2)}/mo{cheapestProviderName ? ` (${cheapestProviderName})` : ''}.
+          The cheapest plan in this comparison over {periodLabel} is{' '}
+          ${baseline.toFixed(2)}/mo
+          {cheapestProviderName ? ` (${cheapestProviderName}${cheapestPlanSpeed ? `, ${cheapestPlanSpeed}` : ''})` : ''}.
           {baseline < cheapestPrice - 0.005
             ? ` That averages in intro discounts. The cheapest list price is $${cheapestPrice.toFixed(2)}/mo.`
             : ''}

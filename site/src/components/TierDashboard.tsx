@@ -369,10 +369,12 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         cheapestPrice={cheapest}
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
         cheapestProviderName={cheapestAtHorizon?.plan.providerName}
+        cheapestPlanSpeed={cheapestAtHorizon ? `${cheapestAtHorizon.plan.downloadSpeed}/${cheapestAtHorizon.plan.uploadSpeed}` : undefined}
         scope={{
-          label: isGrouped ? (speedFilter === 'all' ? `all ${label}` : `${label}/${speedFilter}`) : label,
-          sameSpeed: !userVariant || speedFilter === userVariant.upload,
-          yourLabel: userVariant ? buildTierLabel(userVariant.network, userVariant.download, userVariant.upload) : label,
+          yourDownload: tierData.downloadSpeed,
+          yourUpload: userVariant ? userVariant.upload : isGrouped ? undefined : tierData.uploadSpeed,
+          downloads: [tierData.downloadSpeed],
+          uploads: isGrouped ? (speedFilter === 'all' ? uploadSpeeds : [speedFilter]) : [tierData.uploadSpeed],
         }}
         horizon={horizon}
         manifest={manifest}
