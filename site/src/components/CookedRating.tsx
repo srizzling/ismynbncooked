@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import type { CookedResult, TierManifest } from '../lib/types';
 import { parseTierKey, parseGroupedTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
@@ -36,6 +36,15 @@ function computeEffectiveRate(price: number, fullPrice: number | undefined, prom
 
 function RortScale({ currentLevel }: { currentLevel: string }) {
   const [open, setOpen] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    popupRef.current?.scrollIntoView({ block: 'nearest' });
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   // Reverse so we display from best to worst (Sweet As first)
   const ordered = [...LEVELS].reverse();
@@ -51,7 +60,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
       {open && (
         <>
           <div class="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div class="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-40 bg-surface border border-surface-border rounded-xl shadow-2xl p-4 w-72 sm:w-80">
+          <div ref={popupRef} class="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-40 bg-surface border border-surface-border rounded-xl shadow-2xl p-4 w-72 sm:w-80">
             <div class="font-display font-bold text-sm text-white mb-3">The Rort Scale</div>
             <div class="space-y-2">
               {ordered.map((level) => {
@@ -191,8 +200,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
 
   function handleClear() {
     clearUserPlan(tierKey);
-    setPrice('');
-    setProvider('');
+    // Keep price and provider in the form so "Change" means edit, not start over
     setResult(null);
     onCookedChange?.(null);
     setHasExisting(false);
@@ -248,6 +256,15 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
           <p class="mt-4 text-lg text-neutral-300">
             You're on the cheapest plan. Sweet as.          </p>
         )}
+
+        <p class="mt-4 text-xs text-neutral-500">
+          Compared with the cheapest deal over {horizon === 12 ? '1 year' : horizon === 24 ? '2 years' : `${horizon} months`}:{' '}
+          ${baseline.toFixed(2)}/mo{cheapestProviderName ? ` (${cheapestProviderName})` : ''}.
+          {baseline < cheapestPrice - 0.005
+            ? ` That averages in intro discounts. The cheapest list price is $${cheapestPrice.toFixed(2)}/mo.`
+            : ''}
+          {' '}Change the period above to compare a different term.
+        </p>
 
         {/* Post-promo rort rating — toggle reveal */}
         {isOnPromo && (() => {

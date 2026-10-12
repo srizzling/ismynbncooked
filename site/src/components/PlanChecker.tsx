@@ -65,6 +65,8 @@ export default function PlanChecker({ manifest }: Props) {
 
   function toggleUpload(speed: number) {
     setSelectedUploads(prev => {
+      // Everything is lit by default, so picking one speed means "just this one", not "everything but this one"
+      if (uploads.length > 1 && prev.size === uploads.length) return new Set([speed]);
       const next = new Set(prev);
       if (next.has(speed)) {
         // Don't allow deselecting all
