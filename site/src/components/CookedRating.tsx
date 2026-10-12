@@ -18,6 +18,8 @@ interface Props {
   scope?: { yourDownload: number; yourUpload?: number; downloads: number[]; uploads: number[] };
   /** Speed of the cheapest plan in the comparison, e.g. "1000/100" */
   cheapestPlanSpeed?: string;
+  /** Sentence explaining why the rating moved after the user changed the period or speed */
+  changeNote?: string;
   horizon?: number;
   manifest?: TierManifest;
   onCookedChange?: (result: CookedResult | null) => void;
@@ -76,7 +78,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
       {open && (
         <>
           <div class="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div ref={popupRef} class="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-40 bg-surface border border-surface-border rounded-xl shadow-2xl p-4 w-72 sm:w-80">
+          <div ref={popupRef} class="fixed inset-x-4 top-1/2 -translate-y-1/2 max-h-[80vh] overflow-y-auto z-40 bg-surface border border-surface-border rounded-xl shadow-2xl p-4 text-left sm:absolute sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:translate-y-0 sm:top-full sm:mt-2 sm:w-80 sm:max-h-none sm:overflow-visible">
             <div class="font-display font-bold text-sm text-white mb-3">The Rort Scale</div>
             <div class="space-y-2">
               {ordered.map((level) => {
@@ -132,7 +134,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, cheapestPlanSpeed, horizon = 12, manifest, onCookedChange }: Props) {
+export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, cheapestPlanSpeed, changeNote, horizon = 12, manifest, onCookedChange }: Props) {
   const ratedKey = planKey ?? tierKey;
   const parsed = parseTierKey(ratedKey);
   const grouped = !parsed ? parseGroupedTierKey(ratedKey) : null;
@@ -235,7 +237,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
     const isOnPromo = userFullPrice && userPromoLeft > 0;
 
     return (
-      <div class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center">
+      <div id="your-verdict" class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center scroll-mt-4">
         <div class="text-sm text-neutral-400 mb-1">
           {scope ? (
             <>
@@ -287,15 +289,36 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
             You're on the cheapest plan. Sweet as.          </p>
         )}
 
-        <p class="mt-4 text-sm text-neutral-400">
-          The cheapest plan in this comparison over {periodLabel} is{' '}
-          ${baseline.toFixed(2)}/mo
-          {cheapestProviderName ? ` (${cheapestProviderName}${cheapestPlanSpeed ? `, ${cheapestPlanSpeed}` : ''})` : ''}.
-          {baseline < cheapestPrice - 0.005
-            ? ` That averages in intro discounts. The cheapest list price is $${cheapestPrice.toFixed(2)}/mo.`
-            : ''}
-          {' '}Change the period above to compare a different term.
-        </p>
+        <div class="mt-4 text-left bg-surface border border-surface-border rounded-lg p-4 text-sm text-neutral-400 space-y-1.5">
+          <div class="text-xs uppercase tracking-wide text-neutral-500">How we got this</div>
+          {changeNote && <div class="text-neutral-300">{changeNote}</div>}
+          <div class="flex justify-between gap-4">
+            <span>You pay</span>
+            <span class="text-white tabular-nums">${currentPrice.toFixed(2)}/mo</span>
+          </div>
+          <div class="flex justify-between gap-4">
+            <span>Cheapest in this comparison, over {periodLabel}</span>
+            <span class="text-white tabular-nums">${baseline.toFixed(2)}/mo</span>
+          </div>
+          <div class="text-xs text-neutral-500">
+            {cheapestProviderName ? `${cheapestProviderName}${cheapestPlanSpeed ? `, ${cheapestPlanSpeed}` : ''}. ` : ''}
+            {baseline < cheapestPrice - 0.005
+              ? `This averages in intro discounts. The cheapest list price is $${cheapestPrice.toFixed(2)}/mo.`
+              : ''}
+          </div>
+          <div class="flex justify-between gap-4 border-t border-surface-border pt-1.5">
+            <span>Difference</span>
+            <span class="tabular-nums" style={{ color: result.color }}>
+              {currentPrice - baseline > 0.005
+                ? `$${(currentPrice - baseline).toFixed(2)}/mo more (${(result.overpayPercent * 100).toFixed(0)}%)`
+                : currentPrice - baseline < -0.005
+                  ? `$${(baseline - currentPrice).toFixed(2)}/mo less`
+                  : 'the same'}
+              {' '}→ {result.label}
+            </span>
+          </div>
+          <div class="text-xs text-neutral-500">Change the period, or the upload speed chips above, and this updates.</div>
+        </div>
 
         {/* Post-promo rort rating — toggle reveal */}
         {isOnPromo && (() => {

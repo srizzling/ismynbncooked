@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import type { NBNPlan, SpeedOption, TierData, TierHistory, ComparisonsData, CookedResult, UserPlan, TierManifest } from '../lib/types';
 import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
@@ -103,7 +103,12 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   // Resolve preference to an actual horizon
   const horizon: Horizon = horizonPref === 'cheapest' ? best.horizon : horizonPref;
 
+  // Set when the user changes the period or upload speed themselves, so the page can explain what changed
+  // (and does not announce the automatic default speed chosen when the saved plan loads).
+  const userChoiceRef = useRef(false);
+
   function handleHorizonChange(h: HorizonPreference) {
+    userChoiceRef.current = true;
     setHorizonPref(h);
     saveDefaultHorizon(h);
   }
@@ -155,6 +160,51 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   const cheapest = viewCheapest;
   const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
 
+  // --- Why did my rating change? ---
+  const periodName = (h: number) => (h === 12 ? '1 year' : h === 24 ? '2 years' : `${h} months`);
+  const speedName = (sp: number | 'all') => (sp === 'all' ? 'all upload speeds' : `${tierData.downloadSpeed}/${sp}`);
+  const currentResult = useMemo(
+    () => (userEntry ? calculateCooked(userEntry.plan.price, baseline) : null),
+    [userEntry?.plan.price, baseline]
+  );
+  const prevChoice = useRef<{ speed: number | 'all'; horizon: Horizon; label: string | null }>({ speed: speedFilter, horizon, label: null });
+  const [changeNote, setChangeNote] = useState<{ from: string; to: string; because: string } | null>(null);
+  useEffect(() => {
+    const prev = prevChoice.current;
+    const changed = prev.speed !== speedFilter || prev.horizon !== horizon;
+    if (changed && userChoiceRef.current && currentResult && prev.label) {
+      const parts: string[] = [];
+      if (prev.horizon !== horizon) parts.push(`the commitment period from ${periodName(prev.horizon)} to ${periodName(horizon)}`);
+      if (prev.speed !== speedFilter) parts.push(`the upload speed from ${speedName(prev.speed)} to ${speedName(speedFilter)}`);
+      setChangeNote({ from: prev.label, to: currentResult.label, because: parts.join(' and ') });
+    }
+    if (changed) userChoiceRef.current = false;
+    prevChoice.current = { speed: speedFilter, horizon, label: currentResult?.label ?? null };
+  }, [speedFilter, horizon, currentResult?.label]);
+  const changeText = changeNote
+    ? changeNote.from === changeNote.to
+      ? `Still ${changeNote.to}, but what we compare you with changed because you changed ${changeNote.because}.`
+      : `Changed from ${changeNote.from} to ${changeNote.to} because you changed ${changeNote.because}. Your price didn't change, what it's compared with did.`
+    : undefined;
+  const choicesText = `${periodName(horizon)}, ${tierData.downloadSpeed} Mbps down, ${
+    isGrouped ? (speedFilter === 'all' ? 'any upload speed' : `${speedFilter} Mbps up`) : `${tierData.uploadSpeed} Mbps up`
+  }`;
+  const verdictStrip = userEntry && currentResult ? (
+    <a
+      href="#your-verdict"
+      class="block rounded-xl border border-surface-border bg-surface px-4 py-3 text-sm hover:border-neutral-600 transition-colors"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span class="text-neutral-400">
+          With {choicesText}, your plan is{' '}
+          <span class="font-bold" style={{ color: currentResult.color }}>{currentResult.label}</span>
+        </span>
+        <span class="text-xs text-neutral-500 underline">See how we got this</span>
+      </div>
+      {changeText && <div class="text-xs text-neutral-300 mt-1">{changeText}</div>}
+    </a>
+  ) : null;
+
   // Find the plan with the cheapest monthly price (no promo consideration)
   const cheapestMonthlyPlan = useMemo(() => {
     if (viewPlans.length === 0) return null;
@@ -181,7 +231,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
               return (
                 <div key={u} class="group" onMouseLeave={() => setTipHidden(null)}>
                   <button
-                    onClick={() => { setSpeedFilter(u); setTipHidden(u); }}
+                    onClick={() => { userChoiceRef.current = true; setSpeedFilter(u); setTipHidden(u); }}
                     class={`peer text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                       speedFilter === u
                         ? 'bg-accent/10 border-accent text-accent'
@@ -229,6 +279,8 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           )}
         </div>
       )}
+
+      {showSpeedFilter && verdictStrip}
 
       {/* Stats */}
       <div class="flex gap-6 flex-wrap">
@@ -324,6 +376,8 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         )}
       </div>
 
+      {verdictStrip}
+
       {/* Price change since last visit */}
       {priceChange && (
         <div class={`rounded-xl px-4 py-3 text-sm ${
@@ -371,6 +425,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         cheapestPrice={cheapest}
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
         cheapestProviderName={cheapestAtHorizon?.plan.providerName}
+        changeNote={changeText}
         cheapestPlanSpeed={cheapestAtHorizon ? `${cheapestAtHorizon.plan.downloadSpeed}/${cheapestAtHorizon.plan.uploadSpeed}` : undefined}
         scope={{
           yourDownload: tierData.downloadSpeed,

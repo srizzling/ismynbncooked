@@ -65,7 +65,7 @@ const ogImageUrl = ogImage ?? new URL('/og-share.png', origin).href;
     )}
     <slot name="head" />
   </head>
-  <body class="min-h-screen">
+  <body class="min-h-screen overflow-x-clip">
     <header class="max-w-6xl mx-auto px-4 pt-4 pb-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
       <a href="/" class="text-sm font-display font-bold text-neutral-300 hover:text-white transition-colors">
         amigettingrorted.au
