@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
 import { type TierData, type TierManifest, type NBNPlan } from '../../lib/types';
 import { getFixtureManifest } from '../../lib/data';
@@ -14,7 +15,7 @@ interface AuditPlan {
 // Load manifest
 let manifest: TierManifest;
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const bucket = env.DATA_BUCKET;
   const manifestObj = await bucket.get('data/manifest.json');
   manifest = manifestObj ? await manifestObj.json() as TierManifest : getFixtureManifest();
 } catch {
@@ -24,7 +25,7 @@ try {
 // Helper to load tier data from R2 or local disk
 async function loadTierData(tierKey: string): Promise<TierData | null> {
   try {
-    const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+    const bucket = env.DATA_BUCKET;
     const obj = await bucket.get(`data/plans/${tierKey}.json`);
     return obj ? await obj.json() as TierData : null;
   } catch {}

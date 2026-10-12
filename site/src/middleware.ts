@@ -35,8 +35,7 @@ const BROWSER_TTL = 60;  // seconds a browser may reuse it without asking
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, url, locals } = context;
-  const runtime = (locals as any).runtime;
-  const cache: Cache | undefined = runtime?.caches?.default;
+  const cache: Cache | undefined = (globalThis.caches as CacheStorage & { default?: Cache })?.default;
 
   if (request.method !== 'GET' || !cache || !CACHEABLE.test(url.pathname)) {
     return next();
@@ -61,6 +60,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const out = new Response(response.body, { status: response.status, headers });
 
   const store = cache.put(key, out.clone());
-  if (runtime?.ctx?.waitUntil) runtime.ctx.waitUntil(store); else await store.catch(() => {});
+  if (locals.cfContext?.waitUntil) locals.cfContext.waitUntil(store); else await store.catch(() => {});
   return out;
 });
