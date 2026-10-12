@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
-import type { TierData, TierHistory, ComparisonsData, CookedResult, UserPlan, TierManifest } from '../lib/types';
+import type { NBNPlan, TierData, TierHistory, ComparisonsData, CookedResult, UserPlan, TierManifest } from '../lib/types';
 import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
-import { getUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit, getDefaultHorizon, saveDefaultHorizon, type HorizonPreference } from '../lib/storage';
+import { resolveUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit, getDefaultHorizon, saveDefaultHorizon, type HorizonPreference } from '../lib/storage';
 import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHorizon, HORIZONS, type Horizon } from '../lib/costs';
 import CookedRating from './CookedRating';
 import AlertSignup from './AlertSignup';
@@ -45,8 +45,58 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
     setHorizonPref(getDefaultHorizon());
   }, []);
 
+  // The user's saved plan for this page. On a grouped page (nbn-1000) this also matches a plan
+  // saved against one variant (nbn-1000-50).
+  // Read after mount (localStorage), otherwise the first client render disagrees with the SSR HTML.
+  // Re-read when the rating changes so saving or clearing a plan in CookedRating is picked up.
+  const [userEntry, setUserEntry] = useState<{ key: string; plan: UserPlan } | null>(null);
+  useEffect(() => {
+    setUserEntry(resolveUserPlan(tierKey));
+  }, [tierKey, cookedResult]);
+  const userPlan = userEntry?.plan ?? null;
+  const userVariant = isGrouped && userEntry && userEntry.key !== tierKey ? parseTierKey(userEntry.key) : null;
+
+  // Grouped pages mix upload speeds (e.g. 1000/50 and 1000/400). The selected speed scopes
+  // everything below (stats, commitment cards, rating, table) so the page never disagrees with itself.
+  const [speedFilter, setSpeedFilter] = useState<number | 'all'>('all');
+  const uploadSpeeds = useMemo(
+    () => [...new Set(tierData.plans.map(p => p.uploadSpeed))].sort((a, b) => a - b),
+    [tierData.plans]
+  );
+  const showSpeedFilter = !!isGrouped && uploadSpeeds.length > 1;
+  // After clicking a chip the pointer is still over it; hide its tooltip until the pointer leaves so it doesn't cover the numbers.
+  const [tipHidden, setTipHidden] = useState<number | 'all' | null>(null);
+  // Per-chip summary for the hover tooltip: plan count and cheapest monthly price for each upload speed
+  const speedSummaries = useMemo(() => {
+    const out = new Map<number | 'all', { count: number; cheapest: NBNPlan }>();
+    const add = (key: number | 'all', plans: NBNPlan[]) => {
+      if (plans.length === 0) return;
+      out.set(key, { count: plans.length, cheapest: plans.reduce((b, p) => (p.monthlyPrice < b.monthlyPrice ? p : b)) });
+    };
+    add('all', tierData.plans);
+    for (const u of uploadSpeeds) add(u, tierData.plans.filter(p => p.uploadSpeed === u));
+    return out;
+  }, [tierData.plans, uploadSpeeds]);
+  // Default to the user's own variant once we've read their saved plan (after mount, to match SSR).
+  useEffect(() => {
+    if (userVariant && uploadSpeeds.includes(userVariant.upload)) setSpeedFilter(userVariant.upload);
+  }, [userEntry?.key, uploadSpeeds]);
+
+  const viewPlans = useMemo(
+    () => (speedFilter === 'all' ? tierData.plans : tierData.plans.filter(p => p.uploadSpeed === speedFilter)),
+    [tierData.plans, speedFilter]
+  );
+  const viewCheapest = useMemo(
+    () => viewPlans.reduce((min, p) => Math.min(min, p.monthlyPrice), Infinity),
+    [viewPlans]
+  );
+  const viewAverage = useMemo(
+    () => (speedFilter === 'all' ? tierData.average : viewPlans.reduce((sum, p) => sum + p.monthlyPrice, 0) / viewPlans.length),
+    [viewPlans, speedFilter, tierData.average]
+  );
+
   // Find the best horizon (cheapest effective, tie-break by longest commitment)
-  const best = useMemo(() => bestHorizon(tierData.plans), [tierData.plans]);
+  const best = useMemo(() => bestHorizon(viewPlans), [viewPlans]);
 
   // Resolve preference to an actual horizon
   const horizon: Horizon = horizonPref === 'cheapest' ? best.horizon : horizonPref;
@@ -58,24 +108,23 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
 
   // Compute cheapest effective at the current horizon
   const cheapestEffective = useMemo(
-    () => cheapestEffectiveForHorizon(tierData.plans, horizon),
-    [tierData.plans, horizon]
+    () => cheapestEffectiveForHorizon(viewPlans, horizon),
+    [viewPlans, horizon]
   );
-  const baseline = cheapestEffective < tierData.cheapest ? cheapestEffective : tierData.cheapest;
+  const baseline = cheapestEffective < viewCheapest ? cheapestEffective : viewCheapest;
 
   const showBestHorizonNudge = horizonPref !== 'cheapest' && best.horizon !== horizon && best.effectiveCost < cheapestEffective - 0.5;
 
   // Pre-compute cheapest plan at each horizon for the selector buttons
   const horizonResults = useMemo(
-    () => HORIZONS.map(h => ({ h, result: cheapestPlanForHorizon(tierData.plans, h) })),
-    [tierData.plans]
+    () => HORIZONS.map(h => ({ h, result: cheapestPlanForHorizon(viewPlans, h) })),
+    [viewPlans]
   );
 
   useEffect(() => {
     // Check for existing user plan on this tier
-    const existing = getUserPlan(tierKey);
-    if (existing) {
-      setCookedResult(calculateCooked(existing.price, baseline));
+    if (userPlan) {
+      setCookedResult(calculateCooked(userPlan.price, baseline));
     } else {
       // Check for plans on other tiers (for cross-tier context)
       setOtherTierPlan(findOtherTierPlan(tierKey));
@@ -95,31 +144,90 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
     }
     // Save this visit
     saveTierVisit(tierKey, tierData.cheapest);
-  }, [tierKey, baseline]);
+  }, [tierKey, userEntry?.key, userEntry?.plan.price, baseline]);
 
   function handleCookedChange(result: CookedResult | null) {
     setCookedResult(result);
   }
 
-  const cheapest = tierData.cheapest;
-  const userPlan = getUserPlan(tierKey);
+  const cheapest = viewCheapest;
   const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
 
   // Find the plan with the cheapest monthly price (no promo consideration)
   const cheapestMonthlyPlan = useMemo(() => {
-    if (tierData.plans.length === 0) return null;
-    return tierData.plans.reduce((best, plan) =>
+    if (viewPlans.length === 0) return null;
+    return viewPlans.reduce((best, plan) =>
       plan.monthlyPrice < best.monthlyPrice ? plan : best
     );
-  }, [tierData.plans]);
+  }, [viewPlans]);
 
   const cheapestAtHorizon = useMemo(
-    () => cheapestPlanForHorizon(tierData.plans, horizon),
-    [tierData.plans, horizon]
+    () => cheapestPlanForHorizon(viewPlans, horizon),
+    [viewPlans, horizon]
   );
 
   return (
     <div class="space-y-8">
+      {/* Upload speed scope (grouped pages only) */}
+      {showSpeedFilter && (
+        <div>
+          <div class="relative flex flex-wrap items-center gap-2">
+            <span class="text-sm text-neutral-400 mr-1">Upload speed</span>
+            {(['all', ...uploadSpeeds] as Array<number | 'all'>).map(u => {
+              const summary = speedSummaries.get(u);
+              const diff = summary && userPlan ? summary.cheapest.monthlyPrice - userPlan.price : null;
+              return (
+                <div key={u} class="group" onMouseLeave={() => setTipHidden(null)}>
+                  <button
+                    onClick={() => { setSpeedFilter(u); setTipHidden(u); }}
+                    class={`peer text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                      speedFilter === u
+                        ? 'bg-accent/10 border-accent text-accent'
+                        : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600 hover:text-neutral-300'
+                    }`}
+                  >
+                    {u === 'all' ? 'All' : `${tierData.downloadSpeed}/${u}`}
+                  </button>
+                  {summary && (
+                    <div class={`absolute top-full left-0 pt-2 max-w-full opacity-0 transition-opacity pointer-events-none z-20 ${tipHidden === u ? '' : 'group-hover:opacity-100 peer-focus-visible:opacity-100'}`}>
+                      <div class="px-3 py-2 bg-surface border border-surface-border rounded-lg text-xs text-neutral-400 w-max max-w-full shadow-lg">
+                        <div class="text-white font-medium">
+                          {u === 'all' ? `Every ${tierData.downloadSpeed} Mbps plan` : `${tierData.downloadSpeed} Mbps down / ${u} Mbps up`}
+                        </div>
+                        <div class="mt-0.5">
+                          {summary.count} plan{summary.count !== 1 ? 's' : ''}, from{' '}
+                          <span class="text-white">${summary.cheapest.monthlyPrice.toFixed(2)}/mo</span> ({summary.cheapest.providerName}
+                          {u === 'all' ? `, ${summary.cheapest.downloadSpeed}/${summary.cheapest.uploadSpeed}` : ''})
+                        </div>
+                        {diff !== null && userPlan && (
+                          <div class="mt-0.5">
+                            {Math.abs(diff) < 0.005
+                              ? `Same as your $${userPlan.price.toFixed(2)}/mo`
+                              : diff < 0
+                                ? <>That's <span class="text-accent">${Math.abs(diff).toFixed(2)}/mo</span> less than your ${userPlan.price.toFixed(2)}/mo</>
+                                : <>That's ${diff.toFixed(2)}/mo more than your ${userPlan.price.toFixed(2)}/mo</>}
+                          </div>
+                        )}
+                        {u !== 'all' && userVariant && u !== userVariant.upload && (
+                          <div class="mt-0.5 text-neutral-500">Different upload speed to your plan</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {userVariant && (
+            <div class="text-xs text-neutral-500 mt-2">
+              {speedFilter === userVariant.upload
+                ? `Showing ${tierData.downloadSpeed}/${speedFilter} plans only, the speed of your saved ${buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan.`
+                : `Your ${buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan is being compared with ${speedFilter === 'all' ? 'every upload speed' : `${tierData.downloadSpeed}/${speedFilter} plans`}.`}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats */}
       <div class="flex gap-6 flex-wrap">
         <div>
@@ -130,7 +238,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           )}
         </div>
         <div>
-          <div class="text-3xl font-display font-bold tabular-nums text-neutral-300">${tierData.average.toFixed(0)}</div>
+          <div class="text-3xl font-display font-bold tabular-nums text-neutral-300">${viewAverage.toFixed(0)}</div>
           <div class="text-sm text-neutral-500">average/mo</div>
         </div>
       </div>
@@ -257,6 +365,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
       {/* Cooked Rating */}
       <CookedRating
         tierKey={tierKey}
+        planKey={userVariant ? userEntry!.key : undefined}
         cheapestPrice={cheapest}
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
         cheapestProviderName={cheapestAtHorizon?.plan.providerName}
@@ -315,7 +424,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           </div>
         </div>
         <PlanTable
-          plans={tierData.plans}
+          plans={viewPlans}
           highlightProvider={userPlan?.provider}
           userPrice={userPlan?.price}
           userFullPrice={userPlan?.fullPrice}
