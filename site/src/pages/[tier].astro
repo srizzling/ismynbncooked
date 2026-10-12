@@ -6,6 +6,8 @@ import AdSlot from '../components/AdSlot.astro';
 import { parseTierKey, parseGroupedTierKey, DEFAULT_UPLOAD_MAP, type TierData, type TierHistory, type ComparisonsData, type TierManifest, type NBNPlan } from '../lib/types';
 import { getFixtureManifest, getTierKeysForGroup } from '../lib/data';
 import { readLocalJson } from '../lib/local-data';
+import { HORIZONS, cheapestPlanForHorizon } from '../lib/costs';
+import type { SpeedOption } from '../lib/types';
 
 const { tier } = Astro.params;
 
@@ -68,6 +70,30 @@ try {
 } catch {}
 if (!comparisons) comparisons = await readLocalJson<ComparisonsData>('data/comparisons.json');
 if (!manifest) manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();
+
+// Cheapest plan at every speed on this network, so the dashboard can compare a saved plan with other speeds
+const speedOptions: SpeedOption[] = [];
+try {
+  const networkTiers = manifest.tiers.filter(t => t.network === network);
+  const loaded = await Promise.all(networkTiers.map(t => loadTierData(t.key, bucket)));
+  loaded.forEach((td, i) => {
+    if (!td || td.plans.length === 0) return;
+    const t = networkTiers[i];
+    const effective: SpeedOption['effective'] = {};
+    for (const h of HORIZONS) {
+      const best = cheapestPlanForHorizon(td.plans, h);
+      if (best) effective[h] = { cost: best.effectiveCost, provider: best.plan.providerName, plan: best.plan.planName };
+    }
+    const cheapestMonthly = td.plans.reduce((b, p) => (p.monthlyPrice < b.monthlyPrice ? p : b));
+    speedOptions.push({
+      key: t.key,
+      download: t.downloadSpeed,
+      upload: t.uploadSpeed,
+      effective,
+      monthly: { cost: cheapestMonthly.monthlyPrice, provider: cheapestMonthly.providerName, plan: cheapestMonthly.planName },
+    });
+  });
+} catch {}
 
 if (isGrouped) {
   // Grouped tier page: load and merge plans from all upload variants
@@ -256,6 +282,7 @@ const jsonLd = [
     comparisons={comparisons}
     manifest={manifest}
     isGrouped={isGrouped}
+    speedOptions={speedOptions}
   />
 
   <AdSlot placement="tier" />

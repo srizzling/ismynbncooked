@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
-import type { NBNPlan, TierData, TierHistory, ComparisonsData, CookedResult, UserPlan, TierManifest } from '../lib/types';
+import type { NBNPlan, SpeedOption, TierData, TierHistory, ComparisonsData, CookedResult, UserPlan, TierManifest } from '../lib/types';
 import { parseTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { resolveUserPlan, getUserPlans, getUserState, getTierVisit, saveTierVisit, getDefaultHorizon, saveDefaultHorizon, type HorizonPreference } from '../lib/storage';
@@ -7,6 +7,7 @@ import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHor
 import CookedRating from './CookedRating';
 import AlertSignup from './AlertSignup';
 import SavingsComparison from './SavingsComparison';
+import SpeedComparisons from './SpeedComparisons';
 import PlanTable from './PlanTable';
 import PriceChart from './PriceChart';
 
@@ -18,6 +19,7 @@ interface Props {
   comparisons: ComparisonsData | null;
   manifest?: TierManifest;
   isGrouped?: boolean;
+  speedOptions?: SpeedOption[];
 }
 
 // Find the user's most recently saved plan from another tier
@@ -34,7 +36,7 @@ function findOtherTierPlan(currentTierKey: string): { tierKey: string; label: st
   return best;
 }
 
-export default function TierDashboard({ tierKey, label, tierData, history, comparisons, manifest, isGrouped }: Props) {
+export default function TierDashboard({ tierKey, label, tierData, history, comparisons, manifest, isGrouped, speedOptions }: Props) {
   const [cookedResult, setCookedResult] = useState<CookedResult | null>(null);
   const [otherTierPlan, setOtherTierPlan] = useState<{ tierKey: string; label: string; plan: UserPlan } | null>(null);
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
@@ -380,6 +382,19 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         manifest={manifest}
         onCookedChange={handleCookedChange}
       />
+
+      {/* How the saved plan compares with other speeds (same or better only counts against it) */}
+      {userEntry && cookedResult && speedOptions && speedOptions.length > 0 && (
+        <SpeedComparisons
+          options={speedOptions}
+          yours={userVariant ? { download: userVariant.download, upload: userVariant.upload } : (() => {
+            const exact = parseTierKey(userEntry.key);
+            return exact ? { download: exact.download, upload: exact.upload } : { download: tierData.downloadSpeed };
+          })()}
+          userPrice={userEntry.plan.price}
+          horizon={horizon}
+        />
+      )}
 
       {/* Email alerts for this tier (exact tiers only; grouped pages cover several) */}
       {!isGrouped && (
