@@ -232,7 +232,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
       <div class="flex gap-6 flex-wrap">
         <div>
           <div class="text-3xl font-display font-bold tabular-nums">${cheapest.toFixed(0)}</div>
-          <div class="text-sm text-neutral-500">cheapest/mo</div>
+          <div class="text-sm text-neutral-500">cheapest/mo (list price)</div>
           {cheapestMonthlyPlan && (
             <div class="text-xs text-neutral-500 mt-0.5">{cheapestMonthlyPlan.providerName}</div>
           )}
@@ -249,7 +249,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           <div>
             <div class="text-sm text-neutral-400">Cheapest effective monthly by commitment period</div>
             <div class="text-xs text-neutral-600 mt-0.5">
-              Effective price = total cost (promos + full price + fees) ÷ months
+              Average monthly cost over that period, including intro discounts, full price after them, and fees. Pick how long you plan to stay: your rating below uses this.
             </div>
           </div>
           <button
@@ -260,10 +260,10 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
                 : 'bg-surface border-surface-border text-neutral-500 hover:border-neutral-600'
             }`}
             title={horizonPref === 'cheapest'
-              ? 'Auto-selecting cheapest period. Click to pin current period.'
-              : 'Click to auto-select the cheapest commitment period'}
+              ? 'Currently picking the cheapest period for you. Click to stay on the period you have selected.'
+              : 'Click to have us pick the period with the lowest monthly cost'}
           >
-            {horizonPref === 'cheapest' ? '✓ Auto: cheapest' : 'Auto: cheapest'}
+            {horizonPref === 'cheapest' ? '✓ Auto-picking the cheapest period' : 'Pick the cheapest period for me'}
           </button>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -317,7 +317,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         </div>
         {horizonPref === 'cheapest' && (
           <div class="text-xs text-neutral-600 mt-2">
-            Auto-selecting the cheapest commitment period. Your preference is saved for next time.
+            Showing the period with the lowest monthly cost. Tap a period to choose your own. We'll remember it.
           </div>
         )}
       </div>

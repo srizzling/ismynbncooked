@@ -25,7 +25,7 @@ const BASE_COLUMNS: ColumnDef[] = [
   { key: 'eff6mo', label: '6mo $/mo', sortKey: 'eff6mo' },
   { key: 'eff12mo', label: '1yr $/mo', sortKey: 'eff12mo' },
   { key: 'totalCost', label: (h) => `${h} Total`, sortKey: 'totalCost' },
-  { key: 'typicalEveningSpeed', label: 'Eve Speed', sortKey: 'typicalEveningSpeed' },
+  { key: 'typicalEveningSpeed', label: 'Evening speed', sortKey: 'typicalEveningSpeed' },
   { key: 'contract', label: 'Contract' },
   { key: 'noticePeriod', label: 'Notice' },
 ];
