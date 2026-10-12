@@ -119,27 +119,27 @@ const mTotal = katex.renderToString('M', { throwOnError: false });
           <div class="w-3 h-3 rounded-full mt-1 shrink-0" style="background-color: #4ade80;"></div>
           <div>
             <div class="font-bold" style="color: #4ade80;">Sweet As</div>
-            <div class="text-sm text-neutral-400 mt-0.5">0–4% above the cheapest available plan. You're on a fair deal — no need to churn.</div>
+            <div class="text-sm text-neutral-400 mt-0.5">Up to 5% above the cheapest available plan. You're on a fair deal — no need to churn.</div>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
           <div class="w-3 h-3 rounded-full mt-1 shrink-0" style="background-color: #facc15;"></div>
           <div>
             <div class="font-bold" style="color: #facc15;">Bit Shit</div>
-            <div class="text-sm text-neutral-400 mt-0.5">5–14% above the cheapest available plan. Not the end of the world, but money's money — worth having a look around.</div>
+            <div class="text-sm text-neutral-400 mt-0.5">5% to 15% above the cheapest available plan. Not the end of the world, but money's money — worth having a look around.</div>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
           <div class="w-3 h-3 rounded-full mt-1 shrink-0" style="background-color: #fb923c;"></div>
           <div>
             <div class="font-bold" style="color: #fb923c;">Taking the Piss</div>
-            <div class="text-sm text-neutral-400 mt-0.5">15–29% above the cheapest available plan. Your provider is having a laugh. Seriously consider churning.</div>
+            <div class="text-sm text-neutral-400 mt-0.5">15% to 30% above the cheapest available plan. Your provider is having a laugh. Seriously consider churning.</div>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-surface-raised border border-surface-border rounded-xl px-5 py-4">
           <div class="w-3 h-3 rounded-full mt-1 shrink-0" style="background-color: #ef4444;"></div>
           <div>
-            <div class="font-bold" style="color: #ef4444;">Absolute Rort</div>
+            <div class="font-bold" style="color: #ef4444;">Absolute F***ing Rort</div>
             <div class="text-sm text-neutral-400 mt-0.5">30%+ above the cheapest available plan. Mate. You're getting absolutely done. Switch immediately.</div>
           </div>
         </div>
@@ -188,9 +188,10 @@ const mTotal = katex.renderToString('M', { throwOnError: false });
         plan's effective cost and re-ranks the table accordingly.
       </p>
       <p class="text-neutral-400 text-sm mb-4">
-        The <span class="text-neutral-300 font-medium">Auto: cheapest</span> default picks the horizon
-        that produces the single lowest effective monthly cost across all plans. When two horizons tie, it
-        picks the longer commitment period — on the assumption that a longer cheap streak is better.
+        By default the page is <span class="text-neutral-300 font-medium">auto-picking the cheapest period</span>:
+        it chooses the horizon that produces the single lowest effective monthly cost across all plans. When two
+        horizons tie, it picks the longer commitment period, on the assumption that a longer cheap streak is better.
+        Tap a period yourself and it stops auto-picking. Tap <span class="text-neutral-300 font-medium">Pick the cheapest period for me</span> to turn it back on.
       </p>
 
       <!-- Churn tip callout -->
@@ -201,8 +202,8 @@ const mTotal = katex.renderToString('M', { throwOnError: false });
           leave whenever you like. That means a 12-month horizon only makes sense if you're actually
           planning to sit still for a year. If you're willing to churn every 6 months, set the selector
           to <span class="text-neutral-300">6 months</span> and pick the cheapest plan at that horizon.
-          Ride out the promo, then switch again. Repeat. You'll consistently beat the plan that "Auto:
-          cheapest" picks over 12 months.
+          Ride out the promo, then switch again. Repeat. You'll consistently beat the plan that auto-picking
+          the cheapest period would show you over 12 months.
         </p>
         <p class="text-neutral-400 text-sm mt-2">
           <span class="text-amber-400 font-medium">Catch:</span> always check the notice period before

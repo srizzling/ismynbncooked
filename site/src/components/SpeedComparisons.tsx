@@ -102,9 +102,23 @@ export default function SpeedComparisons({ options, yours, userPrice, horizon }:
 
   const slowerSave = slower ? userPrice - slower.cost : 0;
 
+  // One line that ties the faster rows together, since they can disagree with the main verdict
+  // (you can be cheapest at your own speed and still be beaten by a faster plan).
+  const cheaperFaster = [fasterUpload, fasterDownload].filter((b): b is Best => !!b && b.cost < userPrice - 0.005);
+  const summary = cheaperFaster.length > 0
+    ? `Faster plans can cost less than yours: ${cheaperFaster
+        .map(b => `${b.option.download}/${b.option.upload} from ${money(b.cost)}/mo${b.cost < b.option.monthly.cost - 0.005 ? ' including intro discounts' : ''} (save ${money(userPrice - b.cost)})`)
+        .join(' and ')}.`
+    : fasterUpload || fasterDownload
+      ? 'No faster plan costs less than yours.'
+      : null;
+
   return (
     <div class="space-y-2">
-      <div class="text-sm text-neutral-400 px-1">More ways to compare your {yourSpeed} plan</div>
+      <div class="px-1">
+        <div class="text-sm text-neutral-400">More ways to compare your {yourSpeed} plan</div>
+        {summary && <div class="text-sm text-white mt-0.5">{summary}</div>}
+      </div>
       {rated(
         fasterUpload,
         `How does your plan compare to faster upload speeds in the ${yours.download} Mbps tier?`,
