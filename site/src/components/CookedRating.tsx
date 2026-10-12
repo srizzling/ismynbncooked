@@ -109,9 +109,13 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
                       <div class="text-xs text-neutral-400 mt-0.5">
                         {level.level === 'winning'
                           ? 'Cheaper than the cheapest'
-                          : level.threshold > 0
-                            ? `${(level.threshold * 100).toFixed(0)}%+ overpaying`
-                            : '0–5% overpaying'}
+                          : (() => {
+                              // LEVELS runs worst to best, so the level before this one marks where this range ends
+                              const i = LEVELS.findIndex((l) => l.level === level.level);
+                              const from = (level.threshold * 100).toFixed(0);
+                              if (i <= 0) return `${from}%+ overpaying`;
+                              return `${from}–${(LEVELS[i - 1].threshold * 100).toFixed(0)}% overpaying`;
+                            })()}
                       </div>
                       {isCurrent && (
                         <div class="text-xs text-neutral-300 mt-1">{level.description}</div>
