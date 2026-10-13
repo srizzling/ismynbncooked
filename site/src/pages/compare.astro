@@ -172,13 +172,13 @@ const title = `Compare ${baseLabel} across ${rows.length} tiers`;
                   {row.label}
                 </a>
                 {row.isBase && (
-                  <span class="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent/20 text-accent">
+                  <span class="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-accent/20 text-accent">
                     YOUR TIER
                   </span>
                 )}
               </td>
               <td class="px-4 py-3 text-neutral-400">
-                <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+                <span class={`text-xs font-bold px-2 py-0.5 rounded-sm ${
                   row.network === 'nbn' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
                 }`}>
                   {row.network === 'nbn' ? 'NBN' : 'Opticomm'}

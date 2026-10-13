@@ -150,7 +150,7 @@ const sourceLabels = { r2: 'R2 Bucket', static: 'Static Files (public/data/)', f
               <td class="px-4 py-3 tabular-nums text-white">${t.cheapest.toFixed(2)}</td>
               <td class="px-4 py-3 text-neutral-400 text-xs">{new Date(t.updatedAt).toLocaleString()}</td>
               <td class="px-4 py-3">
-                <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+                <span class={`text-xs font-bold px-2 py-0.5 rounded-sm ${
                   t.source === 'r2' ? 'bg-cooked-green/20 text-cooked-green' : 'bg-accent/20 text-accent'
                 }`}>
                   {t.source.toUpperCase()}

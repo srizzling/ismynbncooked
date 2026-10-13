@@ -159,7 +159,7 @@ const brokenCount = brokenUrls.reduce((sum, b) => sum + b.plans.length, 0);
         {brokenUrls.map(({ url, statusCode, plans }) => (
           <div class="bg-surface-raised border border-surface-border rounded-xl p-4">
             <div class="flex items-start gap-3 mb-2">
-              <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+              <span class={`text-xs font-bold px-2 py-0.5 rounded-sm ${
                 statusCode === 0
                   ? 'bg-cooked-red/20 text-cooked-red'
                   : statusCode >= 500

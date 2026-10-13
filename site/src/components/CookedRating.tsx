@@ -62,7 +62,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
                     }`}
                   >
                     <div
-                      class="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0"
+                      class="w-2.5 h-2.5 rounded-full mt-1 shrink-0"
                       style={{ backgroundColor: level.color }}
                     />
                     <div class="min-w-0">
@@ -74,7 +74,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
                           {level.label}
                         </span>
                         {isCurrent && (
-                          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-neutral-300">
+                          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-white/10 text-neutral-300">
                             YOU
                           </span>
                         )}
@@ -340,14 +340,14 @@ export default function CookedRating({ tierKey, cheapestPrice, cheapestEffective
           value={price}
           onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
           required
-          class="bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-accent w-40"
+          class="bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent w-40"
         />
         <input
           type="text"
           placeholder="Provider (optional)"
           value={provider}
           onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
-          class="bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-accent w-48"
+          class="bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent w-48"
         />
         <button
           type="submit"
