@@ -3,6 +3,11 @@
   "compatibility_date": "2026-03-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // The adapter adds this binding for Astro sessions. Pinning the id stops CI
+  // trying to create the namespace again on every deploy.
+  "kv_namespaces": [
+    { "binding": "SESSION", "id": "420239ebaa46439ba4dfbbd552e3c485" }
+  ],
   "r2_buckets": [
     {
       "binding": "DATA_BUCKET",
