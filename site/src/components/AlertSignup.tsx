@@ -83,7 +83,7 @@ export default function AlertSignup({ tierKey, label, defaultPrice, defaultProvi
             value={email}
             onInput={(e) => setEmail((e.currentTarget as HTMLInputElement).value)}
             placeholder="you@example.com"
-            class="mt-1 w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder:text-neutral-600 focus:border-accent focus:outline-none"
+            class="mt-1 w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder:text-neutral-600 focus:border-accent focus:outline-hidden"
           />
         </label>
         <label class="block">
@@ -96,7 +96,7 @@ export default function AlertSignup({ tierKey, label, defaultPrice, defaultProvi
             value={price}
             onInput={(e) => setPrice((e.currentTarget as HTMLInputElement).value)}
             placeholder="e.g. 89"
-            class="mt-1 w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder:text-neutral-600 focus:border-accent focus:outline-none"
+            class="mt-1 w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-white placeholder:text-neutral-600 focus:border-accent focus:outline-hidden"
           />
         </label>
         <label class="block">
@@ -105,7 +105,7 @@ export default function AlertSignup({ tierKey, label, defaultPrice, defaultProvi
             type="date"
             value={promoEndsAt}
             onInput={(e) => setPromoEndsAt((e.currentTarget as HTMLInputElement).value)}
-            class="mt-1 w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-white focus:border-accent focus:outline-none"
+            class="mt-1 w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-white focus:border-accent focus:outline-hidden"
           />
         </label>
       </div>
