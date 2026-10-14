@@ -1,0 +1,134 @@
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Plan submission PRs only add community source files. They wait for a
+    # manual run (see workflow_dispatch) after verify-submission has passed.
+    # The path filter covers the window before the plan-submission label lands.
+    paths-ignore:
+      - 'workers/price-sync/community-sources/*.json'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to preview'
+        required: true
+        type: number
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview-site:
+    name: Preview Site
+    # Fork and Dependabot PRs do not get repository secrets, so the upload would
+    # fail. Labelled plan submissions are skipped here and run by hand instead.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'plan-submission'))
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Resolve PR info
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            number="$INPUT_PR_NUMBER"
+            read -r sha cross_repo < <(gh pr view "$number" --repo "$GITHUB_REPOSITORY" \
+              --json headRefOid,isCrossRepository --jq '"\(.headRefOid) \(.isCrossRepository)"')
+            if [ "$cross_repo" = "true" ]; then
+              echo "::error::PR #$number comes from a fork, which has no access to the Cloudflare secrets."
+              exit 1
+            fi
+          else
+            number="$EVENT_PR_NUMBER"
+            sha="$EVENT_PR_SHA"
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The AdSense variables are left out on purpose, so previews never serve ads.
+      - name: Build Astro site
+        working-directory: site
+        run: pnpm build
+
+      # Uploads a version without promoting it, so production keeps serving the
+      # current deploy. The preview shares the production bindings (R2, KV and
+      # secrets), so submissions are switched off to keep it read-only.
+      - name: Upload preview version
+        working-directory: site
+        env:
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          COMMIT_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          pnpm exec wrangler versions upload -c dist/server/wrangler.json \
+            --preview-alias "pr-${PR_NUMBER}" \
+            --tag "pr-${PR_NUMBER}" \
+            --message "PR #${PR_NUMBER} (${COMMIT_SHA::7})" \
+            --var SUBMISSIONS_ENABLED:false
+
+      - name: Read preview URL
+        id: preview
+        env:
+          OUTPUT_FILE: ${{ runner.temp }}/wrangler-output.ndjson
+        run: |
+          url=$(jq -rs 'map(select(.type == "version-upload")) | last | .preview_alias_url // .preview_url // empty' "$OUTPUT_FILE")
+          if [ -z "$url" ]; then
+            echo "::error::No preview URL in wrangler output. Is the workers.dev subdomain enabled?"
+            cat "$OUTPUT_FILE"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # One comment per PR, found by its hidden marker and edited in place on
+      # every push. Other workflows comment as the same bot, so --edit-last is unsafe.
+      - name: Comment preview URL on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          COMMIT_SHA: ${{ steps.pr.outputs.sha }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        run: |
+          marker='<!-- preview-deployment -->'
+          body=$(printf '%s\n### Preview deployed\n\n%s\n\nCommit: %s\n\nRead-only: plan submissions are disabled. It reads the production data bucket.\n' \
+            "$marker" "$PREVIEW_URL" "${COMMIT_SHA::7}")
+
+          comment_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" | head -n 1)
+
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" -f body="$body" > /dev/null
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body" > /dev/null
+          fi
