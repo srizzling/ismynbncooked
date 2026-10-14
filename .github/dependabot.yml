@@ -1,11 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directories:
-      - "/"
-      - "/site"
-      - "/scripts"
-      - "/workers/*"
+    directory: "/"
     schedule:
       interval: weekly
       day: monday
