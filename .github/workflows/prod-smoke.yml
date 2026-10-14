@@ -1,0 +1,64 @@
+name: Production smoke
+
+# Runs the live smoke tests (site/tests/live) against production: after every deploy from main, every
+# six hours so a bad data sync or a broken page is noticed even when nobody is deploying, and on demand.
+# A failing run is the alert. It only reads pages, so it is safe to run at any time.
+on:
+  workflow_run:
+    workflows: [Deploy]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke test production
+    # A failed deploy has nothing new to check, and the deploy run already shows the failure
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      PRODUCTION_URL: https://amigettingrorted.au
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        working-directory: site
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Pages are picked from the live sitemap. The edge cache can serve the previous version for up to
+      # ten minutes after a deploy, so a rerun is the first thing to try if this fails right after one.
+      - name: Run smoke tests
+        working-directory: site
+        env:
+          BASE_URL: ${{ env.PRODUCTION_URL }}
+        run: pnpm exec playwright test --project=live
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-smoke-report
+          path: |
+            site/playwright-report
+            site/test-results
+          retention-days: 7
