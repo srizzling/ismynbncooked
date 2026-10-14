@@ -1,0 +1,253 @@
+{
+  "slug": "telstra",
+  "name": "Telstra",
+  "website": "https://www.telstra.com.au",
+  "updatedAt": "2026-10-01T02:00:00Z",
+  "planCount": 5,
+  "tiers": [
+    {
+      "tierKey": "nbn-25-5",
+      "label": "NBN 25/5",
+      "network": "nbn",
+      "downloadSpeed": 25,
+      "uploadSpeed": 5,
+      "plan": {
+        "id": "nbn-25-5-telstra",
+        "providerName": "Telstra",
+        "planName": "Telstra NBN 25",
+        "monthlyPrice": 87.9,
+        "yearlyCost": 1054.8,
+        "effectiveMonthly": 87.9,
+        "setupFee": 0,
+        "promoValue": null,
+        "promoDuration": null,
+        "typicalEveningSpeed": 23,
+        "contractLength": 0,
+        "cisUrl": "https://www.telstra.com.au/cis/nbn-25-5.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 25,
+        "uploadSpeed": 5,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.telstra.com.au",
+        "promoEndDate": null
+      },
+      "rank": 6,
+      "planCount": 6,
+      "tierCheapest": 48.9,
+      "tierAverage": 61.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 85.9,
+          "yearlyCost": 1030.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 87.9,
+          "yearlyCost": 1054.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-50-20",
+      "label": "NBN 50/20",
+      "network": "nbn",
+      "downloadSpeed": 50,
+      "uploadSpeed": 20,
+      "plan": {
+        "id": "nbn-50-20-telstra",
+        "providerName": "Telstra",
+        "planName": "Telstra NBN 50",
+        "monthlyPrice": 105.9,
+        "yearlyCost": 1270.8,
+        "effectiveMonthly": 105.9,
+        "setupFee": 0,
+        "promoValue": null,
+        "promoDuration": null,
+        "typicalEveningSpeed": 45,
+        "contractLength": 0,
+        "cisUrl": "https://www.telstra.com.au/cis/nbn-50-20.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 50,
+        "uploadSpeed": 20,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.telstra.com.au",
+        "promoEndDate": null
+      },
+      "rank": 6,
+      "planCount": 6,
+      "tierCheapest": 58.9,
+      "tierAverage": 73.73,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 103.9,
+          "yearlyCost": 1246.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 105.9,
+          "yearlyCost": 1270.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-100-20",
+      "label": "NBN 100/20",
+      "network": "nbn",
+      "downloadSpeed": 100,
+      "uploadSpeed": 20,
+      "plan": {
+        "id": "nbn-100-20-telstra",
+        "providerName": "Telstra",
+        "planName": "Telstra NBN 100",
+        "monthlyPrice": 123.9,
+        "yearlyCost": 1486.8,
+        "effectiveMonthly": 123.9,
+        "setupFee": 0,
+        "promoValue": null,
+        "promoDuration": null,
+        "typicalEveningSpeed": 90,
+        "contractLength": 0,
+        "cisUrl": "https://www.telstra.com.au/cis/nbn-100-20.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 100,
+        "uploadSpeed": 20,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.telstra.com.au",
+        "promoEndDate": null
+      },
+      "rank": 6,
+      "planCount": 6,
+      "tierCheapest": 68.9,
+      "tierAverage": 86.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 121.9,
+          "yearlyCost": 1462.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 123.9,
+          "yearlyCost": 1486.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-250-25",
+      "label": "NBN 250/25",
+      "network": "nbn",
+      "downloadSpeed": 250,
+      "uploadSpeed": 25,
+      "plan": {
+        "id": "nbn-250-25-telstra",
+        "providerName": "Telstra",
+        "planName": "Telstra NBN 250",
+        "monthlyPrice": 159.9,
+        "yearlyCost": 1918.8,
+        "effectiveMonthly": 159.9,
+        "setupFee": 0,
+        "promoValue": null,
+        "promoDuration": null,
+        "typicalEveningSpeed": 225,
+        "contractLength": 0,
+        "cisUrl": "https://www.telstra.com.au/cis/nbn-250-25.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 250,
+        "uploadSpeed": 25,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.telstra.com.au",
+        "promoEndDate": null
+      },
+      "rank": 6,
+      "planCount": 6,
+      "tierCheapest": 88.9,
+      "tierAverage": 111.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 157.9,
+          "yearlyCost": 1894.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 159.9,
+          "yearlyCost": 1918.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-1000-50",
+      "label": "NBN 1000/50",
+      "network": "nbn",
+      "downloadSpeed": 1000,
+      "uploadSpeed": 50,
+      "plan": {
+        "id": "nbn-1000-50-telstra",
+        "providerName": "Telstra",
+        "planName": "Telstra NBN 1000",
+        "monthlyPrice": 195.9,
+        "yearlyCost": 2350.8,
+        "effectiveMonthly": 195.9,
+        "setupFee": 0,
+        "promoValue": null,
+        "promoDuration": null,
+        "typicalEveningSpeed": 900,
+        "contractLength": 0,
+        "cisUrl": "https://www.telstra.com.au/cis/nbn-1000-50.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 1000,
+        "uploadSpeed": 50,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.telstra.com.au",
+        "promoEndDate": null
+      },
+      "rank": 6,
+      "planCount": 6,
+      "tierCheapest": 108.9,
+      "tierAverage": 136.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 193.9,
+          "yearlyCost": 2326.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 195.9,
+          "yearlyCost": 2350.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    }
+  ],
+  "rort": {
+    "medianOverpay": 0.7982583454281567,
+    "meanOverpay": 0.798263049321845,
+    "level": "absolute-rort",
+    "label": "Absolute F***ing Rort",
+    "counts": {
+      "winning": 0,
+      "sweet-as": 0,
+      "bit-shit": 0,
+      "taking-the-piss": 0,
+      "absolute-rort": 5
+    },
+    "tierCount": 5
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "updatedAt": "2026-10-01T02:00:00Z",
+  "providers": [
+    {
+      "slug": "tangerine",
+      "name": "Tangerine",
+      "website": "https://www.tangerinetelecom.com.au",
+      "planCount": 5,
+      "tierCount": 5,
+      "cheapest": 48.9,
+      "networks": [
+        "nbn"
+      ],
+      "rortLevel": "sweet-as",
+      "rortLabel": "Sweet As",
+      "medianOverpay": 0
+    },
+    {
+      "slug": "superloop",
+      "name": "Superloop",
+      "website": "https://www.superloop.com",
+      "planCount": 5,
+      "tierCount": 5,
+      "cheapest": 50.9,
+      "networks": [
+        "nbn"
+      ],
+      "rortLevel": "sweet-as",
+      "rortLabel": "Sweet As",
+      "medianOverpay": 0.04499437570303712
+    },
+    {
+      "slug": "aussie-broadband",
+      "name": "Aussie Broadband",
+      "website": "https://www.aussiebroadband.com.au",
+      "planCount": 5,
+      "tierCount": 5,
+      "cheapest": 58.9,
+      "networks": [
+        "nbn"
+      ],
+      "rortLevel": "taking-the-piss",
+      "rortLabel": "Taking the Piss",
+      "medianOverpay": 0.2031930333817126
+    },
+    {
+      "slug": "exetel",
+      "name": "Exetel",
+      "website": "https://www.exetel.com.au",
+      "planCount": 5,
+      "tierCount": 5,
+      "cheapest": 53.9,
+      "networks": [
+        "nbn"
+      ],
+      "rortLevel": "bit-shit",
+      "rortLabel": "Bit Shit",
+      "medianOverpay": 0.1015965166908563
+    },
+    {
+      "slug": "tpg",
+      "name": "TPG",
+      "website": "https://www.tpg.com.au",
+      "planCount": 5,
+      "tierCount": 5,
+      "cheapest": 65.9,
+      "networks": [
+        "nbn"
+      ],
+      "rortLevel": "absolute-rort",
+      "rortLabel": "Absolute F***ing Rort",
+      "medianOverpay": 0.34870641169853767
+    },
+    {
+      "slug": "telstra",
+      "name": "Telstra",
+      "website": "https://www.telstra.com.au",
+      "planCount": 5,
+      "tierCount": 5,
+      "cheapest": 87.9,
+      "networks": [
+        "nbn"
+      ],
+      "rortLevel": "absolute-rort",
+      "rortLabel": "Absolute F***ing Rort",
+      "medianOverpay": 0.7982583454281567
+    }
+  ]
+}
