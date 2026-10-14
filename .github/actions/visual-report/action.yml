@@ -1,0 +1,136 @@
+name: Visual report comment
+description: >
+  Publishes the screenshots from tests/visual/compare.mjs to the visual-diffs branch and posts or updates
+  one comment on the PR. Does nothing when there are no diffs and no earlier comment. Both steps tolerate
+  failure, because PRs from forks and from Dependabot get a read-only token. The comment then has a table
+  and a link to the report instead of images.
+
+inputs:
+  report-dir:
+    description: Folder written by compare.mjs
+    required: true
+  pr:
+    description: Pull request number
+    required: true
+  sha:
+    description: Commit the report was made for
+    required: true
+  marker:
+    description: Hidden marker that identifies this comment, so it is edited in place on every push
+    required: true
+  artifact-url:
+    description: URL of the uploaded HTML report
+    default: ''
+  github-token:
+    description: Token that can push to the visual-diffs branch and comment
+    required: true
+  branch:
+    description: Branch that holds the published screenshots
+    default: visual-diffs
+
+runs:
+  using: composite
+  steps:
+    - name: Check for changes
+      id: result
+      shell: bash
+      env:
+        REPORT: ${{ inputs.report-dir }}
+      run: |
+        if [ -f "$REPORT/comment.md" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+
+    # The branch holds a single commit that is amended on every run, so the repository does not accumulate
+    # screenshot history. Each PR keeps only its latest run, and the folder is removed when the PR closes.
+    - name: Publish screenshots
+      id: publish
+      if: steps.result.outputs.changed == 'true'
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPORT: ${{ inputs.report-dir }}
+        PR: ${{ inputs.pr }}
+        SHA: ${{ inputs.sha }}
+        BRANCH: ${{ inputs.branch }}
+        MARKER: ${{ inputs.marker }}
+      run: |
+        set -euo pipefail
+        remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        # One folder per PR and per kind of report, so two reports on the same PR do not delete each other
+        kind=$(printf '%s' "$MARKER" | tr -c 'a-z0-9' '-' | sed 's/--*/-/g; s/^-//; s/-$//')
+        dest="pr-${PR}/${kind}/${SHA::12}"
+        report="$(cd "$REPORT" && pwd)"
+
+        for attempt in 1 2 3; do
+          rm -rf /tmp/visual-branch
+          if git ls-remote --exit-code --heads "$remote" "$BRANCH" >/dev/null 2>&1; then
+            git clone --quiet --depth 1 --branch "$BRANCH" "$remote" /tmp/visual-branch
+            amend=true
+          else
+            git init --quiet -b "$BRANCH" /tmp/visual-branch
+            git -C /tmp/visual-branch remote add origin "$remote"
+            amend=false
+          fi
+          cd /tmp/visual-branch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          rm -rf "pr-${PR}/${kind}"
+          mkdir -p "$dest"
+          cp "$report"/images/*.png "$dest/"
+          git add -A
+          if [ "$amend" = true ]; then
+            git commit --quiet --amend -m "Visual diff screenshots"
+            git push --quiet --force-with-lease origin "$BRANCH" && break
+          else
+            git commit --quiet -m "Visual diff screenshots"
+            git push --quiet origin "$BRANCH" && break
+          fi
+          echo "Push raced with another run, retrying ($attempt)"
+        done
+
+        echo "image_base=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${BRANCH}/${dest}" >> "$GITHUB_OUTPUT"
+
+    - name: Comment on the PR
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPORT: ${{ inputs.report-dir }}
+        PR: ${{ inputs.pr }}
+        SHA: ${{ inputs.sha }}
+        MARKER: ${{ inputs.marker }}
+        CHANGED: ${{ steps.result.outputs.changed }}
+        PUBLISHED: ${{ steps.publish.outcome == 'success' }}
+        IMAGE_BASE: ${{ steps.publish.outputs.image_base }}
+        ARTIFACT_URL: ${{ inputs.artifact-url }}
+      run: |
+        set -euo pipefail
+        existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+          --jq "[.[] | select(.body | startswith(\"${MARKER}\"))][0].id // empty")
+
+        if [ "$CHANGED" = true ]; then
+          src="$REPORT/comment-plain.md"
+          [ "$PUBLISHED" = true ] && src="$REPORT/comment.md"
+          { echo "$MARKER"; cat "$src"; echo; echo "<sub>Commit ${SHA::7}. Updated on every push.</sub>"; } > /tmp/comment.md
+          # Literal replace: the values contain characters that sed treats specially
+          python3 - <<'PY'
+        import os
+        p = '/tmp/comment.md'
+        s = open(p).read()
+        s = s.replace('{{IMAGE_BASE}}', os.environ.get('IMAGE_BASE', '')).replace('{{ARTIFACT_URL}}', os.environ.get('ARTIFACT_URL', ''))
+        open(p, 'w').write(s)
+        PY
+        elif [ -n "$existing" ]; then
+          # An earlier push had diffs and this one does not: say so rather than leave stale images up
+          { echo "$MARKER"; echo "### Visual changes: none"; echo; echo "No screenshots differ as of ${SHA::7}."; } > /tmp/comment.md
+        else
+          echo "No visual changes and no earlier comment, so nothing to post."
+          exit 0
+        fi
+
+        if [ -n "$existing" ]; then
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -F body=@/tmp/comment.md >/dev/null
+        else
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -F body=@/tmp/comment.md >/dev/null
+        fi

@@ -1,0 +1,176 @@
+name: Test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Branch that holds the screenshots embedded in PR comments. Written by .github/actions/visual-report.
+  VISUAL_BRANCH: visual-diffs
+
+jobs:
+  unit:
+    name: Unit tests
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        working-directory: site
+        run: pnpm exec vitest run
+
+  e2e:
+    name: End-to-end tests
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        working-directory: site
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Builds the site, loads tests/fixtures into a local R2 bucket and serves it with astro preview
+      - name: Run Playwright tests
+        working-directory: site
+        run: pnpm exec playwright test --project=e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            site/playwright-report
+            site/test-results
+          retention-days: 7
+
+  # Builds the PR and its base branch against the same fixture data, screenshots every page and compares.
+  # Nothing is committed as a baseline, so a Chromium or font upgrade cannot cause a wall of false diffs.
+  #
+  # This is the fallback for PRs that preview.yml does not deploy (forks, Dependabot, plan submissions).
+  # Everything else is compared against production through its preview deployment, with real data.
+  visual:
+    name: Visual diff
+    if: >
+      github.event_name == 'pull_request' && github.event.action != 'closed' &&
+      (github.event.pull_request.head.repo.full_name != github.repository ||
+      github.actor == 'dependabot[bot]' ||
+      contains(github.event.pull_request.labels.*.name, 'plan-submission'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # push screenshots to the visual-diffs branch
+      pull-requests: write   # post the comment
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          path: head
+
+      - name: Checkout base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            head/pnpm-lock.yaml
+            base/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile --dir head
+          pnpm install --frozen-lockfile --dir base
+
+      - name: Install Chromium
+        working-directory: head/site
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Capture base and PR, then diff
+        working-directory: head/site
+        run: node tests/visual/run.mjs --base-dir ../../base/site --base-ref "${{ github.event.pull_request.base.ref }}"
+
+      - name: Upload HTML report
+        id: report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diff-report
+          path: head/site/visual-report/index.html
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - uses: ./head/.github/actions/visual-report
+        if: always()
+        with:
+          report-dir: head/site/visual-report
+          pr: ${{ github.event.pull_request.number }}
+          sha: ${{ github.event.pull_request.head.sha }}
+          marker: '<!-- visual-diff-report:fixtures -->'
+          artifact-url: ${{ steps.report.outputs.artifact-url }}
+          github-token: ${{ github.token }}
+
+  cleanup:
+    name: Remove screenshots
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete this PR's screenshots
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git ls-remote --exit-code --heads "$remote" "$VISUAL_BRANCH" >/dev/null 2>&1 || exit 0
+          git clone --quiet --depth 1 --branch "$VISUAL_BRANCH" "$remote" /tmp/visual-branch
+          cd /tmp/visual-branch
+          [ -d "pr-${PR}" ] || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -rq "pr-${PR}"
+          git commit --quiet --amend -m "Visual diff screenshots"
+          git push --quiet --force-with-lease origin "$VISUAL_BRANCH"
