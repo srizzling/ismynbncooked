@@ -517,7 +517,8 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
       )}
 
       {/* Savings Comparison — only shows when user has savings */}
-      {cookedResult && cookedResult.monthlySavings > 0 && comparisons && (() => {
+      {/* Skipped when the saving comes from an averaged intro price: its yearly and house deposit sums would overstate it */}
+      {cookedResult && cookedResult.monthlySavings > 0 && comparisons && baseline >= viewCheapest - 0.005 && (() => {
         // Compute promo breakdown if user is on a promo
         let promoInfo: { promoSavings: number; fullPriceSavings: number; promoMonthsLeft: number } | undefined;
         if (userPlan?.fullPrice && userPlan?.promoMonthsLeft) {

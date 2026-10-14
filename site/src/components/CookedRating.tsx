@@ -288,8 +288,15 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
               You're paying <span class="font-bold text-white">{(result.overpayPercent * 100).toFixed(0)}% more</span> than the cheapest plan in this comparison
             </p>
             <p class="text-neutral-400">
-              That's <span class="font-medium text-white">${result.monthlySavings.toFixed(2)}/mo</span> or{' '}
-              <span class="font-medium text-white">${result.yearlySavings.toFixed(0)}/yr</span> you could save
+              {baseline < cheapestPrice - 0.005 ? (
+                // An averaged intro price does not last a year, so a yearly figure would overstate the saving
+                <>That's <span class="font-medium text-white">${result.monthlySavings.toFixed(2)}/mo</span> on average over {periodLabel} you could save</>
+              ) : (
+                <>
+                  That's <span class="font-medium text-white">${result.monthlySavings.toFixed(2)}/mo</span> or{' '}
+                  <span class="font-medium text-white">${result.yearlySavings.toFixed(0)}/yr</span> you could save
+                </>
+              )}
             </p>
           </div>
         ) : result.level === 'winning' ? (
