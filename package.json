@@ -7,7 +7,10 @@
     "preview": "pnpm --filter ismynbncooked-site preview",
     "deploy:site": "pnpm --filter ismynbncooked-site deploy",
     "deploy:workers": "pnpm --filter './workers/**' exec wrangler deploy",
-    "deploy:all": "pnpm deploy:workers && pnpm deploy:site"
+    "deploy:all": "pnpm deploy:workers && pnpm deploy:site",
+    "test": "pnpm --filter ismynbncooked-site test",
+    "test:e2e": "pnpm --filter ismynbncooked-site test:e2e",
+    "test:visual": "pnpm --filter ismynbncooked-site test:visual"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

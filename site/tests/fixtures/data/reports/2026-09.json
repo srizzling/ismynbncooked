@@ -1,0 +1,135 @@
+{
+  "month": "2026-09",
+  "generatedAt": "2026-10-01T02:00:00Z",
+  "final": false,
+  "partialTracking": false,
+  "tiers": [
+    {
+      "tierKey": "nbn-25-5",
+      "label": "NBN 25/5",
+      "network": "nbn",
+      "planCountStart": 6,
+      "planCountEnd": 6,
+      "cheapestStart": 50.9,
+      "cheapestEnd": 48.9,
+      "averageStart": 63.07,
+      "averageEnd": 61.07,
+      "cheapestProvider": "Tangerine",
+      "changes": [
+        {
+          "provider": "Telstra",
+          "from": 63.07,
+          "to": 61.07,
+          "date": "2026-09-12"
+        }
+      ],
+      "newProviders": [],
+      "goneProviders": []
+    },
+    {
+      "tierKey": "nbn-50-20",
+      "label": "NBN 50/20",
+      "network": "nbn",
+      "planCountStart": 6,
+      "planCountEnd": 6,
+      "cheapestStart": 60.9,
+      "cheapestEnd": 58.9,
+      "averageStart": 75.73,
+      "averageEnd": 73.73,
+      "cheapestProvider": "Tangerine",
+      "changes": [
+        {
+          "provider": "Telstra",
+          "from": 75.73,
+          "to": 73.73,
+          "date": "2026-09-12"
+        }
+      ],
+      "newProviders": [],
+      "goneProviders": []
+    },
+    {
+      "tierKey": "nbn-100-20",
+      "label": "NBN 100/20",
+      "network": "nbn",
+      "planCountStart": 6,
+      "planCountEnd": 6,
+      "cheapestStart": 70.9,
+      "cheapestEnd": 68.9,
+      "averageStart": 88.07,
+      "averageEnd": 86.07,
+      "cheapestProvider": "Tangerine",
+      "changes": [
+        {
+          "provider": "Telstra",
+          "from": 88.07,
+          "to": 86.07,
+          "date": "2026-09-12"
+        }
+      ],
+      "newProviders": [],
+      "goneProviders": []
+    },
+    {
+      "tierKey": "nbn-250-25",
+      "label": "NBN 250/25",
+      "network": "nbn",
+      "planCountStart": 6,
+      "planCountEnd": 6,
+      "cheapestStart": 90.9,
+      "cheapestEnd": 88.9,
+      "averageStart": 113.07,
+      "averageEnd": 111.07,
+      "cheapestProvider": "Tangerine",
+      "changes": [
+        {
+          "provider": "Telstra",
+          "from": 113.07,
+          "to": 111.07,
+          "date": "2026-09-12"
+        }
+      ],
+      "newProviders": [],
+      "goneProviders": []
+    },
+    {
+      "tierKey": "nbn-1000-50",
+      "label": "NBN 1000/50",
+      "network": "nbn",
+      "planCountStart": 6,
+      "planCountEnd": 6,
+      "cheapestStart": 110.9,
+      "cheapestEnd": 108.9,
+      "averageStart": 138.07,
+      "averageEnd": 136.07,
+      "cheapestProvider": "Tangerine",
+      "changes": [
+        {
+          "provider": "Telstra",
+          "from": 138.07,
+          "to": 136.07,
+          "date": "2026-09-12"
+        }
+      ],
+      "newProviders": [],
+      "goneProviders": []
+    }
+  ],
+  "summary": {
+    "rises": 0,
+    "drops": 5,
+    "tiersCheaper": 5,
+    "tiersDearer": 0,
+    "newProviders": [],
+    "goneProviders": [],
+    "biggestRise": null,
+    "biggestDrop": {
+      "provider": "Telstra",
+      "from": 63.07,
+      "to": 61.07,
+      "date": "2026-09-12",
+      "tierKey": "nbn-25-5",
+      "label": "NBN 25/5"
+    }
+  }
+}

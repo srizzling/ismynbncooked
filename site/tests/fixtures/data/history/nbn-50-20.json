@@ -1,0 +1,390 @@
+{
+  "providers": {
+    "Tangerine": {
+      "current": {
+        "monthlyPrice": 58.9,
+        "planName": "Tangerine NBN 50",
+        "yearlyCost": 646.8
+      },
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 60.9,
+          "yearlyCost": 670.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 58.9,
+          "yearlyCost": 646.8
+        }
+      ]
+    },
+    "Superloop": {
+      "current": {
+        "monthlyPrice": 61.9,
+        "planName": "Superloop NBN 50",
+        "yearlyCost": 652.8
+      },
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 59.9,
+          "yearlyCost": 628.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 61.9,
+          "yearlyCost": 652.8
+        }
+      ]
+    },
+    "Aussie Broadband": {
+      "current": {
+        "monthlyPrice": 70.9,
+        "planName": "Aussie Broadband NBN 50",
+        "yearlyCost": 850.8
+      },
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 68.9,
+          "yearlyCost": 826.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 70.9,
+          "yearlyCost": 850.8
+        }
+      ]
+    },
+    "Exetel": {
+      "current": {
+        "monthlyPrice": 64.9,
+        "planName": "Exetel NBN 50",
+        "yearlyCost": 718.8
+      },
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 62.9,
+          "yearlyCost": 694.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 64.9,
+          "yearlyCost": 718.8
+        }
+      ]
+    },
+    "TPG": {
+      "current": {
+        "monthlyPrice": 79.9,
+        "planName": "TPG NBN 50",
+        "yearlyCost": 808.8
+      },
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 77.9,
+          "yearlyCost": 784.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 79.9,
+          "yearlyCost": 808.8
+        }
+      ]
+    },
+    "Telstra": {
+      "current": {
+        "monthlyPrice": 105.9,
+        "planName": "Telstra NBN 50",
+        "yearlyCost": 1270.8
+      },
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 103.9,
+          "yearlyCost": 1246.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 105.9,
+          "yearlyCost": 1270.8
+        }
+      ]
+    }
+  },
+  "daily": [
+    {
+      "date": "2026-08-17",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-18",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-19",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-20",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-21",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-22",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-23",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-24",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-25",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-26",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-27",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-28",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-29",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-30",
+      "cheapestPrice": 60.9,
+      "averagePrice": 75.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-08-31",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-01",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-02",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-03",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-04",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-05",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-06",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-07",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-08",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-09",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-10",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-11",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-12",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-13",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-14",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-15",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-16",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-17",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-18",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-19",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-20",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-21",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-22",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-23",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-24",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-25",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-26",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-27",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-28",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-29",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    },
+    {
+      "date": "2026-09-30",
+      "cheapestPrice": 58.9,
+      "averagePrice": 73.73,
+      "planCount": 6
+    }
+  ]
+}

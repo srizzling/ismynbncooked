@@ -1,0 +1,253 @@
+{
+  "slug": "tpg",
+  "name": "TPG",
+  "website": "https://www.tpg.com.au",
+  "updatedAt": "2026-10-01T02:00:00Z",
+  "planCount": 5,
+  "tiers": [
+    {
+      "tierKey": "nbn-25-5",
+      "label": "NBN 25/5",
+      "network": "nbn",
+      "downloadSpeed": 25,
+      "uploadSpeed": 5,
+      "plan": {
+        "id": "nbn-25-5-tpg",
+        "providerName": "TPG",
+        "planName": "TPG NBN 25",
+        "monthlyPrice": 65.9,
+        "yearlyCost": 640.8,
+        "effectiveMonthly": 53.4,
+        "setupFee": 0,
+        "promoValue": 25,
+        "promoDuration": 6,
+        "typicalEveningSpeed": 22,
+        "contractLength": 0,
+        "cisUrl": "https://www.tpg.com.au/cis/nbn-25-5.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 25,
+        "uploadSpeed": 5,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.tpg.com.au",
+        "promoEndDate": null
+      },
+      "rank": 5,
+      "planCount": 6,
+      "tierCheapest": 48.9,
+      "tierAverage": 61.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 63.9,
+          "yearlyCost": 616.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 65.9,
+          "yearlyCost": 640.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-50-20",
+      "label": "NBN 50/20",
+      "network": "nbn",
+      "downloadSpeed": 50,
+      "uploadSpeed": 20,
+      "plan": {
+        "id": "nbn-50-20-tpg",
+        "providerName": "TPG",
+        "planName": "TPG NBN 50",
+        "monthlyPrice": 79.9,
+        "yearlyCost": 808.8,
+        "effectiveMonthly": 67.4,
+        "setupFee": 0,
+        "promoValue": 25,
+        "promoDuration": 6,
+        "typicalEveningSpeed": 45,
+        "contractLength": 0,
+        "cisUrl": "https://www.tpg.com.au/cis/nbn-50-20.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 50,
+        "uploadSpeed": 20,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.tpg.com.au",
+        "promoEndDate": null
+      },
+      "rank": 5,
+      "planCount": 6,
+      "tierCheapest": 58.9,
+      "tierAverage": 73.73,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 77.9,
+          "yearlyCost": 784.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 79.9,
+          "yearlyCost": 808.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-100-20",
+      "label": "NBN 100/20",
+      "network": "nbn",
+      "downloadSpeed": 100,
+      "uploadSpeed": 20,
+      "plan": {
+        "id": "nbn-100-20-tpg",
+        "providerName": "TPG",
+        "planName": "TPG NBN 100",
+        "monthlyPrice": 92.9,
+        "yearlyCost": 964.8,
+        "effectiveMonthly": 80.4,
+        "setupFee": 0,
+        "promoValue": 25,
+        "promoDuration": 6,
+        "typicalEveningSpeed": 89,
+        "contractLength": 0,
+        "cisUrl": "https://www.tpg.com.au/cis/nbn-100-20.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 100,
+        "uploadSpeed": 20,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.tpg.com.au",
+        "promoEndDate": null
+      },
+      "rank": 5,
+      "planCount": 6,
+      "tierCheapest": 68.9,
+      "tierAverage": 86.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 90.9,
+          "yearlyCost": 940.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 92.9,
+          "yearlyCost": 964.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-250-25",
+      "label": "NBN 250/25",
+      "network": "nbn",
+      "downloadSpeed": 250,
+      "uploadSpeed": 25,
+      "plan": {
+        "id": "nbn-250-25-tpg",
+        "providerName": "TPG",
+        "planName": "TPG NBN 250",
+        "monthlyPrice": 119.9,
+        "yearlyCost": 1288.8,
+        "effectiveMonthly": 107.4,
+        "setupFee": 0,
+        "promoValue": 25,
+        "promoDuration": 6,
+        "typicalEveningSpeed": 223,
+        "contractLength": 0,
+        "cisUrl": "https://www.tpg.com.au/cis/nbn-250-25.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 250,
+        "uploadSpeed": 25,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.tpg.com.au",
+        "promoEndDate": null
+      },
+      "rank": 5,
+      "planCount": 6,
+      "tierCheapest": 88.9,
+      "tierAverage": 111.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 117.9,
+          "yearlyCost": 1264.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 119.9,
+          "yearlyCost": 1288.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    },
+    {
+      "tierKey": "nbn-1000-50",
+      "label": "NBN 1000/50",
+      "network": "nbn",
+      "downloadSpeed": 1000,
+      "uploadSpeed": 50,
+      "plan": {
+        "id": "nbn-1000-50-tpg",
+        "providerName": "TPG",
+        "planName": "TPG NBN 1000",
+        "monthlyPrice": 146.9,
+        "yearlyCost": 1612.8,
+        "effectiveMonthly": 134.4,
+        "setupFee": 0,
+        "promoValue": 25,
+        "promoDuration": 6,
+        "typicalEveningSpeed": 890,
+        "contractLength": 0,
+        "cisUrl": "https://www.tpg.com.au/cis/nbn-1000-50.pdf",
+        "minimumTerm": "No lock-in contract",
+        "cancellationFees": "None",
+        "noticePeriod": "30 days",
+        "downloadSpeed": 1000,
+        "uploadSpeed": 50,
+        "networkType": "nbn",
+        "providerWebsite": "https://www.tpg.com.au",
+        "promoEndDate": null
+      },
+      "rank": 5,
+      "planCount": 6,
+      "tierCheapest": 108.9,
+      "tierAverage": 136.07,
+      "history": [
+        {
+          "date": "2026-08-16",
+          "monthlyPrice": 144.9,
+          "yearlyCost": 1588.8
+        },
+        {
+          "date": "2026-08-31",
+          "monthlyPrice": 146.9,
+          "yearlyCost": 1612.8
+        }
+      ],
+      "lastSeen": "2026-09-30"
+    }
+  ],
+  "rort": {
+    "medianOverpay": 0.34870641169853767,
+    "meanOverpay": 0.350033215136038,
+    "level": "absolute-rort",
+    "label": "Absolute F***ing Rort",
+    "counts": {
+      "winning": 0,
+      "sweet-as": 0,
+      "bit-shit": 0,
+      "taking-the-piss": 0,
+      "absolute-rort": 5
+    },
+    "tierCount": 5
+  }
+}

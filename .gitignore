@@ -13,6 +13,12 @@ site/package-lock.json
 # Dev fixture data (fetched from R2 in production)
 site/public/data/
 
+# Test output
+site/test-results/
+site/playwright-report/
+site/visual-output/
+site/visual-report/
+
 # Migration script output
 scripts/output/
 .playwright-mcp/

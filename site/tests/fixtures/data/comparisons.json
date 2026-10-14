@@ -1,0 +1,26 @@
+{
+  "updatedAt": "2026-09-29T01:00:00Z",
+  "units": {
+    "coffee": {
+      "label": "Flat whites",
+      "icon": "☕",
+      "price": 5.5,
+      "per": "month",
+      "note": "Fixture price",
+      "source": "Fixture",
+      "sourceUrl": "https://example.com"
+    },
+    "streaming": {
+      "label": "Streaming subscriptions",
+      "icon": "📺",
+      "price": 18,
+      "per": "month"
+    },
+    "deposit": {
+      "label": "House deposit",
+      "icon": "🏠",
+      "price": 120000,
+      "per": "total"
+    }
+  }
+}
