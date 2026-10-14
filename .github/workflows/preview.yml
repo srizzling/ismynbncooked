@@ -34,6 +34,10 @@ jobs:
       github.actor != 'dependabot[bot]' &&
       !contains(github.event.pull_request.labels.*.name, 'plan-submission'))
     runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.preview.outputs.url }}
+      sha: ${{ steps.pr.outputs.sha }}
+      number: ${{ steps.pr.outputs.number }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -132,3 +136,88 @@ jobs:
           else
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body" > /dev/null
           fi
+
+  # Tests the deployed preview, as a second version of the site running beside production.
+  # Both read the same data bucket, so the screenshots differ only where the code does.
+  test-preview:
+    name: Test Preview
+    needs: preview-site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # push screenshots to the visual-diffs branch
+      pull-requests: write   # post the comment
+    env:
+      PREVIEW_URL: ${{ needs.preview-site.outputs.url }}
+      PRODUCTION_URL: https://amigettingrorted.au
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preview-site.outputs.sha }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        working-directory: site
+        run: pnpm exec playwright install --with-deps chromium
+
+      # A new version can take a few seconds to answer on its alias URL
+      - name: Wait for the preview
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$PREVIEW_URL/" || true)
+            [ "$code" = 200 ] && exit 0
+            echo "Preview answered $code, waiting ($i/30)"
+            sleep 4
+          done
+          echo "::error::$PREVIEW_URL never answered 200"
+          exit 1
+
+      - name: Smoke test the preview
+        working-directory: site
+        env:
+          BASE_URL: ${{ env.PREVIEW_URL }}
+          EXPECT_READ_ONLY: '1'
+        run: pnpm exec playwright test --project=live
+
+      - name: Diff the preview against production
+        working-directory: site
+        run: node tests/visual/run.mjs --base-url "$PRODUCTION_URL" --head-url "$PREVIEW_URL"
+
+      - name: Upload HTML report
+        id: report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-visual-diff-report
+          path: site/visual-report/index.html
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-playwright-report
+          path: |
+            site/playwright-report
+            site/test-results
+          retention-days: 7
+
+      - uses: ./.github/actions/visual-report
+        if: always()
+        with:
+          report-dir: site/visual-report
+          pr: ${{ needs.preview-site.outputs.number }}
+          sha: ${{ needs.preview-site.outputs.sha }}
+          marker: '<!-- visual-diff-report:preview -->'
+          artifact-url: ${{ steps.report.outputs.artifact-url }}
+          github-token: ${{ github.token }}
