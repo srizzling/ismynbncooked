@@ -82,7 +82,7 @@ try {
     const effective: SpeedOption['effective'] = {};
     for (const h of HORIZONS) {
       const best = cheapestPlanForHorizon(td.plans, h);
-      if (best) effective[h] = { cost: best.effectiveCost, provider: best.plan.providerName, plan: best.plan.planName };
+      if (best) effective[h] = { cost: best.effectiveCost, provider: best.plan.providerName, plan: best.plan.planName, listPrice: best.plan.monthlyPrice, promoMonths: best.plan.promoDuration ?? 0 };
     }
     const cheapestMonthly = td.plans.reduce((b, p) => (p.monthlyPrice < b.monthlyPrice ? p : b));
     speedOptions.push({

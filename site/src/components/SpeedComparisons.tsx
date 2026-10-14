@@ -8,6 +8,9 @@ interface Props {
   userPrice: number;
   /** Commitment period in months */
   horizon: number;
+  /** The main verdict, so the summary can connect "you're winning" with "faster plans cost less" */
+  mainLabel?: string;
+  mainLevel?: string;
 }
 
 interface Best extends SpeedOptionPlan {
@@ -23,6 +26,16 @@ function bestAt(options: SpeedOption[], horizon: number): Best | null {
     }
   }
   return best;
+}
+
+/** Plain words for what an averaged intro price really means, with what the plan costs afterwards. */
+function introNote(best: Best): string {
+  if (best.promoMonths && best.listPrice && best.listPrice > best.cost + 0.005) {
+    return ` This averages in a ${best.promoMonths} month intro discount. After that the plan costs ${money(best.listPrice)}/mo.`;
+  }
+  return best.cost < best.option.monthly.cost - 0.005
+    ? ` This averages in intro discounts. The cheapest list price is ${money(best.option.monthly.cost)}/mo.`
+    : '';
 }
 
 function periodLabel(horizon: number): string {
@@ -54,13 +67,28 @@ function planLine(best: Best, horizon: number) {
     <p>
       The cheapest over {periodLabel(horizon)} is <span class="text-white">{money(best.cost)}/mo</span> ({best.provider}
       {', '}{option.download}/{option.upload}).
-      {best.cost < option.monthly.cost - 0.005 ? ` That averages in intro discounts. The cheapest list price is ${money(option.monthly.cost)}/mo.` : ''}{' '}
+      {introNote(best)}{' '}
       <a href={`/${option.key}`} class="underline hover:text-white">See these plans</a>
     </p>
   );
 }
 
-export default function SpeedComparisons({ options, yours, userPrice, horizon }: Props) {
+/** The cheapest faster plans that undercut the user's price, as one sentence fragment, or null. */
+export function fasterPlansCheaper(options: SpeedOption[], yours: { download: number; upload?: number }, userPrice: number, horizon: number): string | null {
+  const upOk = (o: SpeedOption) => yours.upload === undefined || o.upload >= yours.upload;
+  const fasterUpload = yours.upload === undefined ? null : bestAt(
+    options.filter(o => o.download === yours.download && o.upload > yours.upload!),
+    horizon
+  );
+  const fasterDownload = bestAt(options.filter(o => o.download > yours.download && upOk(o)), horizon);
+  const cheaper = [fasterUpload, fasterDownload].filter((b): b is Best => !!b && b.cost < userPrice - 0.005);
+  if (cheaper.length === 0) return null;
+  return cheaper
+    .map(b => `${b.option.download}/${b.option.upload} (${b.option.download > yours.download ? 'higher download' : 'higher upload'}) from ${money(b.cost)}/mo${b.promoMonths && b.listPrice && b.listPrice > b.cost + 0.005 ? `, ${b.promoMonths} month intro then ${money(b.listPrice)}/mo` : b.cost < b.option.monthly.cost - 0.005 ? ' including intro discounts' : ''} (save ${money(userPrice - b.cost)})`)
+    .join(' and ');
+}
+
+export default function SpeedComparisons({ options, yours, userPrice, horizon, mainLabel, mainLevel }: Props) {
   const upOk = (o: SpeedOption) => yours.upload === undefined || o.upload >= yours.upload;
   const upLow = (o: SpeedOption) => yours.upload !== undefined && o.upload <= yours.upload;
 
@@ -86,8 +114,12 @@ export default function SpeedComparisons({ options, yours, userPrice, horizon }:
     const r = calculateCooked(userPrice, best.cost);
     const diff = userPrice - best.cost;
     return (
-      <Row title={title} chip={r.label} chipColor={r.color}>
-        <p>Compared with plans with {scope}.</p>
+      <Row
+        title={title}
+        chip={diff > 0.005 ? `Save ${money(diff)}/mo` : diff < -0.005 ? `You're ${money(-diff)}/mo cheaper` : 'Same price'}
+        chipColor={diff > 0.005 ? '#4ade80' : undefined}
+      >
+        <p>Compared with plans with {scope}. Rating against these plans: <span class="font-medium" style={{ color: r.color }}>{r.label}</span>.</p>
         {planLine(best, horizon)}
         <p>
           {diff > 0.005
@@ -104,13 +136,12 @@ export default function SpeedComparisons({ options, yours, userPrice, horizon }:
 
   // One line that ties the faster rows together, since they can disagree with the main verdict
   // (you can be cheapest at your own speed and still be beaten by a faster plan).
-  const cheaperFaster = [fasterUpload, fasterDownload].filter((b): b is Best => !!b && b.cost < userPrice - 0.005);
-  const summary = cheaperFaster.length > 0
-    ? `Faster plans can cost less than yours: ${cheaperFaster
-        .map(b => `${b.option.download}/${b.option.upload} from ${money(b.cost)}/mo${b.cost < b.option.monthly.cost - 0.005 ? ' including intro discounts' : ''} (save ${money(userPrice - b.cost)})`)
-        .join(' and ')}.`
+  const cheaperText = fasterPlansCheaper(options, yours, userPrice, horizon);
+  const goodAtOwnSpeed = mainLevel === 'winning' || mainLevel === 'sweet-as';
+  const summary = cheaperText
+    ? `${goodAtOwnSpeed && mainLabel ? `You're ${mainLabel} at your own speed, but plans` : 'Plans'} with higher speeds can cost less than yours: ${cheaperText}.`
     : fasterUpload || fasterDownload
-      ? 'No faster plan costs less than yours.'
+      ? 'No plan with higher speeds costs less than yours.'
       : null;
 
   return (
@@ -118,6 +149,7 @@ export default function SpeedComparisons({ options, yours, userPrice, horizon }:
       <div class="px-1">
         <div class="text-sm text-neutral-400">More ways to compare your {yourSpeed} plan</div>
         {summary && <div class="text-sm text-white mt-0.5">{summary}</div>}
+        <div class="text-xs text-neutral-500 mt-0.5">Upload speed is how fast you send things, like video calls and backups. Download speed is what most people mean by internet speed.</div>
       </div>
       {rated(
         fasterUpload,
