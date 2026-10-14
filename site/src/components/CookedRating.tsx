@@ -22,8 +22,10 @@ interface Props {
   changeNote?: string;
   /** True when the page has upload speed chips (grouped pages only) */
   hasSpeedChips?: boolean;
-  /** e.g. "1000/100 from $89.99/mo (save $20.00)": shown in the card so a green verdict can't hide a cheaper faster plan */
-  fasterNote?: string;
+  /** What plans the headline is compared with, e.g. "1000 Mbps or faster download and 50 Mbps or faster upload" */
+  compareLabel?: string;
+  /** How the user compares at exactly their own speed, shown under the verdict when that differs */
+  exactLine?: string;
   /** e.g. "3 month intro discount, then $139/mo" for the cheapest plan in the comparison */
   cheapestPlanNote?: string;
   horizon?: number;
@@ -140,7 +142,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, cheapestPlanSpeed, changeNote, hasSpeedChips, fasterNote, cheapestPlanNote, horizon = 12, manifest, onCookedChange }: Props) {
+export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, cheapestPlanSpeed, changeNote, hasSpeedChips, compareLabel, exactLine, cheapestPlanNote, horizon = 12, manifest, onCookedChange }: Props) {
   const ratedKey = planKey ?? tierKey;
   const parsed = parseTierKey(ratedKey);
   const grouped = !parsed ? parseGroupedTierKey(ratedKey) : null;
@@ -255,7 +257,11 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
     return (
       <div id="your-verdict" class="bg-surface-raised border border-surface-border rounded-2xl p-6 sm:p-8 text-center scroll-mt-4">
         <div class="text-sm text-neutral-400 mb-1">
-          {scope ? (
+          {compareLabel ? (
+            <>
+              {isOnPromo ? 'At your current promo price, based' : 'Based'} on your commitment period ({periodLabel}), compared with plans as good or better than yours ({compareLabel}), your plan is...
+            </>
+          ) : scope ? (
             <>
               {isOnPromo ? 'At your current promo price, based' : 'Based'} on your commitment period ({periodLabel}),{' '}
               {describeSpeed('download', scope.yourDownload, scope.downloads)} and{' '}
@@ -305,7 +311,9 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
               You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan in this comparison
             </p>
             <p class="text-neutral-400">
-              {scopeIsLikeForLike
+              {compareLabel
+                ? 'No plan as good or better than yours beats your price.'
+                : scopeIsLikeForLike
                 ? 'No plan at your exact speed beats your price.'
                 : "Those plans have a different upload speed to yours, so this isn't a like for like win."}
             </p>
@@ -315,12 +323,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
             You're on the cheapest plan. Sweet as.          </p>
         )}
 
-        {fasterNote && (
-          <div class="mt-4 text-left rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-neutral-300">
-            <span class="font-medium text-amber-400">But a plan with higher speeds costs less: </span>
-            {fasterNote}.
-          </div>
-        )}
+        {exactLine && <p class="mt-3 text-xs text-neutral-500">For comparison, {exactLine}</p>}
 
         <div class="mt-4 text-left bg-surface border border-surface-border rounded-lg p-4 text-sm text-neutral-400 space-y-1.5">
           <div class="text-xs uppercase tracking-wide text-neutral-500">How we got this</div>
@@ -330,7 +333,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
             <span class="text-white tabular-nums">${currentPrice.toFixed(2)}/mo</span>
           </div>
           <div class="flex justify-between gap-4">
-            <span>Cheapest over {periodLabel} (average cost)</span>
+            <span>{compareLabel ? 'Cheapest plan as good or better' : 'Cheapest'} over {periodLabel} (average cost)</span>
             <span class="text-white tabular-nums">${baseline.toFixed(2)}/mo</span>
           </div>
           <div class="text-xs text-neutral-500">
@@ -353,7 +356,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
             </span>
           </div>
           <div class="text-xs text-neutral-500">
-            {hasSpeedChips ? 'Change the period, or the upload speed chips above, and this updates.' : 'Change the commitment period above and this updates.'}
+            Change the commitment period above and this updates.{hasSpeedChips ? ' The upload speed chips only change which plans you browse.' : ''}
           </div>
         </div>
 

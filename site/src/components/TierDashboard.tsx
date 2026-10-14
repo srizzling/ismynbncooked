@@ -7,7 +7,7 @@ import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHor
 import CookedRating from './CookedRating';
 import AlertSignup from './AlertSignup';
 import SavingsComparison from './SavingsComparison';
-import SpeedComparisons, { fasterPlansCheaper } from './SpeedComparisons';
+import SpeedComparisons, { verdictBasis } from './SpeedComparisons';
 import PlanTable from './PlanTable';
 import PriceChart from './PriceChart';
 
@@ -109,6 +109,21 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   );
   const baseline = cheapestEffective < viewCheapest ? cheapestEffective : viewCheapest;
 
+  // The headline verdict compares the saved plan with plans that are as good or better on both speeds,
+  // wherever they are on this network. The upload chips only change what is browsed, not this.
+  const verdictYours = useMemo(() => {
+    if (!userEntry) return null;
+    const exact = parseTierKey(userEntry.key);
+    return exact ? { download: exact.download, upload: exact.upload } : { download: tierData.downloadSpeed };
+  }, [userEntry?.key, tierData.downloadSpeed]);
+  const basis = useMemo(
+    () => (verdictYours && speedOptions && speedOptions.length > 0 ? verdictBasis(speedOptions, verdictYours, horizon) : null),
+    [verdictYours?.download, verdictYours?.upload, speedOptions, horizon]
+  );
+  const ratingBaseline = basis?.baseline ? basis.baseline.cost : baseline;
+  // True when the plan being compared with is an averaged intro price rather than a plain monthly price
+  const introAveraged = basis?.baseline && basis.listMin !== null ? basis.baseline.cost < basis.listMin - 0.005 : baseline < viewCheapest - 0.005;
+
   // Per-chip summary for the hover tooltip, on the same basis as the verdict:
   // the cheaper of the average monthly cost over the chosen period and the plain monthly price.
   const speedSummaries = useMemo(() => {
@@ -138,7 +153,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   useEffect(() => {
     // Check for existing user plan on this tier
     if (userPlan) {
-      setCookedResult(calculateCooked(userPlan.price, baseline));
+      setCookedResult(calculateCooked(userPlan.price, ratingBaseline));
     } else {
       // Check for plans on other tiers (for cross-tier context)
       setOtherTierPlan(findOtherTierPlan(tierKey));
@@ -158,7 +173,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
     }
     // Save this visit
     saveTierVisit(tierKey, tierData.cheapest);
-  }, [tierKey, userEntry?.key, userEntry?.plan.price, baseline]);
+  }, [tierKey, userEntry?.key, userEntry?.plan.price, ratingBaseline]);
 
   function handleCookedChange(result: CookedResult | null) {
     setCookedResult(result);
@@ -170,52 +185,32 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   // --- Why did my rating change? ---
   const money = (n: number) => (Number.isInteger(n) ? n.toFixed(0) : n.toFixed(2));
   const periodName = (h: number) => (h === 12 ? '1 year' : h === 24 ? '2 years' : `${h} months`);
-  const speedName = (sp: number | 'all') => (sp === 'all' ? 'all upload speeds' : `${tierData.downloadSpeed}/${sp}`);
   const currentResult = useMemo(
-    () => (userEntry ? calculateCooked(userEntry.plan.price, baseline) : null),
-    [userEntry?.plan.price, baseline]
+    () => (userEntry ? calculateCooked(userEntry.plan.price, ratingBaseline) : null),
+    [userEntry?.plan.price, ratingBaseline]
   );
-  const prevChoice = useRef<{ speed: number | 'all'; horizon: Horizon; label: string | null }>({ speed: speedFilter, horizon, label: null });
+  const prevChoice = useRef<{ horizon: Horizon; label: string | null }>({ horizon, label: null });
   const [changeNote, setChangeNote] = useState<{ from: string; to: string; because: string } | null>(null);
   useEffect(() => {
     const prev = prevChoice.current;
-    const changed = prev.speed !== speedFilter || prev.horizon !== horizon;
+    const changed = prev.horizon !== horizon;
     if (changed && userChoiceRef.current && currentResult && prev.label) {
-      const parts: string[] = [];
-      const periodMoved = prev.horizon !== horizon;
-      const speedMoved = prev.speed !== speedFilter;
-      if (speedMoved) {
-        parts.push(
-          `the upload speed from ${speedName(prev.speed)} to ${speedName(speedFilter)}` +
-          (periodMoved && horizonPref === 'cheapest'
-            ? ` (the period also moved from ${periodName(prev.horizon)} to ${periodName(horizon)} by itself, because the page is auto-picking the cheapest period)`
-            : '')
-        );
-      }
-      if (periodMoved && !(speedMoved && horizonPref === 'cheapest')) {
-        parts.push(`the commitment period from ${periodName(prev.horizon)} to ${periodName(horizon)}`);
-      }
-      setChangeNote({ from: prev.label, to: currentResult.label, because: parts.join(' and ') });
+      setChangeNote({
+        from: prev.label,
+        to: currentResult.label,
+        because: `the commitment period from ${periodName(prev.horizon)} to ${periodName(horizon)}` +
+          (horizonPref === 'cheapest' ? ' (the page moved it, because it is auto-picking the cheapest period for the plans shown)' : ''),
+      });
     }
     if (changed) userChoiceRef.current = false;
-    prevChoice.current = { speed: speedFilter, horizon, label: currentResult?.label ?? null };
-  }, [speedFilter, horizon, currentResult?.label]);
+    prevChoice.current = { horizon, label: currentResult?.label ?? null };
+  }, [horizon, currentResult?.label]);
   const changeText = changeNote
     ? changeNote.from === changeNote.to
       ? `Still ${changeNote.to}, but what we compare you with changed because you changed ${changeNote.because}.`
       : `Changed from ${changeNote.from} to ${changeNote.to} because you changed ${changeNote.because}. Your price didn't change, what it's compared with did.`
     : undefined;
-  const choicesText = `${periodName(horizon)}, ${tierData.downloadSpeed} Mbps down, ${
-    isGrouped ? (speedFilter === 'all' ? 'any upload speed' : `${speedFilter} Mbps up`) : `${tierData.uploadSpeed} Mbps up`
-  }`;
-  const fasterNote = useMemo(() => {
-    if (!userEntry || !speedOptions || speedOptions.length === 0) return undefined;
-    const exact = parseTierKey(userEntry.key);
-    const yours = userVariant
-      ? { download: userVariant.download, upload: userVariant.upload }
-      : exact ? { download: exact.download, upload: exact.upload } : { download: tierData.downloadSpeed };
-    return fasterPlansCheaper(speedOptions, yours, userEntry.plan.price, horizon) ?? undefined;
-  }, [userEntry?.key, userEntry?.plan.price, speedOptions, horizon, userVariant?.upload]);
+  const choicesText = `a ${periodName(horizon)} commitment, compared with plans as good or better than yours`;
   // The note stays in the verdict card; the sticky strip only shows it for a few seconds so the strip stays short.
   const [noteVisible, setNoteVisible] = useState(false);
   // A note about a past chip or period change is stale once the saved plan itself changes.
@@ -312,9 +307,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           </div>
           {userVariant && (
             <div class="text-xs text-neutral-500 mt-2">
-              {speedFilter === userVariant.upload
-                ? `Showing ${viewPlans.length} of ${tierData.plans.length} plans: only ${tierData.downloadSpeed}/${speedFilter}, the speed of your saved ${buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan.`
-                : `Your ${buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan is being compared with ${speedFilter === 'all' ? 'every upload speed' : `${tierData.downloadSpeed}/${speedFilter} plans`}.`}
+              Showing {viewPlans.length} of {tierData.plans.length} plans. The upload speed chips only change which plans you browse. Your rating below always compares you with plans as good or better than your {buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan.
             </div>
           )}
         </div>
@@ -414,6 +407,13 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         {allPeriodsSame && (
           <div class="text-xs text-neutral-500 mt-2">These plans cost the same at every period.</div>
         )}
+        {basis?.baseline && userEntry && (
+          <div class="text-xs text-neutral-400 mt-2">
+            Your rating compares you with the cheapest plan that is as good or better than yours over {periodName(horizon)}:{' '}
+            {basis.baseline.provider} ({basis.baseline.option.download}/{basis.baseline.option.upload}) at ${money(basis.baseline.cost)}/mo.
+            That plan may not be one of the plans shown here.
+          </div>
+        )}
         {horizonPref === 'cheapest' && !allPeriodsSame && (
           <div class="text-xs text-neutral-600 mt-2">
             Showing the period with the lowest monthly cost. Tap a period to choose your own. We'll remember it.
@@ -465,17 +465,37 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
       <CookedRating
         tierKey={tierKey}
         planKey={userVariant ? userEntry!.key : undefined}
-        cheapestPrice={cheapest}
-        cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
-        cheapestProviderName={cheapestAtHorizon?.plan.providerName}
+        cheapestPrice={basis?.baseline && basis.listMin !== null ? basis.listMin : cheapest}
+        cheapestEffective={basis?.baseline
+          ? (basis.baseline.cost < (basis.listMin ?? Infinity) ? basis.baseline.cost : undefined)
+          : (cheapestEffective < cheapest ? cheapestEffective : undefined)}
+        cheapestProviderName={basis?.baseline ? basis.baseline.provider : cheapestAtHorizon?.plan.providerName}
+        cheapestPlanSpeed={basis?.baseline
+          ? `${basis.baseline.option.download}/${basis.baseline.option.upload}`
+          : cheapestAtHorizon ? `${cheapestAtHorizon.plan.downloadSpeed}/${cheapestAtHorizon.plan.uploadSpeed}` : undefined}
+        cheapestPlanNote={basis?.baseline
+          ? (basis.baseline.promoMonths && basis.baseline.listPrice && basis.baseline.listPrice > basis.baseline.cost + 0.005
+              ? `${basis.baseline.promoMonths} month intro discount, then it's $${money(basis.baseline.listPrice)}/mo`
+              : undefined)
+          : (cheapestAtHorizon?.plan.promoDuration && cheapestAtHorizon.plan.promoValue
+              ? `${cheapestAtHorizon.plan.promoDuration} month intro discount, then it's $${money(cheapestAtHorizon.plan.monthlyPrice)}/mo`
+              : undefined)}
         changeNote={changeText}
-        cheapestPlanNote={cheapestAtHorizon?.plan.promoDuration && cheapestAtHorizon.plan.promoValue
-          ? `${cheapestAtHorizon.plan.promoDuration} month intro discount, then it's ${money(cheapestAtHorizon.plan.monthlyPrice)}/mo`
-          : undefined}
-        fasterNote={fasterNote}
         hasSpeedChips={showSpeedFilter}
-        cheapestPlanSpeed={cheapestAtHorizon ? `${cheapestAtHorizon.plan.downloadSpeed}/${cheapestAtHorizon.plan.uploadSpeed}` : undefined}
-        scope={{
+        compareLabel={basis?.baseline && verdictYours
+          ? `${verdictYours.download} Mbps or faster download${verdictYours.upload !== undefined ? ` and ${verdictYours.upload} Mbps or faster upload` : ''}`
+          : undefined}
+        exactLine={basis?.baseline && basis.exact && basis.exact.option.key !== basis.baseline.option.key && userEntry
+          ? (() => {
+              const d = userEntry.plan.price - basis.exact.cost;
+              return d > 0.005
+                ? `at exactly your speed (${basis.exact.option.download}/${basis.exact.option.upload}) the cheapest plan is $${money(basis.exact.cost)}/mo, which is $${money(d)}/mo less than you pay.`
+                : d < -0.005
+                  ? `at exactly your speed (${basis.exact.option.download}/${basis.exact.option.upload}) you pay $${money(-d)}/mo less than the cheapest plan.`
+                  : `at exactly your speed (${basis.exact.option.download}/${basis.exact.option.upload}) you pay the same as the cheapest plan.`;
+            })()
+          : undefined}
+        scope={basis?.baseline ? undefined : {
           yourDownload: tierData.downloadSpeed,
           yourUpload: userVariant ? userVariant.upload : isGrouped ? undefined : tierData.uploadSpeed,
           downloads: [tierData.downloadSpeed],
@@ -486,18 +506,13 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         onCookedChange={handleCookedChange}
       />
 
-      {/* How the saved plan compares with other speeds (same or better only counts against it) */}
-      {userEntry && cookedResult && speedOptions && speedOptions.length > 0 && (
+      {/* The same comparison one speed at a time, plus what a slower plan would cost */}
+      {userEntry && cookedResult && verdictYours && speedOptions && speedOptions.length > 0 && (
         <SpeedComparisons
           options={speedOptions}
-          yours={userVariant ? { download: userVariant.download, upload: userVariant.upload } : (() => {
-            const exact = parseTierKey(userEntry.key);
-            return exact ? { download: exact.download, upload: exact.upload } : { download: tierData.downloadSpeed };
-          })()}
+          yours={verdictYours}
           userPrice={userEntry.plan.price}
           horizon={horizon}
-          mainLabel={currentResult?.label}
-          mainLevel={currentResult?.level}
         />
       )}
 
@@ -518,7 +533,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
 
       {/* Savings Comparison — only shows when user has savings */}
       {/* Skipped when the saving comes from an averaged intro price: its yearly and house deposit sums would overstate it */}
-      {cookedResult && cookedResult.monthlySavings > 0 && comparisons && baseline >= viewCheapest - 0.005 && (() => {
+      {cookedResult && cookedResult.monthlySavings > 0 && comparisons && !introAveraged && (() => {
         // Compute promo breakdown if user is on a promo
         let promoInfo: { promoSavings: number; fullPriceSavings: number; promoMonthsLeft: number } | undefined;
         if (userPlan?.fullPrice && userPlan?.promoMonthsLeft) {
@@ -526,8 +541,8 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           const remaining = Math.max(0, userPlan.promoMonthsLeft - monthsSince);
           if (remaining > 0) {
             promoInfo = {
-              promoSavings: Math.max(0, userPlan.price - baseline),
-              fullPriceSavings: Math.max(0, userPlan.fullPrice - baseline),
+              promoSavings: Math.max(0, userPlan.price - ratingBaseline),
+              fullPriceSavings: Math.max(0, userPlan.fullPrice - ratingBaseline),
               promoMonthsLeft: remaining,
             };
           }

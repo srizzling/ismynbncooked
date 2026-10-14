@@ -57,8 +57,9 @@ const mTotal = katex.renderToString('M', { throwOnError: false });
         <a href="#rort-scale" class="hover:text-accent transition-colors">The Rort Scale</a>
       </h2>
       <p class="text-neutral-400 text-sm mb-4">
-        After you enter your monthly price, we compare it against the cheapest available plan at the same
-        speed tier. The overpay percentage determines your rating:
+        After you enter your monthly price, we compare it against the cheapest plan that is as good or better
+        than yours on both download and upload speed, over the commitment period you pick. Slower, cheaper plans
+        never count against you. The overpay percentage determines your rating:
       </p>
       <div class="bg-surface-raised border border-surface-border rounded-xl px-5 py-4 mb-6 overflow-x-auto" set:html={rortFormula} />
 
