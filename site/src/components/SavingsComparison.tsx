@@ -17,7 +17,7 @@ function SourceTooltip({ unit }: { unit: ComparisonUnit }) {
   if (!unit.source) return null;
   // pb-3 creates an invisible hover bridge between tooltip and trigger (no gap for mouse to fall through)
   return (
-    <div class="absolute bottom-full left-1/2 -translate-x-1/2 pb-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto z-10">
+    <div class="absolute bottom-full left-1/2 -translate-x-1/2 pb-3 hidden group-hover:block z-10">
       <div class="px-3 py-2 bg-surface border border-surface-border rounded-lg text-xs text-neutral-400 whitespace-nowrap shadow-lg">
         <div class="text-white font-medium">${unit.price.toFixed(2)} each</div>
         {unit.sourceUrl ? (
@@ -41,7 +41,7 @@ function SourceTooltip({ unit }: { unit: ComparisonUnit }) {
 function SourceTooltipInline({ unit }: { unit: ComparisonUnit }) {
   if (!unit.source) return null;
   return (
-    <div class="absolute bottom-full left-0 pb-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto z-10">
+    <div class="absolute bottom-full left-0 pb-3 hidden group-hover:block z-10">
       <div class="px-3 py-2 bg-surface border border-surface-border rounded-lg text-xs text-neutral-400 whitespace-nowrap shadow-lg">
         {unit.sourceUrl ? (
           <a

@@ -269,6 +269,9 @@ export default function PlanChecker({ manifest }: Props) {
                   ))}
                 </div>
               )}
+              <p class={!allDownloadsSelected && uploads.length > 0 ? 'text-xs text-neutral-500' : 'hidden'}>
+                Upload speed is the second number in your plan name, like the 50 in 1000/50. Not sure? Pick the one on your bill.
+              </p>
             </div>
           </div>
 

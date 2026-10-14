@@ -3,7 +3,7 @@ import type { CookedResult, TierManifest } from '../lib/types';
 import { parseTierKey, parseGroupedTierKey, buildTierLabel } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
 import { LEVELS } from '../lib/cooked';
-import { resolveUserPlan, saveUserPlan, clearUserPlan } from '../lib/storage';
+import { resolveUserPlan, saveUserPlan } from '../lib/storage';
 import { buildShareUrl, type ShareData, type ShareManifests } from '../lib/share';
 import RortTimeline from './RortTimeline';
 
@@ -20,6 +20,12 @@ interface Props {
   cheapestPlanSpeed?: string;
   /** Sentence explaining why the rating moved after the user changed the period or speed */
   changeNote?: string;
+  /** True when the page has upload speed chips (grouped pages only) */
+  hasSpeedChips?: boolean;
+  /** e.g. "1000/100 from $89.99/mo (save $20.00)": shown in the card so a green verdict can't hide a cheaper faster plan */
+  fasterNote?: string;
+  /** e.g. "3 month intro discount, then $139/mo" for the cheapest plan in the comparison */
+  cheapestPlanNote?: string;
   horizon?: number;
   manifest?: TierManifest;
   onCookedChange?: (result: CookedResult | null) => void;
@@ -134,7 +140,7 @@ function RortScale({ currentLevel }: { currentLevel: string }) {
   );
 }
 
-export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, cheapestPlanSpeed, changeNote, horizon = 12, manifest, onCookedChange }: Props) {
+export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapestEffective, cheapestProviderName, scope, cheapestPlanSpeed, changeNote, hasSpeedChips, fasterNote, cheapestPlanNote, horizon = 12, manifest, onCookedChange }: Props) {
   const ratedKey = planKey ?? tierKey;
   const parsed = parseTierKey(ratedKey);
   const grouped = !parsed ? parseGroupedTierKey(ratedKey) : null;
@@ -184,8 +190,16 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
     setTimeout(() => setShareLabel('Share'), 2000);
   }, [result, ratedKey, provider, baseline, cheapestProviderName, manifest]);
 
+  // "Change" is an edit, not a delete: the saved plan stays until it is re-submitted, and it is re-saved
+  // under the key it came from so a plan saved for 1000/50 does not turn into a whole-tier 1000 plan.
+  const [editing, setEditing] = useState(false);
+  const [savedKey, setSavedKey] = useState(planKey ?? tierKey);
+
   useEffect(() => {
-    const existing = resolveUserPlan(tierKey)?.plan;
+    if (editing) return;
+    const found = resolveUserPlan(tierKey);
+    const existing = found?.plan;
+    if (found) setSavedKey(found.key);
     if (existing) {
       setPrice(existing.price.toString());
       setProvider(existing.provider);
@@ -207,13 +221,14 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
         onCookedChange?.(r);
       }
     }
-  }, [tierKey, planKey, cheapestPrice, baseline, horizon]);
+  }, [tierKey, planKey, cheapestPrice, baseline, horizon, editing]);
 
   function handleSubmit(e: Event) {
     e.preventDefault();
     const p = parseFloat(price);
     if (isNaN(p) || p <= 0) return;
-    saveUserPlan(tierKey, p, provider);
+    saveUserPlan(savedKey, p, provider);
+    setEditing(false);
     const r = calculateCooked(p, baseline);
     setResult(r);
     onCookedChange?.(r);
@@ -221,7 +236,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
   }
 
   function handleClear() {
-    clearUserPlan(tierKey);
+    setEditing(true);
     // Keep price and provider in the form so "Change" means edit, not start over
     setResult(null);
     onCookedChange?.(null);
@@ -230,6 +245,7 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
     setUserPromoLeft(0);
   }
 
+  const scopeIsLikeForLike = !scope || scope.yourUpload === undefined || scope.uploads.every(u => u === scope.yourUpload);
   const periodLabel = horizon === 12 ? '1 year' : horizon === 24 ? '2 years' : `${horizon} months`;
 
   if (result) {
@@ -282,11 +298,21 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
               You're paying <span class="font-bold" style={{ color: result.color }}>${Math.abs(currentPrice - baseline).toFixed(2)}/mo less</span> than the cheapest plan in this comparison
             </p>
             <p class="text-neutral-400">
-              Whatever you did, don't change a thing.            </p>
+              {scopeIsLikeForLike
+                ? 'No plan at your exact speed beats your price.'
+                : "Those plans have a different upload speed to yours, so this isn't a like for like win."}
+            </p>
           </div>
         ) : (
           <p class="mt-4 text-lg text-neutral-300">
             You're on the cheapest plan. Sweet as.          </p>
+        )}
+
+        {fasterNote && (
+          <div class="mt-4 text-left rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-neutral-300">
+            <span class="font-medium text-amber-400">But a plan with higher speeds costs less: </span>
+            {fasterNote}.
+          </div>
         )}
 
         <div class="mt-4 text-left bg-surface border border-surface-border rounded-lg p-4 text-sm text-neutral-400 space-y-1.5">
@@ -297,13 +323,15 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
             <span class="text-white tabular-nums">${currentPrice.toFixed(2)}/mo</span>
           </div>
           <div class="flex justify-between gap-4">
-            <span>Cheapest in this comparison, over {periodLabel}</span>
+            <span>Cheapest over {periodLabel} (average cost)</span>
             <span class="text-white tabular-nums">${baseline.toFixed(2)}/mo</span>
           </div>
           <div class="text-xs text-neutral-500">
             {cheapestProviderName ? `${cheapestProviderName}${cheapestPlanSpeed ? `, ${cheapestPlanSpeed}` : ''}. ` : ''}
             {baseline < cheapestPrice - 0.005
-              ? `This averages in intro discounts. The cheapest list price is $${cheapestPrice.toFixed(2)}/mo.`
+              ? cheapestPlanNote
+                ? `This averages in a ${cheapestPlanNote}.`
+                : `This averages in intro discounts. The cheapest list price is $${cheapestPrice.toFixed(2)}/mo.`
               : ''}
           </div>
           <div class="flex justify-between gap-4 border-t border-surface-border pt-1.5">
@@ -317,7 +345,9 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
               {' '}→ {result.label}
             </span>
           </div>
-          <div class="text-xs text-neutral-500">Change the period, or the upload speed chips above, and this updates.</div>
+          <div class="text-xs text-neutral-500">
+            {hasSpeedChips ? 'Change the period, or the upload speed chips above, and this updates.' : 'Change the commitment period above and this updates.'}
+          </div>
         </div>
 
         {/* Post-promo rort rating — toggle reveal */}
@@ -434,6 +464,15 @@ export default function CookedRating({ tierKey, planKey, cheapestPrice, cheapest
         >
           Am I getting rorted?
         </button>
+        {editing && (
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            class="text-sm text-neutral-500 hover:text-white underline self-center"
+          >
+            Cancel
+          </button>
+        )}
       </form>
     </div>
   );

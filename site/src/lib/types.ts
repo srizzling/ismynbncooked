@@ -20,6 +20,10 @@ export interface SpeedOptionPlan {
   cost: number;
   provider: string;
   plan: string;
+  /** What the plan costs per month once any intro discount ends */
+  listPrice?: number;
+  /** Months the intro discount lasts, 0 when there is none */
+  promoMonths?: number;
 }
 
 export interface SpeedOption {

@@ -119,10 +119,11 @@ const HORIZON_KEY = 'ismynbncooked_horizon';
 export type HorizonPreference = 3 | 6 | 12 | 24 | 'cheapest';
 
 export function getDefaultHorizon(): HorizonPreference {
-  if (typeof window === 'undefined') return 6;
+  // One year is a realistic commitment. Auto-picking the shortest window lets a 3 month intro price set the headline rating.
+  if (typeof window === 'undefined') return 12;
   try {
     const raw = localStorage.getItem(HORIZON_KEY);
-    if (!raw) return 'cheapest';
+    if (!raw) return 12;
     if (raw === 'cheapest') return 'cheapest';
     const num = parseInt(raw, 10);
     if ([3, 6, 12, 24].includes(num)) return num as 3 | 6 | 12 | 24;

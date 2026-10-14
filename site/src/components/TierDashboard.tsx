@@ -7,7 +7,7 @@ import { calcCosts, cheapestEffectiveForHorizon, cheapestPlanForHorizon, bestHor
 import CookedRating from './CookedRating';
 import AlertSignup from './AlertSignup';
 import SavingsComparison from './SavingsComparison';
-import SpeedComparisons from './SpeedComparisons';
+import SpeedComparisons, { fasterPlansCheaper } from './SpeedComparisons';
 import PlanTable from './PlanTable';
 import PriceChart from './PriceChart';
 
@@ -42,7 +42,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   const [priceChange, setPriceChange] = useState<{ dropped: boolean; amount: number; since: string } | null>(null);
   // Start with the server-rendered default and read the saved preference after mount,
   // otherwise the SSR HTML and the first client render disagree (hydration mismatch).
-  const [horizonPref, setHorizonPref] = useState<HorizonPreference>(6); // matches getDefaultHorizon() on the server
+  const [horizonPref, setHorizonPref] = useState<HorizonPreference>(12); // matches getDefaultHorizon() on the server
   useEffect(() => {
     setHorizonPref(getDefaultHorizon());
   }, []);
@@ -68,17 +68,6 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   const showSpeedFilter = !!isGrouped && uploadSpeeds.length > 1;
   // After clicking a chip the pointer is still over it; hide its tooltip until the pointer leaves so it doesn't cover the numbers.
   const [tipHidden, setTipHidden] = useState<number | 'all' | null>(null);
-  // Per-chip summary for the hover tooltip: plan count and cheapest monthly price for each upload speed
-  const speedSummaries = useMemo(() => {
-    const out = new Map<number | 'all', { count: number; cheapest: NBNPlan }>();
-    const add = (key: number | 'all', plans: NBNPlan[]) => {
-      if (plans.length === 0) return;
-      out.set(key, { count: plans.length, cheapest: plans.reduce((b, p) => (p.monthlyPrice < b.monthlyPrice ? p : b)) });
-    };
-    add('all', tierData.plans);
-    for (const u of uploadSpeeds) add(u, tierData.plans.filter(p => p.uploadSpeed === u));
-    return out;
-  }, [tierData.plans, uploadSpeeds]);
   // Default to the user's own variant once we've read their saved plan (after mount, to match SSR).
   useEffect(() => {
     if (userVariant && uploadSpeeds.includes(userVariant.upload)) setSpeedFilter(userVariant.upload);
@@ -120,6 +109,22 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   );
   const baseline = cheapestEffective < viewCheapest ? cheapestEffective : viewCheapest;
 
+  // Per-chip summary for the hover tooltip, on the same basis as the verdict:
+  // the cheaper of the average monthly cost over the chosen period and the plain monthly price.
+  const speedSummaries = useMemo(() => {
+    const out = new Map<number | 'all', { count: number; cost: number; plan: NBNPlan }>();
+    const add = (key: number | 'all', plans: NBNPlan[]) => {
+      if (plans.length === 0) return;
+      const atPeriod = cheapestPlanForHorizon(plans, horizon)!;
+      const monthly = plans.reduce((b, p) => (p.monthlyPrice < b.monthlyPrice ? p : b));
+      const useMonthly = monthly.monthlyPrice < atPeriod.effectiveCost;
+      out.set(key, { count: plans.length, cost: useMonthly ? monthly.monthlyPrice : atPeriod.effectiveCost, plan: useMonthly ? monthly : atPeriod.plan });
+    };
+    add('all', tierData.plans);
+    for (const u of uploadSpeeds) add(u, tierData.plans.filter(p => p.uploadSpeed === u));
+    return out;
+  }, [tierData.plans, uploadSpeeds, horizon]);
+
   const showBestHorizonNudge = horizonPref !== 'cheapest' && best.horizon !== horizon && best.effectiveCost < cheapestEffective - 0.5;
 
   // Pre-compute cheapest plan at each horizon for the selector buttons
@@ -127,6 +132,8 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
     () => HORIZONS.map(h => ({ h, result: cheapestPlanForHorizon(viewPlans, h) })),
     [viewPlans]
   );
+  // When every period costs the same, a CHEAPEST badge on one of them just looks like a mistake
+  const allPeriodsSame = horizonResults.every(r => r.result && Math.abs(r.result.effectiveCost - horizonResults[0].result!.effectiveCost) < 0.005);
 
   useEffect(() => {
     // Check for existing user plan on this tier
@@ -161,6 +168,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   const horizonLabel = horizon === 12 ? '1yr' : horizon === 24 ? '2yr' : `${horizon}mo`;
 
   // --- Why did my rating change? ---
+  const money = (n: number) => (Number.isInteger(n) ? n.toFixed(0) : n.toFixed(2));
   const periodName = (h: number) => (h === 12 ? '1 year' : h === 24 ? '2 years' : `${h} months`);
   const speedName = (sp: number | 'all') => (sp === 'all' ? 'all upload speeds' : `${tierData.downloadSpeed}/${sp}`);
   const currentResult = useMemo(
@@ -174,8 +182,19 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
     const changed = prev.speed !== speedFilter || prev.horizon !== horizon;
     if (changed && userChoiceRef.current && currentResult && prev.label) {
       const parts: string[] = [];
-      if (prev.horizon !== horizon) parts.push(`the commitment period from ${periodName(prev.horizon)} to ${periodName(horizon)}`);
-      if (prev.speed !== speedFilter) parts.push(`the upload speed from ${speedName(prev.speed)} to ${speedName(speedFilter)}`);
+      const periodMoved = prev.horizon !== horizon;
+      const speedMoved = prev.speed !== speedFilter;
+      if (speedMoved) {
+        parts.push(
+          `the upload speed from ${speedName(prev.speed)} to ${speedName(speedFilter)}` +
+          (periodMoved && horizonPref === 'cheapest'
+            ? ` (the period also moved from ${periodName(prev.horizon)} to ${periodName(horizon)} by itself, because the page is auto-picking the cheapest period)`
+            : '')
+        );
+      }
+      if (periodMoved && !(speedMoved && horizonPref === 'cheapest')) {
+        parts.push(`the commitment period from ${periodName(prev.horizon)} to ${periodName(horizon)}`);
+      }
       setChangeNote({ from: prev.label, to: currentResult.label, because: parts.join(' and ') });
     }
     if (changed) userChoiceRef.current = false;
@@ -189,19 +208,40 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
   const choicesText = `${periodName(horizon)}, ${tierData.downloadSpeed} Mbps down, ${
     isGrouped ? (speedFilter === 'all' ? 'any upload speed' : `${speedFilter} Mbps up`) : `${tierData.uploadSpeed} Mbps up`
   }`;
+  const fasterNote = useMemo(() => {
+    if (!userEntry || !speedOptions || speedOptions.length === 0) return undefined;
+    const exact = parseTierKey(userEntry.key);
+    const yours = userVariant
+      ? { download: userVariant.download, upload: userVariant.upload }
+      : exact ? { download: exact.download, upload: exact.upload } : { download: tierData.downloadSpeed };
+    return fasterPlansCheaper(speedOptions, yours, userEntry.plan.price, horizon) ?? undefined;
+  }, [userEntry?.key, userEntry?.plan.price, speedOptions, horizon, userVariant?.upload]);
+  // The note stays in the verdict card; the sticky strip only shows it for a few seconds so the strip stays short.
+  const [noteVisible, setNoteVisible] = useState(false);
+  // A note about a past chip or period change is stale once the saved plan itself changes.
+  useEffect(() => {
+    setChangeNote(null);
+    setNoteVisible(false);
+  }, [userEntry?.key, userEntry?.plan.price]);
+  useEffect(() => {
+    if (!changeNote) return;
+    setNoteVisible(true);
+    const t = setTimeout(() => setNoteVisible(false), 9000);
+    return () => clearTimeout(t);
+  }, [changeNote]);
   const verdictStrip = userEntry && currentResult ? (
     <a
       href="#your-verdict"
-      class="block rounded-xl border border-surface-border bg-surface px-4 py-3 text-sm hover:border-neutral-600 transition-colors"
+      class="sticky top-2 z-20 block rounded-xl border border-surface-border bg-surface/95 backdrop-blur px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm shadow-lg hover:border-neutral-600 transition-colors"
     >
       <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <span class="text-neutral-400">
           With {choicesText}, your plan is{' '}
           <span class="font-bold" style={{ color: currentResult.color }}>{currentResult.label}</span>
         </span>
-        <span class="text-xs text-neutral-500 underline">See how we got this</span>
+        <span class="hidden sm:inline text-xs text-neutral-500 underline">See how we got this</span>
       </div>
-      {changeText && <div class="text-xs text-neutral-300 mt-1">{changeText}</div>}
+      {changeText && noteVisible && <div class="text-xs text-neutral-300 mt-1">{changeText}</div>}
     </a>
   ) : null;
 
@@ -227,7 +267,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
             <span class="text-sm text-neutral-400 mr-1">Upload speed</span>
             {(['all', ...uploadSpeeds] as Array<number | 'all'>).map(u => {
               const summary = speedSummaries.get(u);
-              const diff = summary && userPlan ? summary.cheapest.monthlyPrice - userPlan.price : null;
+              const diff = summary && userPlan ? summary.cost - userPlan.price : null;
               return (
                 <div key={u} class="group" onMouseLeave={() => setTipHidden(null)}>
                   <button
@@ -247,9 +287,9 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
                           {u === 'all' ? `Every ${tierData.downloadSpeed} Mbps plan` : `${tierData.downloadSpeed} Mbps down / ${u} Mbps up`}
                         </div>
                         <div class="mt-0.5">
-                          {summary.count} plan{summary.count !== 1 ? 's' : ''}, from{' '}
-                          <span class="text-white">${summary.cheapest.monthlyPrice.toFixed(2)}/mo</span> ({summary.cheapest.providerName}
-                          {u === 'all' ? `, ${summary.cheapest.downloadSpeed}/${summary.cheapest.uploadSpeed}` : ''})
+                          {summary.count} plan{summary.count !== 1 ? 's' : ''}, cheapest over {periodName(horizon)}:{' '}
+                          <span class="text-white">${summary.cost.toFixed(2)}/mo</span> ({summary.plan.providerName}
+                          {u === 'all' ? `, ${summary.plan.downloadSpeed}/${summary.plan.uploadSpeed}` : ''})
                         </div>
                         {diff !== null && userPlan && (
                           <div class="mt-0.5">
@@ -273,14 +313,14 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           {userVariant && (
             <div class="text-xs text-neutral-500 mt-2">
               {speedFilter === userVariant.upload
-                ? `Showing ${tierData.downloadSpeed}/${speedFilter} plans only, the speed of your saved ${buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan.`
+                ? `Showing ${viewPlans.length} of ${tierData.plans.length} plans: only ${tierData.downloadSpeed}/${speedFilter}, the speed of your saved ${buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan.`
                 : `Your ${buildTierLabel(userVariant.network, userVariant.download, userVariant.upload)} plan is being compared with ${speedFilter === 'all' ? 'every upload speed' : `${tierData.downloadSpeed}/${speedFilter} plans`}.`}
             </div>
           )}
         </div>
       )}
 
-      {showSpeedFilter && verdictStrip}
+      {verdictStrip}
 
       {/* Stats */}
       <div class="flex gap-6 flex-wrap">
@@ -299,13 +339,14 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
 
       {/* Global horizon selector — shows cheapest effective at each period */}
       <div>
-        <div class="flex items-start justify-between mb-2">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-2">
           <div>
             <div class="text-sm text-neutral-400">Cheapest effective monthly by commitment period</div>
             <div class="text-xs text-neutral-600 mt-0.5">
               Average monthly cost over that period, including intro discounts, full price after them, and fees. Pick how long you plan to stay: your rating below uses this.
             </div>
           </div>
+          {!allPeriodsSame && (
           <button
             onClick={() => handleHorizonChange(horizonPref === 'cheapest' ? horizon : 'cheapest')}
             class={`text-xs px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap ${
@@ -319,12 +360,13 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           >
             {horizonPref === 'cheapest' ? '✓ Auto-picking the cheapest period' : 'Pick the cheapest period for me'}
           </button>
+          )}
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {horizonResults.map(({ h, result }) => {
             if (!result) return null;
             const { plan: cheapPlan, effectiveCost: effPrice, totalCost } = result;
-            const isBest = h === best.horizon;
+            const isBest = h === best.horizon && !allPeriodsSame;
             const isActive = h === horizon;
             const hLabel = h === 12 ? '1 year' : h === 24 ? '2 years' : `${h} months`;
             const hasPromo = cheapPlan.promoValue && cheapPlan.promoValue > 0 && cheapPlan.promoDuration;
@@ -349,7 +391,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
                   {hLabel}
                 </div>
                 <div class={`text-lg font-display font-bold tabular-nums ${isActive ? 'text-white' : 'text-neutral-300'}`}>
-                  ${effPrice.toFixed(0)}<span class="text-xs font-normal text-neutral-500">/mo</span>
+                  ${Number.isInteger(effPrice) ? effPrice.toFixed(0) : effPrice.toFixed(2)}<span class="text-xs font-normal text-neutral-500">/mo</span>
                 </div>
                 <div class={`text-[11px] mt-1 ${isActive ? 'text-neutral-400' : 'text-neutral-600'}`}>
                   {cheapPlan.providerName}
@@ -357,26 +399,27 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
                 <div class={`text-[10px] mt-0.5 tabular-nums ${isActive ? 'text-neutral-500' : 'text-neutral-700'}`}>
                   {hasPromo && promoMonths > 0 ? (
                     promoMonths >= h ? (
-                      <>${promoPrice.toFixed(0)} × {h}mo = ${totalCost.toFixed(0)}</>
+                      <>${money(promoPrice)} × {h}mo = ${money(totalCost)}</>
                     ) : (
-                      <>${promoPrice.toFixed(0)} × {promoMonths}mo + ${cheapPlan.monthlyPrice.toFixed(0)} × {h - promoMonths}mo</>
+                      <>${money(promoPrice)} × {promoMonths}mo + ${money(cheapPlan.monthlyPrice)} × {h - promoMonths}mo</>
                     )
                   ) : (
-                    <>${cheapPlan.monthlyPrice.toFixed(0)} × {h}mo = ${totalCost.toFixed(0)}</>
+                    <>${money(cheapPlan.monthlyPrice)} × {h}mo = ${money(totalCost)}</>
                   )}
                 </div>
               </button>
             );
           })}
         </div>
-        {horizonPref === 'cheapest' && (
+        {allPeriodsSame && (
+          <div class="text-xs text-neutral-500 mt-2">These plans cost the same at every period.</div>
+        )}
+        {horizonPref === 'cheapest' && !allPeriodsSame && (
           <div class="text-xs text-neutral-600 mt-2">
             Showing the period with the lowest monthly cost. Tap a period to choose your own. We'll remember it.
           </div>
         )}
       </div>
-
-      {verdictStrip}
 
       {/* Price change since last visit */}
       {priceChange && (
@@ -395,7 +438,7 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
 
       {/* Cross-tier context banner */}
       {otherTierPlan && !cookedResult && tierData && (() => {
-        const diff = cheapest - otherTierPlan.plan.price;
+        const diff = baseline - otherTierPlan.plan.price;
         const absDiff = Math.abs(diff).toFixed(2);
         return (
           <div class="bg-surface-raised border border-accent/30 rounded-2xl p-6">
@@ -407,11 +450,11 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
             </p>
             <p class="text-neutral-400 text-sm mt-1">
               {diff > 0 ? (
-                <>The cheapest {label} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — that's <span class="text-white font-medium">${absDiff}/mo more</span> than you're paying now.</>
+                <>The cheapest {label} plan over {periodName(horizon)} averages <span class="text-white font-medium">${baseline.toFixed(2)}/mo</span> — that's <span class="text-white font-medium">${absDiff}/mo more</span> than you're paying now.</>
               ) : diff < 0 ? (
-                <>The cheapest {label} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — you could save <span class="text-accent font-medium">${absDiff}/mo</span>.</>
+                <>The cheapest {label} plan over {periodName(horizon)} averages <span class="text-white font-medium">${baseline.toFixed(2)}/mo</span> — you could save <span class="text-accent font-medium">${absDiff}/mo</span>.</>
               ) : (
-                <>The cheapest {label} plan starts at <span class="text-white font-medium">${cheapest.toFixed(2)}/mo</span> — same as what you're paying now.</>
+                <>The cheapest {label} plan over {periodName(horizon)} averages <span class="text-white font-medium">${baseline.toFixed(2)}/mo</span> — same as what you're paying now.</>
               )}
             </p>
           </div>
@@ -426,6 +469,11 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
         cheapestEffective={cheapestEffective < cheapest ? cheapestEffective : undefined}
         cheapestProviderName={cheapestAtHorizon?.plan.providerName}
         changeNote={changeText}
+        cheapestPlanNote={cheapestAtHorizon?.plan.promoDuration && cheapestAtHorizon.plan.promoValue
+          ? `${cheapestAtHorizon.plan.promoDuration} month intro discount, then it's ${money(cheapestAtHorizon.plan.monthlyPrice)}/mo`
+          : undefined}
+        fasterNote={fasterNote}
+        hasSpeedChips={showSpeedFilter}
         cheapestPlanSpeed={cheapestAtHorizon ? `${cheapestAtHorizon.plan.downloadSpeed}/${cheapestAtHorizon.plan.uploadSpeed}` : undefined}
         scope={{
           yourDownload: tierData.downloadSpeed,
@@ -448,6 +496,8 @@ export default function TierDashboard({ tierKey, label, tierData, history, compa
           })()}
           userPrice={userEntry.plan.price}
           horizon={horizon}
+          mainLabel={currentResult?.label}
+          mainLevel={currentResult?.level}
         />
       )}
 
