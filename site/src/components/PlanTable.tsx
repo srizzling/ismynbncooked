@@ -235,7 +235,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
         return (
           <td class="px-4 py-3 text-sm" key={col.key}>
             {hasPromo ? (
-              <span class={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${
+              <span class={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-sm whitespace-nowrap ${
                 promoCoversHorizon
                   ? 'bg-cooked-green/20 text-cooked-green'
                   : 'bg-accent/20 text-accent'
@@ -314,7 +314,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
           placeholder="Search providers..."
           value={search}
           onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-          class="bg-surface border border-surface-border rounded-lg px-3 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+          class="bg-surface border border-surface-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent"
         />
         <label class="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
           <input
@@ -361,7 +361,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
               {COLUMNS.filter(c => !c.always).map((col) => (
                 <label
                   key={col.key}
-                  class="flex items-center gap-2 text-sm text-neutral-300 cursor-pointer px-2 py-1.5 rounded hover:bg-surface-raised/50"
+                  class="flex items-center gap-2 text-sm text-neutral-300 cursor-pointer px-2 py-1.5 rounded-sm hover:bg-surface-raised/50"
                 >
                   <input
                     type="checkbox"
@@ -535,7 +535,7 @@ export default function PlanTable({ plans, highlightProvider, userPrice, userFul
                                 rel="noopener"
                                 class="inline-flex items-center gap-2 text-sm bg-surface border border-surface-border rounded-lg px-3 py-2 text-accent hover:border-accent transition-colors"
                               >
-                                <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 17h6M9 13h6M9 9h1" />
                                 </svg>

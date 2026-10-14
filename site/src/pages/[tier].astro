@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import TierDashboard from '../components/TierDashboard';
 import AdSlot from '../components/AdSlot.astro';
@@ -53,7 +54,7 @@ async function loadTierHistory(key: string, bucket?: any): Promise<TierHistory |
 
 let bucket: any = null;
 try {
-  bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  bucket = env.DATA_BUCKET;
 } catch {}
 
 // Load manifest and comparisons

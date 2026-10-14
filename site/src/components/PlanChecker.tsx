@@ -176,8 +176,8 @@ export default function PlanChecker({ manifest }: Props) {
     }
   }
 
-  const selectClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-accent appearance-none";
-  const inputClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent";
+  const selectClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-hidden focus:border-accent appearance-none";
+  const inputClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent";
   const pillClass = (active: boolean) =>
     `text-xs px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
       active
@@ -290,7 +290,7 @@ export default function PlanChecker({ manifest }: Props) {
                     value={price}
                     onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
                     required
-                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent"
                   />
                 </div>
                 <div>
@@ -300,7 +300,7 @@ export default function PlanChecker({ manifest }: Props) {
                     placeholder="e.g. Telstra"
                     value={provider}
                     onInput={(e) => setProvider((e.target as HTMLInputElement).value)}
-                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent"
                   />
                 </div>
                 <div>
@@ -308,7 +308,7 @@ export default function PlanChecker({ manifest }: Props) {
                   <select
                     value={state}
                     onChange={(e) => setState((e.target as HTMLSelectElement).value as AUState)}
-                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white focus:outline-none focus:border-accent appearance-none"
+                    class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white focus:outline-hidden focus:border-accent appearance-none"
                   >
                     {AU_STATES.map((s) => (
                       <option key={s} value={s}>{STATE_LABELS[s]}</option>
@@ -331,7 +331,7 @@ export default function PlanChecker({ manifest }: Props) {
                         setFullPrice((e.target as HTMLInputElement).value);
                         if ((e.target as HTMLInputElement).value) setOnPromo(true);
                       }}
-                      class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                      class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent"
                     />
                   </div>
                   <div>
@@ -347,7 +347,7 @@ export default function PlanChecker({ manifest }: Props) {
                         setPromoMonthsLeft((e.target as HTMLInputElement).value);
                         if ((e.target as HTMLInputElement).value) setOnPromo(true);
                       }}
-                      class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-accent"
+                      class="w-full bg-surface border border-surface-border rounded-lg px-2.5 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent"
                     />
                   </div>
                 </div>

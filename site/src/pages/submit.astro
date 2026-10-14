@@ -1,12 +1,11 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import PlanSubmission from '../components/PlanSubmission';
 
-const runtime = Astro.locals.runtime;
-
 // --- Feature toggle: SUBMISSIONS_ENABLED env var ---
 const testBypass = Astro.url.searchParams.get('test') === 'true';
-const showSubmissionForm = testBypass || runtime.env.SUBMISSIONS_ENABLED !== 'false';
+const showSubmissionForm = testBypass || env.SUBMISSIONS_ENABLED !== 'false';
 
 // --- Fetch recent plan submission PRs ---
 interface SubmissionPR {
@@ -19,7 +18,7 @@ interface SubmissionPR {
 }
 
 let submissions: SubmissionPR[] = [];
-const ghToken = runtime.env.GITHUB_TOKEN;
+const ghToken = env.GITHUB_TOKEN;
 
 if (ghToken) {
   try {
@@ -93,15 +92,15 @@ if (ghToken) {
       <h2 class="font-display font-bold text-xl mb-3">How it works</h2>
       <div class="space-y-3 text-sm text-neutral-400">
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">1</span>
+          <span class="shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">1</span>
           <p>Fill in the plan details above. Make sure to include a link to the provider's plan page so we can verify the information.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">2</span>
+          <span class="shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">2</span>
           <p>Clicking "Submit plan" sends your submission directly to our system. No account needed.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">3</span>
+          <span class="shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center">3</span>
           <p>We'll review the submission, verify the plan details, and add it to the database. New plans typically appear within a few days.</p>
         </div>
       </div>

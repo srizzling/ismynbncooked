@@ -1,3 +1,4 @@
+import { env } from 'cloudflare:workers';
 import type { APIRoute } from 'astro';
 import type { TierManifest, ProviderIndex, ReportIndex } from '../lib/types';
 import { loadData } from '../lib/load';
@@ -11,7 +12,7 @@ export const GET: APIRoute = async ({ locals, site, url }) => {
 
   let manifest: TierManifest | null = null;
   try {
-    const obj = await locals.runtime.env.DATA_BUCKET.get('data/manifest.json');
+    const obj = await env.DATA_BUCKET.get('data/manifest.json');
     if (obj) manifest = await obj.json() as TierManifest;
   } catch {}
   if (!manifest) manifest = await readLocalJson<TierManifest>('data/manifest.json') ?? getFixtureManifest();

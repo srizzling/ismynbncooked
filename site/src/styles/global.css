@@ -1,6 +1,36 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Clash Display', system-ui, sans-serif;
+  --font-body: 'General Sans', system-ui, sans-serif;
+
+  --color-cooked-green: #4ade80;
+  --color-cooked-yellow: #facc15;
+  --color-cooked-orange: #fb923c;
+  --color-cooked-red: #ef4444;
+
+  --color-surface: #0a0a0a;
+  --color-surface-raised: #141414;
+  --color-surface-border: #262626;
+
+  --color-accent: #f97316;
+}
+
+/* v3 compat: v4 defaults borders to currentColor and buttons to the default cursor */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 @font-face {
   font-family: 'Clash Display';

@@ -87,8 +87,8 @@ export function TierDeltaChart({ tiers, final }: { tiers: ReportTier[]; final: b
         </div>
       )}
       <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-neutral-400">
-        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-sm" style={{ background: CHART.rise }} /> dearer (+)</span>
-        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-sm" style={{ background: CHART.drop }} /> cheaper (−)</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-xs" style={{ background: CHART.rise }} /> dearer (+)</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-xs" style={{ background: CHART.drop }} /> cheaper (−)</span>
       </div>
     </div>
   );
@@ -153,8 +153,8 @@ export function ProviderChangesChart({ tiers, limit = 12 }: { tiers: ReportTier[
         )}
       </div>
       <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-neutral-400">
-        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-sm" style={{ background: CHART.drop }} /> drops</span>
-        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-sm" style={{ background: CHART.rise }} /> rises</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-xs" style={{ background: CHART.drop }} /> drops</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-xs" style={{ background: CHART.rise }} /> rises</span>
         <span class="text-neutral-600">top {rows.length} providers by number of changes</span>
       </div>
     </div>
@@ -227,8 +227,8 @@ export function ChangesTimeline({ tiers, month }: { tiers: ReportTier[]; month: 
         )}
       </div>
       <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-neutral-400">
-        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-sm" style={{ background: CHART.rise }} /> rises</span>
-        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-sm" style={{ background: CHART.drop }} /> drops</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-xs" style={{ background: CHART.rise }} /> rises</span>
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 h-2 rounded-xs" style={{ background: CHART.drop }} /> drops</span>
         <span class="text-neutral-600">day of month</span>
       </div>
     </div>

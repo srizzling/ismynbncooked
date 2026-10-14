@@ -18,8 +18,8 @@ export default function PlanSubmission() {
   const [error, setError] = useState('');
   const [isDuplicate, setIsDuplicate] = useState(false);
 
-  const inputClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder-neutral-500 focus:outline-none focus:border-accent";
-  const selectClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-accent appearance-none";
+  const inputClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white placeholder:text-neutral-500 focus:outline-hidden focus:border-accent";
+  const selectClass = "w-full bg-surface border border-surface-border rounded-lg px-3 py-2.5 text-white focus:outline-hidden focus:border-accent appearance-none";
 
   async function handleSubmit(e: Event) {
     e.preventDefault();

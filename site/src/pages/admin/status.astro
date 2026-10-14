@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
 import { type TierData, type TierManifest, type MetaData } from '../../lib/types';
 import { getFixtureManifest } from '../../lib/data';
@@ -11,7 +12,7 @@ let tierDetails: { key: string; label: string; planCount: number; cheapest: numb
 
 // Try R2 first
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const bucket = env.DATA_BUCKET;
   const manifestObj = await bucket.get('data/manifest.json');
   if (manifestObj) {
     manifest = await manifestObj.json() as TierManifest;
@@ -149,7 +150,7 @@ const sourceLabels = { r2: 'R2 Bucket', static: 'Static Files (public/data/)', f
               <td class="px-4 py-3 tabular-nums text-white">${t.cheapest.toFixed(2)}</td>
               <td class="px-4 py-3 text-neutral-400 text-xs">{new Date(t.updatedAt).toLocaleString()}</td>
               <td class="px-4 py-3">
-                <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+                <span class={`text-xs font-bold px-2 py-0.5 rounded-sm ${
                   t.source === 'r2' ? 'bg-cooked-green/20 text-cooked-green' : 'bg-accent/20 text-accent'
                 }`}>
                   {t.source.toUpperCase()}

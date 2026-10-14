@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
 import { parseTierKey, buildTierLabel, type TierData, type ComparisonsData } from '../lib/types';
 import { calculateCooked } from '../lib/cooked';
@@ -25,7 +26,7 @@ const tierKey = data.s;
 let comparisons: ComparisonsData | null = null;
 let tierData: TierData | null = null;
 try {
-  const bucket = Astro.locals.runtime.env.DATA_BUCKET;
+  const bucket = env.DATA_BUCKET;
   const [compObj, tierObj] = await Promise.all([
     bucket.get('data/comparisons.json'),
     bucket.get(`data/plans/${tierKey}.json`),
