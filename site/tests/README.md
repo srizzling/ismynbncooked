@@ -6,7 +6,7 @@ There are four kinds of test.
 |---|---|---|---|
 | Unit tests for `src/lib` | `tests/unit` | `pnpm exec vitest run` | `test.yml` |
 | End to end tests on fixture data | `tests/e2e` | `pnpm exec playwright test --project=e2e` | `test.yml` |
-| Smoke tests against a deployed site | `tests/live` | `BASE_URL=<site> pnpm exec playwright test --project=live` | `preview.yml` |
+| Smoke tests against a deployed site | `tests/live` | `BASE_URL=<site> pnpm exec playwright test --project=live` | `preview.yml`, `prod-smoke.yml` |
 | Visual diff | `tests/visual` | see below | `preview.yml`, and `test.yml` for PRs with no preview |
 
 If `pnpm test` fails with a dependency check error, call the binaries directly as shown above. pnpm 11 tries to reinstall without a terminal.
@@ -44,3 +44,7 @@ PRs from forks and Dependabot, and plan submission PRs, get no preview because t
 Either way the HTML report is uploaded as an artifact. If anything differs, a comment on the PR shows the biggest changes as base, PR and diff images. The comment is edited on each push, and edited again to say "none" if a later push removes the diffs. No comment is posted when nothing has ever differed.
 
 The images live on a branch called `visual-diffs`, written by `.github/actions/visual-report`. It holds one commit that is rewritten each run, and a PR's folder is removed when the PR closes. A token without write access (forks, Dependabot) gets a table and a link to the report instead of images.
+
+## Production smoke
+
+`prod-smoke.yml` runs the `live` tests against https://amigettingrorted.au after every deploy from `main`, every six hours, and on demand. A failing run is the alert. The edge cache can serve the previous version for up to ten minutes after a deploy, so rerun first if it fails right after one.
