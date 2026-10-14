@@ -74,9 +74,9 @@ describe('user plans', () => {
 });
 
 describe('preferences', () => {
-  it('defaults the horizon to cheapest', async () => {
+  it('defaults the horizon to one year', async () => {
     const { getDefaultHorizon } = await mod();
-    expect(getDefaultHorizon()).toBe('cheapest');
+    expect(getDefaultHorizon()).toBe(12);
   });
 
   it('round-trips a numeric horizon', async () => {
