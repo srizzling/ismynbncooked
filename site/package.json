@@ -13,21 +13,21 @@
     "fixtures": "node tests/fixtures/generate.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0",
+    "@playwright/test": "^1.64.1",
     "pixelmatch": "^8.0.0",
     "pngjs": "^7.0.0",
-    "vitest": "^5.0.4",
-    "wrangler": "^4.150.0"
+    "vitest": "^5.0.5",
+    "wrangler": "^4.152.0"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.3.4",
-    "@astrojs/preact": "^6.0.6",
+    "@astrojs/cloudflare": "^14.4.2",
+    "@astrojs/preact": "^6.1.1",
     "@resvg/resvg-wasm": "^2.6.2",
     "@tailwindcss/vite": "^4",
-    "astro": "^7.3.8",
-    "katex": "^0.18.10",
+    "astro": "^7.4.2",
+    "katex": "^0.19.0",
     "preact": "^10.25.0",
-    "satori": "^0.25.0",
+    "satori": "^0.63.2",
     "tailwindcss": "^4.3.3"
   }
 }
