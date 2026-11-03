@@ -71,8 +71,6 @@ jobs:
           ref: ${{ steps.pr.outputs.sha }}
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -155,8 +153,6 @@ jobs:
           ref: ${{ needs.preview-site.outputs.sha }}
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:

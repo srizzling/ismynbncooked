@@ -1,6 +1,7 @@
 {
   "name": "ismynbncooked",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "pnpm --filter ismynbncooked-site dev",
     "build": "pnpm --filter ismynbncooked-site build",
