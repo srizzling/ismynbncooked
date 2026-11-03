@@ -102,6 +102,8 @@ jobs:
           path: base
 
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: head/package.json
 
       - uses: actions/setup-node@v4
         with:
