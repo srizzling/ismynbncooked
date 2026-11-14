@@ -24,7 +24,7 @@
     "@astrojs/preact": "^6.0.6",
     "@resvg/resvg-wasm": "^2.6.2",
     "@tailwindcss/vite": "^4",
-    "astro": "^7.3.8",
+    "astro": "^7.4.7",
     "katex": "^0.18.10",
     "preact": "^10.25.0",
     "satori": "^0.25.0",
